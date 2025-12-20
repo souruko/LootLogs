@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<Plugin> 
+	<Information>
+		<Name>LootLogs2</Name>
+		<Author>Souru</Author>
+		<Version>2.0.0</Version>
+		<Description>...</Description>
+	</Information>
+	<Package>LootLogs2.Main</Package>
+	<Configuration Apartment="LootLogs2" />
+</Plugin>
