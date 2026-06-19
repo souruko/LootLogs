@@ -8,7 +8,7 @@
 -- process match ----------------------------------------------------------------------------------
 function ProcessMatch(message, log, logIndex)
 
-    local logs = _G.Logs[_G.name].logs
+    local logs = _G.Logs[_G.characterId].logs
 
     -- open or done
     if log.type == 1 then

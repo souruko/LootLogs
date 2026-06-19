@@ -1,24 +1,22 @@
 
 
-ContentItem = class(Turbine.UI.ListBox)
+ServerItem = class(Turbine.UI.ListBox)
 -- character item constructor --------------------------------------------------------------------------
-function ContentItem:Constructor(content, index, sidebar)
+function ServerItem:Constructor(name, sidebar)
 	Turbine.UI.ListBox.Constructor( self )
 
-    self.content = content
-    self.index = index
-    self.name = content.name
+    self.name = name
     self.sidebar = sidebar
     self.searchText = ""
 
-    if _G.Settings.content[self.index] == nil then
-        _G.Settings.content[self.index] = {}
-        _G.Settings.content[self.index].collapsed = false
+    if _G.Settings.servers[name] == nil then
+        _G.Settings.servers[name] = {}
+        _G.Settings.servers[name].collapsed = false
     end
-    self.settings = _G.Settings.content[self.index]
+    self.settings = _G.Settings.servers[name]
 
     self.hover = false
-    self.isCollapsed = _G.Settings.content[self.index].collapsed
+    self.isCollapsed = _G.Settings.servers[name].collapsed
 
     self:Build()
     self:ApplySettings()
@@ -26,19 +24,19 @@ function ContentItem:Constructor(content, index, sidebar)
 
 end
 
-function ContentItem:AddChild(child)
+function ServerItem:AddChild(child)
 
     self.children[#self.children+1] = child
 
 end
 
-function ContentItem:FillChildren()
+function ServerItem:FillChildren()
 
     self:ClearItems()
     self:AddItem(self.blank)
 
     if string.find(self.name, self.searchText) then
-        -- if search is in content name add all children
+        -- if search is in server name add all children
         for _, child in ipairs(self.children) do
             self:AddItem(child)
         end
@@ -59,7 +57,7 @@ function ContentItem:FillChildren()
 
 end
 
-function ContentItem:ClearChildren()
+function ServerItem:ClearChildren()
 
     self.children = {}
     self:ClearItems()
@@ -67,19 +65,19 @@ function ContentItem:ClearChildren()
 
 end
 
-function ContentItem:SetSelected(value)
+function ServerItem:SetSelected(value)
 
     if value then
         self.background1:SetBackColor(Turbine.UI.Color(0.28, 0.22, 0.08))
-        self.contentName:SetForeColor(Turbine.UI.Color(1.0, 0.88, 0.55))
+        self.serverName:SetForeColor(Turbine.UI.Color(1.0, 0.88, 0.55))
     else
         self.background1:SetBackColor(Turbine.UI.Color(0.10, 0.08, 0.04))
-        self.contentName:SetForeColor(Turbine.UI.Color(0.73, 0.65, 0.50))
+        self.serverName:SetForeColor(Turbine.UI.Color(0.73, 0.65, 0.50))
     end
 
 end
 
-function ContentItem:SetCollapsed(value)
+function ServerItem:SetCollapsed(value)
 
     if value == nil then
         value = not(self.isCollapsed)
@@ -88,12 +86,12 @@ function ContentItem:SetCollapsed(value)
     self.isCollapsed = value
     self:ApplyCollapsed(self.isCollapsed)
 
-    _G.Settings.content[self.index].collapsed = value
+    _G.Settings.servers[self.name].collapsed = value
     _G.SaveSettings()
 
 end
 
-function ContentItem:ApplyCollapsed(value)
+function ServerItem:ApplyCollapsed(value)
 
     if value then
         self:SetHeight(35)
@@ -105,28 +103,28 @@ function ContentItem:ApplyCollapsed(value)
 
 end
 
-function ContentItem:Clicked()
+function ServerItem:Clicked()
 
-    self.sidebar:ContentSelected(self)
+    self.sidebar:ServerSelected(self)
 
 end
 
-function ContentItem:SizeChanged()
+function ServerItem:SizeChanged()
 
     local width, height = self:GetSize()
 
     self.blank:SetWidth(width)
     self.frame1:SetWidth(width - 60)
     self.background1:SetWidth(width - 62)
-    self.contentName:SetWidth(width - 62)
+    self.serverName:SetWidth(width - 62)
 
 end
 
-function ContentItem:ApplySettings()
+function ServerItem:ApplySettings()
 
 end
 
-function ContentItem:Build()
+function ServerItem:Build()
 
     self:SetHeight(35)
     self:SetMouseVisible(false)
@@ -204,15 +202,15 @@ function ContentItem:Build()
         end
     end
 
-    self.contentName = Turbine.UI.Label()
-    self.contentName:SetParent(self.background1)
-    self.contentName:SetHeight(18)
-    self.contentName:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
-    self.contentName:SetFontStyle(Turbine.UI.FontStyle.Outline)
-    self.contentName:SetFont(Turbine.UI.Lotro.Font.Verdana18)
-    self.contentName:SetText(self.name)
-    self.contentName:SetMouseVisible(false)
-    self.contentName:SetForeColor(Turbine.UI.Color(0.73, 0.65, 0.50))
+    self.serverName = Turbine.UI.Label()
+    self.serverName:SetParent(self.background1)
+    self.serverName:SetHeight(18)
+    self.serverName:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
+    self.serverName:SetFontStyle(Turbine.UI.FontStyle.Outline)
+    self.serverName:SetFont(Turbine.UI.Lotro.Font.Verdana18)
+    self.serverName:SetText(self.name)
+    self.serverName:SetMouseVisible(false)
+    self.serverName:SetForeColor(Turbine.UI.Color(0.73, 0.65, 0.50))
 
     self:AddItem(self.blank)
 

@@ -1,12 +1,12 @@
 
 
-CharacterItem = class(Turbine.UI.Control)
--- character item constructor --------------------------------------------------------------------------
-function CharacterItem:Constructor(id, character, sidebar)
+InstanceItem = class(Turbine.UI.Control)
+-- instance item constructor --------------------------------------------------------------------------
+function InstanceItem:Constructor(id, instance, sidebar)
 	Turbine.UI.Control.Constructor( self )
 
     self.id = id
-    self.character = character
+    self.instance = instance
     self.sidebar = sidebar
     self.hover = false
 
@@ -15,7 +15,7 @@ function CharacterItem:Constructor(id, character, sidebar)
 
 end
 
-function CharacterItem:SetSelected(value)
+function InstanceItem:SetSelected(value)
 
     if value then
         self.background1:SetBackColor(Turbine.UI.Color(0.22, 0.18, 0.08))
@@ -27,13 +27,13 @@ function CharacterItem:SetSelected(value)
 
 end
 
-function CharacterItem:Clicked()
+function InstanceItem:Clicked()
 
-    self.sidebar:CharacterSelected(self)
+    self.sidebar:InstanceSelected(self)
 
 end
 
-function CharacterItem:SizeChanged()
+function InstanceItem:SizeChanged()
 
     local width, height = self:GetSize()
 
@@ -43,11 +43,11 @@ function CharacterItem:SizeChanged()
 
 end
 
-function CharacterItem:ApplySettings()
+function InstanceItem:ApplySettings()
 
 end
 
-function CharacterItem:Build()
+function InstanceItem:Build()
 
     self:SetMouseVisible(false)
     self:SetHeight(35)
@@ -86,7 +86,7 @@ function CharacterItem:Build()
     self.classIcon:SetPosition(4, 4)
     self.classIcon:SetSize(20, 20)
     self.classIcon:SetBlendMode(Turbine.UI.BlendMode.Overlay)
-    self.classIcon:SetBackground(_G.ClassIcons[self.character.class])
+    self.classIcon:SetBackground(_G.ClassIcons[self.instance.class])
 
     self.name = Turbine.UI.Label()
     self.name:SetParent(self.background1)
@@ -95,7 +95,7 @@ function CharacterItem:Build()
     self.name:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     self.name:SetFontStyle(Turbine.UI.FontStyle.Outline)
     self.name:SetFont(Turbine.UI.Lotro.Font.Verdana18)
-    self.name:SetText(self.character.name)
+    self.name:SetText(self.instance.name)
     self.name:SetMouseVisible(false)
     self.name:SetForeColor(Turbine.UI.Color(0.73, 0.65, 0.50))
 

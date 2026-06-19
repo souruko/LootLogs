@@ -4,6 +4,16 @@
 --= load and save plugin data
 --=================================================================================================
 
+function FindCurrentCharacter()
+    for id, character in pairs(_G.Logs) do
+        if character.name == _G.name then
+            return id
+        end
+    end
+
+    return nil
+end
+
 -- server -----------------------------------------------------------------------------------------
 
 function SaveServerCompleteHandler()
@@ -31,12 +41,25 @@ _G.Server = Turbine.PluginData.Load(Turbine.DataScope.Server, "GetServer", LoadS
 -- printAlerts
 -- printWelcome
 -- useToDo
+-- showServers
 --
 -- window
 -- -- width
 -- -- height
 -- -- left
 -- -- top
+-- 
+-- servers
+-- -- collapsed
+-- content
+-- -- collapsed
+-- selected
+-- -- todo
+-- -- tab (content/characters)
+-- -- server
+-- -- character
+-- -- content
+-- -- instance
 
 function SaveSettingsCompleteHandler()
     PrintAlert("LL: Settings saved!")
@@ -44,7 +67,7 @@ function SaveSettingsCompleteHandler()
 end
 
 function _G.SaveSettings()
-    -- Turbine.PluginData.Save(Turbine.DataScope.Account, "LootSettings", _G.Logs, SaveSettingsCompleteHandler)
+    Turbine.PluginData.Save(Turbine.DataScope.Account, "LootSettings", _G.Settings, SaveSettingsCompleteHandler)
 
 end
 
@@ -62,11 +85,26 @@ if _G.Settings == nil then
     _G.Settings.printAlerts = true
     _G.Settings.printWelcome = true
     _G.Settings.showToDo = true
+    _G.Settings.showServers = true
+    _G.Settings.previousId = 3
+
     _G.Settings.window = {}
     _G.Settings.window.left = 200
     _G.Settings.window.top = 200
     _G.Settings.window.width = 1000
     _G.Settings.window.height = 800
+
+    _G.Settings.servers = {}
+    _G.Settings.content = {}
+
+    _G.Settings.selected = {}
+    _G.Settings.selected.todo = false
+    _G.Settings.selected.tab = _G.Tab.Characters
+    _G.Settings.selected.server = nil
+    _G.Settings.selected.character = nil
+    _G.Settings.selected.content = nil
+    _G.Settings.selected.instance = nil
+
 end
 
 -- logs ---------------------------------------------------------------------------------------------
@@ -75,6 +113,7 @@ end
 -- ['character name'] {
 --     class = 'character class',
 --     enabled = true,
+--     server = 'Orcrist',
 --     logs['eventIndex'] {
 --         value = 'displayed value',
 --         timeOfDeath = 'end timestamp'
@@ -87,7 +126,7 @@ function SaveLogsCompleteHandler()
 end
 
 function _G.SaveLogs()
-    Turbine.PluginData.Save(Turbine.DataScope.Server, "LootLogs", _G.Logs, SaveLogsCompleteHandler)
+    Turbine.PluginData.Save(Turbine.DataScope.Account, "LootLogs", _G.Logs, SaveLogsCompleteHandler)
 
 end
 
@@ -95,7 +134,7 @@ function LoadLogsCompleteHandler()
 
 end
 
-_G.Logs = Turbine.PluginData.Load(Turbine.DataScope.Server, "LootLogs", LoadLogsCompleteHandler)
+_G.Logs = Turbine.PluginData.Load(Turbine.DataScope.Account, "LootLogs", LoadLogsCompleteHandler)
 
 -- set defaults
 if _G.Logs == nil then
@@ -103,8 +142,12 @@ if _G.Logs == nil then
 end
 
 -- upsert current character
-if _G.Logs[_G.name] == nil then
-    _G.Logs[_G.name] = {
+_G.characterId = FindCurrentCharacter()
+if _G.characterId == nil then
+    _G.Settings.previousId = _G.Settings.previousId + 1
+    _G.characterId = _G.Settings.previousId
+    _G.Logs[_G.characterId] = {
+        ["name"] = _G.name,
         ["class"] = _G.localPlayer:GetClass(),
         ["enabled"] = true,
         ["logs"] = {}
@@ -116,7 +159,7 @@ end
 local currentTime = Turbine.Engine.GetLocalTime()
 
 -- iterate all characters
-for characterName, character in pairs(_G.Logs) do
+for id, character in pairs(_G.Logs) do
     -- iterate all logs
     for index, log in pairs(character.logs) do
         
@@ -133,8 +176,8 @@ end
 if _G.Settings.printWelcome then
 
     Turbine.Shell.WriteLine("LL: == LootLogs ==============================")
-    if #_G.Logs[_G.name].logs > 0 then 
-        for index, log in pairs(_G.Logs[_G.name].logs) do
+    if #_G.Logs[_G.characterId].logs > 0 then 
+        for index, log in pairs(_G.Logs[_G.characterId].logs) do
             Turbine.Shell.WriteLine("LL: " .. _G.Events[index].name .. " will reset in " .. math.floor(log.timeOfDeath - currentTime)  .. "s.")
         end
 

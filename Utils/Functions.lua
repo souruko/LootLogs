@@ -23,3 +23,32 @@ function _G.TableContains(t, value)
     end
     return false
 end
+
+function RemoveDuplicates(t)
+    local seen = {}
+    local result = {}
+
+    for _, value in ipairs(t) do
+        if not seen[value] then
+            seen[value] = true
+            table.insert(result, value)
+        end
+    end
+
+    return result
+end
+
+function _G.GetServerList()
+    
+    local serverList = {}
+    for id, character in pairs(_G.Logs) do
+        if character.server and character.enabled then
+            serverList[#serverList+1] = character.server
+        end
+    end
+
+    serverList = RemoveDuplicates(serverList)
+
+    return serverList
+
+end

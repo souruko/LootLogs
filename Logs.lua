@@ -12,30 +12,23 @@ local Thursday = 5
 local Frieday = 6
 local Saturday = 7
 
-
-
-local test = Turbine.Engine.GetDate()
-Turbine.Shell.WriteLine(test.DayOfWeek)
-
 -- content -----------------------------------------------------------------------------
 _G.Content = {
     [1] = {
         name = "Zwergen update",
         level = "140"
+    },
+    [2] = {
+        name = "Strand Urlaub",
+        level = "150"
     }
 }
 
 -- instances ---------------------------------------------------------------------------
 _G.Instances = {
     [1] = {
-        name = "HoA"
-    }
-}
-
--- tiers -------------------------------------------------------------------------------
-_G.Tiers = {
-    [1] = {
-        name = "T1"
+        name = "HoA",
+        content = 1
     }
 }
 
@@ -44,9 +37,8 @@ _G.Events = {
     [1] = {
         name = "Hirmil",
         match = "The chest of Hirmil",
-        content = 1,
         instance = 1,
-        tier = 1,
+        tier = "T1",
         type = EventTypes.Done,
         reset = {
             days = {Monday, Thusday},

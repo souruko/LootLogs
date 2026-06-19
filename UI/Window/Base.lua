@@ -33,6 +33,12 @@ function _G.LLWindow:Constructor()
 
 end
 
+function _G.LLWindow:SelectionChanged()
+
+    self.contentView:UpdateContent()
+    
+end
+
 function _G.LLWindow:SizeChanged()
 
     local width, height = self:GetSize()

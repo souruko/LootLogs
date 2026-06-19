@@ -5,6 +5,28 @@ ContentView = class(Turbine.UI.Control)
 function ContentView:Constructor()
 	Turbine.UI.Control.Constructor( self )
 
+    self:Build()
+
+end
+
+function ContentView:UpdateContent()
+
+    
+    
+end
+
+function ContentView:SizeChanged()
+    
+    local width, height = self:GetSize()
+
+    self.background1:SetSize(width - 10, height - 10)
+    self.frame1:SetSize(width - 20, height - 20)
+    self.background2:SetSize(width - 22, height - 22)
+
+end
+
+function ContentView:Build()
+   
 	self:SetBackColor(Turbine.UI.Color(0.2, 0.2, 0.2))
 
     self.background1 = Turbine.UI.Control()
@@ -21,15 +43,5 @@ function ContentView:Constructor()
     self.background2:SetParent(self.frame1)
     self.background2:SetBackColor(Turbine.UI.Color.Black)
     self.background2:SetPosition(1, 1)
-    
-end
-
-function ContentView:SizeChanged()
-    
-    local width, height = self:GetSize()
-
-    self.background1:SetSize(width - 10, height - 10)
-    self.frame1:SetSize(width - 20, height - 20)
-    self.background2:SetSize(width - 22, height - 22)
-
+     
 end
