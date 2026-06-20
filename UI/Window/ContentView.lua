@@ -21,7 +21,9 @@ function ContentView:UpdateContent()
 
     self:UpdateHeader()
 
-    if tab == _G.Tab.Content and instId ~= nil then
+    if _G.Settings.selected.customList then
+        self:ShowCustomListView()
+    elseif tab == _G.Tab.Content and instId ~= nil then
         self:ShowInstanceView(instId)
     elseif tab == _G.Tab.Content and contentId ~= nil then
         self:ShowContentView(contentId)
@@ -50,7 +52,13 @@ function ContentView:UpdateHeader()
     local instId    = _G.Settings.selected.instance
     local contentId = _G.Settings.selected.content
 
-    if tab == _G.Tab.Content and instId ~= nil then
+    if _G.Settings.selected.customList then
+        self.headerIcon:SetVisible(false)
+        self.headerName:SetText("Custom List")
+        self.headerName:SetLeft(10)
+        self.headerType:SetText("List  ")
+
+    elseif tab == _G.Tab.Content and instId ~= nil then
         local instance = _G.Instances[instId]
         if instance then
             self.headerIcon:SetVisible(false)
@@ -148,7 +156,7 @@ end
 -- ------------------------------------------------------------------------------------------------
 -- Shared helper: appends tier-header + boss rows for one instance into the listbox.
 -- Caller is responsible for clearing and setting up currentRows before the first call.
-function ContentView:_AddInstanceTierRows(instanceId, chars, currentTime, listWidth)
+function ContentView:_AddInstanceTierRows(instanceId, chars, currentTime, listWidth, tierFilter)
 
     -- build: tiers[tierName] = { order, bosses = { bossOrder → { name, indices[] } } }
     local tiers = {}
@@ -177,36 +185,105 @@ function ContentView:_AddInstanceTierRows(instanceId, chars, currentTime, listWi
         self.currentRows[#self.currentRows + 1] = row
     end
 
+    local renderedTiers = 0
     for _, tierName in ipairs(sortedTierNames) do
-        local tierData = tiers[tierName]
+        if tierFilter == nil or tierFilter(tierName) then
+            renderedTiers = renderedTiers + 1
+            local tierData = tiers[tierName]
 
-        addRow(self:MakeTierHeaderRow(tierName))
+            addRow(self:MakeTierHeaderRow(instanceId, tierName))
 
-        local sortedBossOrders = {}
-        for o in pairs(tierData.bosses) do sortedBossOrders[#sortedBossOrders + 1] = o end
-        table.sort(sortedBossOrders)
+            local sortedBossOrders = {}
+            for o in pairs(tierData.bosses) do sortedBossOrders[#sortedBossOrders + 1] = o end
+            table.sort(sortedBossOrders)
 
-        for _, o in ipairs(sortedBossOrders) do
-            local boss = tierData.bosses[o]
+            for _, o in ipairs(sortedBossOrders) do
+                local boss = tierData.bosses[o]
 
-            local completedChars = {}
-            local timeRemaining  = 0
-            for _, character in ipairs(chars) do
-                for _, ei in ipairs(boss.indices) do
-                    if character.logs and character.logs[ei] ~= nil then
-                        timeRemaining = math.max(0, character.logs[ei].timeOfDeath - currentTime)
-                        completedChars[#completedChars + 1] = character
-                        break
+                local completedChars = {}
+                local timeRemaining  = 0
+                for _, character in ipairs(chars) do
+                    for _, ei in ipairs(boss.indices) do
+                        if character.logs and character.logs[ei] ~= nil then
+                            timeRemaining = math.max(0, character.logs[ei].timeOfDeath - currentTime)
+                            completedChars[#completedChars + 1] = character
+                            break
+                        end
                     end
                 end
-            end
 
-            local timeText = #completedChars > 0 and FormatTimeRemaining(timeRemaining) or "—"
-            addRow(self:MakeInstanceBossRow(boss.name, completedChars, timeText))
+                local timeText = #completedChars > 0 and FormatTimeRemaining(timeRemaining) or "—"
+                addRow(self:MakeInstanceBossRow(boss.name, completedChars, timeText))
+            end
         end
     end
 
-    return #sortedTierNames > 0
+    return renderedTiers > 0
+
+end
+
+-- ------------------------------------------------------------------------------------------------
+
+function ContentView:ShowCustomListView()
+
+    self.listbox:ClearItems()
+    self.currentRows = {}
+
+    local listWidth   = self.listbox:GetWidth()
+    local currentTime = Turbine.Engine.GetLocalTime()
+
+    local chars = {}
+    for charId, character in pairs(_G.Logs) do
+        if character.enabled then chars[#chars + 1] = character end
+    end
+    table.sort(chars, function(a, b) return a.name < b.name end)
+
+    local function addRow(row)
+        row:SetWidth(listWidth)
+        self.listbox:AddItem(row)
+        self.currentRows[#self.currentRows + 1] = row
+    end
+
+    local hadContent = false
+
+    for contentIndex, content in ipairs(_G.Content) do
+
+        local contentInstanceIds = {}
+        for instanceId, instance in pairs(_G.Instances) do
+            if instance.content == contentIndex then
+                local todoTiers = _G.Settings.customList[instanceId]
+                if todoTiers ~= nil then
+                    for _, selected in pairs(todoTiers) do
+                        if selected then
+                            contentInstanceIds[#contentInstanceIds + 1] = instanceId
+                            break
+                        end
+                    end
+                end
+            end
+        end
+        table.sort(contentInstanceIds)
+
+        if #contentInstanceIds > 0 then
+            hadContent = true
+            addRow(self:MakeContentRow(content))
+            for _, instanceId in ipairs(contentInstanceIds) do
+                addRow(self:MakeInstanceRow(_G.Instances[instanceId]))
+                local todoTiers = _G.Settings.customList[instanceId]
+                self:_AddInstanceTierRows(instanceId, chars, currentTime, listWidth, function(tierName)
+                    return todoTiers ~= nil and todoTiers[tierName] == true
+                end)
+            end
+        end
+
+    end
+
+    if not hadContent then
+        local row = self:MakeEmptyRow("No Custom List items selected.")
+        row:SetWidth(listWidth)
+        self.listbox:AddItem(row)
+        self.currentRows[1] = row
+    end
 
 end
 
@@ -410,7 +487,7 @@ end
 
 -- ------------------------------------------------------------------------------------------------
 
-function ContentView:MakeTierHeaderRow(tierName)
+function ContentView:MakeTierHeaderRow(instanceId, tierName)
 
     local row = Turbine.UI.Control()
     row:SetHeight(28)
@@ -436,8 +513,78 @@ function ContentView:MakeTierHeaderRow(tierName)
     label:SetText(tierName)
     label:SetMouseVisible(false)
 
+    -- custom list toggle
+    local checkHover = false
+
+    local checkFrame = Turbine.UI.Control()
+    checkFrame:SetParent(row)
+    checkFrame:SetSize(14, 14)
+    checkFrame:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
+
+    local checkBg = Turbine.UI.Control()
+    checkBg:SetParent(checkFrame)
+    checkBg:SetPosition(1, 1)
+    checkBg:SetSize(12, 12)
+    checkBg:SetMouseVisible(false)
+
+    local function isChecked()
+        local t = _G.Settings.customList
+        return t[instanceId] ~= nil and t[instanceId][tierName] == true
+    end
+
+    local function updateCheckVisual()
+        if isChecked() then
+            checkBg:SetBackColor(Turbine.UI.Color(0.65, 0.54, 0.28))
+        else
+            checkBg:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
+        end
+    end
+
+    updateCheckVisual()
+
+    -- hover tooltip label
+    local hoverLabel = Turbine.UI.Label()
+    hoverLabel:SetParent(row)
+    hoverLabel:SetHeight(28)
+    hoverLabel:SetPosition(20, 0)
+    hoverLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
+    hoverLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    hoverLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
+    hoverLabel:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
+    hoverLabel:SetText("Add to / remove from Custom List")
+    hoverLabel:SetVisible(false)
+    hoverLabel:SetMouseVisible(false)
+
+    checkFrame.MouseEnter = function()
+        checkHover = true
+        checkFrame:SetBackColor(Turbine.UI.Color(0.65, 0.54, 0.28))
+        hoverLabel:SetVisible(true)
+    end
+    checkFrame.MouseLeave = function()
+        checkHover = false
+        checkFrame:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
+        hoverLabel:SetVisible(false)
+    end
+    checkFrame.MouseDown = function()
+        checkBg:SetBackColor(Turbine.UI.Color(0.22, 0.18, 0.08))
+    end
+    checkFrame.MouseUp = function()
+        if checkHover then
+            if _G.Settings.customList[instanceId] == nil then
+                _G.Settings.customList[instanceId] = {}
+            end
+            _G.Settings.customList[instanceId][tierName] = not isChecked()
+            _G.SaveSettings()
+            updateCheckVisual()
+        end
+    end
+
     row.SizeChanged = function()
-        label:SetWidth(row:GetWidth() - 20)
+        local w = row:GetWidth()
+        label:SetWidth(w - 20 - 24)
+        checkFrame:SetTop(7)
+        checkFrame:SetLeft(w - 20)
+        hoverLabel:SetWidth(w - 20 - 24 - 6)
     end
 
     return row
@@ -502,12 +649,7 @@ function ContentView:MakeInstanceBossRow(bossName, completedChars, timeText)
         charsLabel:SetForeColor(Turbine.UI.Color(0.73, 0.65, 0.50))
     end
     charsLabel:SetText(charText)
-    if tooltipText ~= nil then
-        charsLabel:SetToolTip(tooltipText)
-        charsLabel:SetMouseVisible(true)
-    else
-        charsLabel:SetMouseVisible(false)
-    end
+    charsLabel:SetMouseVisible(false)
 
     local timeLabel = Turbine.UI.Label()
     timeLabel:SetParent(row)

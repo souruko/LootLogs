@@ -40,7 +40,7 @@ _G.Server = Turbine.PluginData.Load(Turbine.DataScope.Server, "GetServer", LoadS
 -- timezone
 -- printAlerts
 -- printWelcome
--- useToDo
+-- useCustomList
 -- showServers
 --
 -- window
@@ -54,7 +54,7 @@ _G.Server = Turbine.PluginData.Load(Turbine.DataScope.Server, "GetServer", LoadS
 -- content
 -- -- collapsed
 -- selected
--- -- todo
+-- -- customList
 -- -- tab (content/characters)
 -- -- server
 -- -- character
@@ -83,7 +83,7 @@ if _G.Settings == nil then
     _G.Settings.timezone = 1
     _G.Settings.printAlerts = true
     _G.Settings.printWelcome = true
-    _G.Settings.showToDo = true
+    _G.Settings.showCustomList = true
     _G.Settings.showServers = true
     _G.Settings.previousId = 3
 
@@ -97,13 +97,19 @@ if _G.Settings == nil then
     _G.Settings.content = {}
 
     _G.Settings.selected = {}
-    _G.Settings.selected.todo = false
+    _G.Settings.selected.customList = false
     _G.Settings.selected.tab = _G.Tab.Characters
     _G.Settings.selected.server = nil
     _G.Settings.selected.character = nil
     _G.Settings.selected.content = nil
     _G.Settings.selected.instance = nil
 
+    _G.Settings.customList = {}
+
+end
+
+if _G.Settings.customList == nil then
+    _G.Settings.customList = {}
 end
 
 -- logs ---------------------------------------------------------------------------------------------

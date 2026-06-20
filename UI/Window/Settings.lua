@@ -496,7 +496,7 @@ function Settings:Build()
 
     -- Display
     addRow(self:MakeSectionHeader("Display"))
-    addRow(self:MakeToggleRow("Show To Do", "showToDo", function()
+    addRow(self:MakeToggleRow("Show Custom List", "showCustomList", function()
         self:GetParent().sidebar:ApplySettings()
     end))
     addRow(self:MakeToggleRow("Show Servers", "showServers", function()

@@ -11,7 +11,7 @@ function Sidebar:Constructor()
 	Turbine.UI.Control.Constructor( self )
 
     self:Build()
-    self.toDoSelected = nil
+    self.customListSelected = nil
     self.contentSelected = false
     self.characterSelected = false
     self.selectedContent = nil
@@ -20,7 +20,7 @@ function Sidebar:Constructor()
     self.selectedServer = nil
     self.selectedCharacter = nil
 
-    self.todoHover = false
+    self.customListHover = false
     self.collapseHover = false
     self.contentHover = false
     self.characterHover = false
@@ -41,7 +41,7 @@ function Sidebar:Constructor()
 
     local contentSelected = _G.Settings.selected.tab == _G.Tab.Content
     local characterSelected = _G.Settings.selected.tab == _G.Tab.Characters
-    self:UpdateSelection(_G.Settings.selected.todo, contentSelected, characterSelected)
+    self:UpdateSelection(_G.Settings.selected.customList, contentSelected, characterSelected)
 
 end
 
@@ -329,40 +329,41 @@ function Sidebar:ApplyFilter(text)
 
 end
 
-function Sidebar:UpdateSelection(isTodo, isContent, isCharacter)
+function Sidebar:UpdateSelection(isCustomList, isContent, isCharacter)
 
-    if isTodo then
-        if self.toDoSelected then
-            self.toDoSelected = false
-        else
-            self.toDoSelected = true
-        end
-    end
+    if isCustomList then
+        self.customListSelected = true
+        self.contentSelected = false
+        self.characterSelected = false
+        _G.Settings.selected.customList = true
+        _G.SaveSettings()
 
-    if isContent then
+    elseif isContent then
         if self.contentSelected == false then
             self:FillContentItems()
         end
 
-        self.toDoSelected = false
+        self.customListSelected = false
         self.contentSelected = true
         self.characterSelected = false
         _G.Settings.selected.tab = _G.Tab.Content
+        _G.Settings.selected.customList = false
 
     elseif isCharacter then
         if self.characterSelected == false then
             self:FillCharacterItems()
         end
 
-        self.toDoSelected = false
+        self.customListSelected = false
         self.contentSelected = false
         self.characterSelected = true
         _G.Settings.selected.tab = _G.Tab.Characters
+        _G.Settings.selected.customList = false
     end
 
     self:UpdateSelectionVisual()
 
-    if (isContent or isCharacter) and self:GetParent() ~= nil then
+    if (isCustomList or isContent or isCharacter) and self:GetParent() ~= nil then
         self:GetParent():SelectionChanged()
     end
 
@@ -370,12 +371,12 @@ end
 
 function Sidebar:UpdateSelectionVisual()
 
-    if self.toDoSelected then
+    if self.customListSelected then
         self.background4:SetBackColor(Turbine.UI.Color(0.22, 0.18, 0.08))
-        self.todo:SetForeColor(Turbine.UI.Color(1.0, 0.88, 0.55))
+        self.customList:SetForeColor(Turbine.UI.Color(1.0, 0.88, 0.55))
     else
         self.background4:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
-        self.todo:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
+        self.customList:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
     end
 
     if self.contentSelected then
@@ -420,7 +421,7 @@ function Sidebar:SizeChanged()
     -- todo
     self.frame2:SetWidth(width - 22)
     self.background4:SetWidth(width - 24)
-    self.todo:SetWidth(width - 22)
+    self.customList:SetWidth(width - 22)
 
     -- content / character toggle
     self.frame3:SetWidth(math.floor((width - 22) / 2))
@@ -470,19 +471,19 @@ function Sidebar:ApplySettings()
     local top = 1
 
     -- todo
-    if _G.Settings.showToDo == true then
+    if _G.Settings.showCustomList == true then
 
         self.frame2:SetPosition(1, top)
         self.frame2:SetVisible(true)
         self.background4:SetVisible(true)
-        self.todo:SetVisible(true)
+        self.customList:SetVisible(true)
         top = top + 31
 
     else
 
         self.frame2:SetVisible(false)
         self.background4:SetVisible(false)
-        self.todo:SetVisible(false)
+        self.customList:SetVisible(false)
 
     end
 
@@ -536,11 +537,11 @@ function Sidebar:Build()
     self.background4:SetPosition(1, 1)
     self.background4:SetHeight(28)
     self.background4.MouseEnter = function ()
-        self.todoHover = true
+        self.customListHover = true
         self.frame2:SetBackColor(Turbine.UI.Color(0.65, 0.54, 0.28))
     end
     self.background4.MouseLeave = function ()
-        self.todoHover = false
+        self.customListHover = false
         self.frame2:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
     end
     self.background4.MouseDown = function ()
@@ -548,20 +549,20 @@ function Sidebar:Build()
     end
     self.background4.MouseUp = function ()
         self.background4:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
-        if self.todoHover then
+        if self.customListHover then
             self:UpdateSelection(true, false, false)
         end
     end
 
-    self.todo = Turbine.UI.Label()
-    self.todo:SetParent(self.background4)
-    self.todo:SetHeight(28)
-    self.todo:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
-    self.todo:SetFont(Turbine.UI.Lotro.Font.Verdana16)
-    self.todo:SetFontStyle(Turbine.UI.FontStyle.Outline)
-    self.todo:SetText("ToDo")
-    self.todo:SetMouseVisible(false)
-    self.todo:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
+    self.customList = Turbine.UI.Label()
+    self.customList:SetParent(self.background4)
+    self.customList:SetHeight(28)
+    self.customList:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
+    self.customList:SetFont(Turbine.UI.Lotro.Font.Verdana16)
+    self.customList:SetFontStyle(Turbine.UI.FontStyle.Outline)
+    self.customList:SetText("Custom List")
+    self.customList:SetMouseVisible(false)
+    self.customList:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
 
     -- content / characters row
     self.frame3 = Turbine.UI.Control()
