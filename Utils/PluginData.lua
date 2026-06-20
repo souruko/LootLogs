@@ -149,9 +149,11 @@ if _G.characterId == nil then
         ["name"] = _G.name,
         ["class"] = _G.localPlayer:GetClass(),
         ["enabled"] = true,
-        ["logs"] = {}
+        ["logs"] = {},
+        ["server"] = _G.Server
     }
-
+else
+     _G.Logs[_G.characterId].server = _G.Server
 end
 
 -- remove "dead" logs
