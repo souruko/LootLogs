@@ -29,5 +29,7 @@ import "LootLogs2.ChatParsing"
 
 -- ui ----------------------------------------------------------------------------------------------
 import "LootLogs2.UI.Window.Base"
+import "LootLogs2.UI.QuickLaunch"
 
-Window = _G.LLWindow()
+_G.Window = _G.LLWindow()
+QuickLaunchBtn = _G.QuickLaunch()

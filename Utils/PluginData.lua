@@ -106,10 +106,20 @@ if _G.Settings == nil then
 
     _G.Settings.customList = {}
 
+    _G.Settings.quickLaunch = {}
+    _G.Settings.quickLaunch.left = 100
+    _G.Settings.quickLaunch.top  = 100
+
 end
 
 if _G.Settings.customList == nil then
     _G.Settings.customList = {}
+end
+
+if _G.Settings.quickLaunch == nil then
+    _G.Settings.quickLaunch = {}
+    _G.Settings.quickLaunch.left = 100
+    _G.Settings.quickLaunch.top  = 100
 end
 
 -- logs ---------------------------------------------------------------------------------------------

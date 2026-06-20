@@ -113,7 +113,6 @@ function _G.LLWindow:Constructor()
     self:SetPosition(self.windowSettings.left, self.windowSettings.top)
     self:SetSize(self.windowSettings.width, self.windowSettings.height)
 
-    self:SetVisible(true)
     self.clockUpdater:SetWantsUpdates(true)
     self.contentView:UpdateContent()
 
