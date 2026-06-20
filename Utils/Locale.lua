@@ -2,6 +2,12 @@
 _G.Locale = {
 
     en = {
+        -- character header buttons
+        clearLogsBtn             = "clr",
+        deleteCharBtn            = "del",
+        clearLogsTooltip         = "Clear character logs",
+        deleteCharTooltip        = "Delete character",
+        deleteCharTooltipDisabled = "Cannot delete active character",
         -- sidebar
         customListBtn     = "Custom List",
         contentBtn        = "Content",
@@ -41,6 +47,11 @@ _G.Locale = {
     },
 
     de = {
+        clearLogsBtn             = "clr",
+        deleteCharBtn            = "del",
+        clearLogsTooltip         = "Charakter-Logs leeren",
+        deleteCharTooltip        = "Charakter loeschen",
+        deleteCharTooltipDisabled = "Aktiven Charakter nicht loeschbar",
         customListBtn     = "Eigene Liste",
         contentBtn        = "Inhalt",
         charactersBtn     = "Charaktere",
@@ -73,6 +84,11 @@ _G.Locale = {
     },
 
     fr = {
+        clearLogsBtn             = "clr",
+        deleteCharBtn            = "del",
+        clearLogsTooltip         = "Effacer les journaux",
+        deleteCharTooltip        = "Supprimer le personnage",
+        deleteCharTooltipDisabled = "Impossible de supprimer le personnage actif",
         customListBtn     = "Liste perso",
         contentBtn        = "Contenu",
         charactersBtn     = "Personnages",

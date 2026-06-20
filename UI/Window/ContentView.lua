@@ -52,6 +52,10 @@ function ContentView:UpdateHeader()
     local instId    = _G.Settings.selected.instance
     local contentId = _G.Settings.selected.content
 
+    self.clearLogsFrame:SetVisible(false)
+    self.deleteCharFrame:SetVisible(false)
+    self.headerTooltip:SetVisible(false)
+
     if _G.Settings.selected.customList then
         self.headerIcon:SetVisible(false)
         self.headerName:SetText(_G.L("customListName"))
@@ -84,6 +88,17 @@ function ContentView:UpdateHeader()
             self.headerName:SetText(character.name)
             self.headerName:SetLeft(32)
             self.headerType:SetText(_G.L("headerCharacter"))
+            self.clearLogsFrame:SetVisible(true)
+            local isCurrentChar = (charId == _G.characterId)
+            self.deleteCharDisabled = isCurrentChar
+            self.deleteCharFrame:SetVisible(true)
+            if isCurrentChar then
+                self.deleteCharFrame:SetBackColor(Turbine.UI.Color(0.20, 0.17, 0.10))
+                self.deleteCharLabel:SetForeColor(Turbine.UI.Color(0.22, 0.18, 0.10))
+            else
+                self.deleteCharFrame:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
+                self.deleteCharLabel:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
+            end
         end
 
     elseif tab == _G.Tab.Characters and serverId ~= nil then
@@ -266,7 +281,6 @@ function ContentView:ShowCustomListView()
 
         if #contentInstanceIds > 0 then
             hadContent = true
-            addRow(self:MakeContentRow(content))
             for _, instanceId in ipairs(contentInstanceIds) do
                 addRow(self:MakeInstanceRow(_G.Instances[instanceId]))
                 local todoTiers = _G.Settings.customList[instanceId]
@@ -284,6 +298,33 @@ function ContentView:ShowCustomListView()
         self.listbox:AddItem(row)
         self.currentRows[1] = row
     end
+
+end
+
+-- ------------------------------------------------------------------------------------------------
+
+function ContentView:ClearCharacterLogs()
+
+    local charId = _G.Settings.selected.character
+    if charId == nil then return end
+    local character = _G.Logs[charId]
+    if character == nil then return end
+    character.logs = {}
+    _G.SaveLogs()
+    self:UpdateContent()
+
+end
+
+function ContentView:DeleteCharacter()
+
+    local charId = _G.Settings.selected.character
+    if charId == nil or charId == _G.characterId then return end
+    _G.Logs[charId] = nil
+    _G.Settings.selected.character = nil
+    _G.SaveLogs()
+    _G.SaveSettings()
+    _G.Window.sidebar:ClearSelection()
+    self:UpdateContent()
 
 end
 
@@ -905,10 +946,13 @@ function ContentView:SizeChanged()
     -- header + separator = 33px
     local headerW = width - 22
     self.header:SetWidth(headerW)
-    self.headerName:SetWidth(headerW - 100)
+    self.headerName:SetWidth(headerW - 168)
     self.headerType:SetWidth(80)
-    self.headerType:SetLeft(headerW - 82)
+    self.headerType:SetLeft(headerW - 148)
     self.separator:SetWidth(headerW)
+    self.clearLogsFrame:SetPosition(headerW - 64, 5)
+    self.deleteCharFrame:SetPosition(headerW - 34, 5)
+    self.headerTooltip:SetWidth(headerW - 70)
 
     local listW = headerW - 12
     self.background2:SetSize(headerW, height - 55)
@@ -970,6 +1014,120 @@ function ContentView:Build()
     self.headerType:SetFontStyle(Turbine.UI.FontStyle.Outline)
     self.headerType:SetForeColor(Turbine.UI.Color(0.45, 0.38, 0.26))
     self.headerType:SetMouseVisible(false)
+
+    -- clear logs button
+    self.clearLogsFrame = Turbine.UI.Control()
+    self.clearLogsFrame:SetParent(self.header)
+    self.clearLogsFrame:SetSize(28, 22)
+    self.clearLogsFrame:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
+    self.clearLogsFrame:SetVisible(false)
+
+    self.clearLogsBg = Turbine.UI.Control()
+    self.clearLogsBg:SetParent(self.clearLogsFrame)
+    self.clearLogsBg:SetPosition(1, 1)
+    self.clearLogsBg:SetSize(26, 20)
+    self.clearLogsBg:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
+
+    local clearHover = false
+    self.clearLogsBg.MouseEnter = function()
+        clearHover = true
+        self.clearLogsFrame:SetBackColor(Turbine.UI.Color(0.65, 0.54, 0.28))
+        self.headerTooltip:SetText(_G.L("clearLogsTooltip"))
+        self.headerTooltip:SetVisible(true)
+        self.headerType:SetVisible(false)
+    end
+    self.clearLogsBg.MouseLeave = function()
+        clearHover = false
+        self.clearLogsFrame:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
+        self.headerTooltip:SetVisible(false)
+        self.headerType:SetVisible(true)
+    end
+    self.clearLogsBg.MouseDown = function()
+        self.clearLogsBg:SetBackColor(Turbine.UI.Color(0.18, 0.15, 0.08))
+    end
+    self.clearLogsBg.MouseUp = function()
+        self.clearLogsBg:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
+        if clearHover then
+            self:ClearCharacterLogs()
+        end
+    end
+
+    self.clearLogsLabel = Turbine.UI.Label()
+    self.clearLogsLabel:SetParent(self.clearLogsBg)
+    self.clearLogsLabel:SetSize(26, 20)
+    self.clearLogsLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
+    self.clearLogsLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    self.clearLogsLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
+    self.clearLogsLabel:SetText(_G.L("clearLogsBtn"))
+    self.clearLogsLabel:SetMouseVisible(false)
+    self.clearLogsLabel:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
+
+    -- delete character button
+    self.deleteCharDisabled = false
+
+    self.deleteCharFrame = Turbine.UI.Control()
+    self.deleteCharFrame:SetParent(self.header)
+    self.deleteCharFrame:SetSize(28, 22)
+    self.deleteCharFrame:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
+    self.deleteCharFrame:SetVisible(false)
+
+    self.deleteCharBg = Turbine.UI.Control()
+    self.deleteCharBg:SetParent(self.deleteCharFrame)
+    self.deleteCharBg:SetPosition(1, 1)
+    self.deleteCharBg:SetSize(26, 20)
+    self.deleteCharBg:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
+
+    local deleteHover = false
+    self.deleteCharBg.MouseEnter = function()
+        if not self.deleteCharDisabled then
+            deleteHover = true
+            self.deleteCharFrame:SetBackColor(Turbine.UI.Color(0.65, 0.54, 0.28))
+            self.headerTooltip:SetText(_G.L("deleteCharTooltip"))
+        else
+            self.headerTooltip:SetText(_G.L("deleteCharTooltipDisabled"))
+        end
+        self.headerTooltip:SetVisible(true)
+        self.headerType:SetVisible(false)
+    end
+    self.deleteCharBg.MouseLeave = function()
+        deleteHover = false
+        self.deleteCharFrame:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
+        self.headerTooltip:SetVisible(false)
+        self.headerType:SetVisible(true)
+    end
+    self.deleteCharBg.MouseDown = function()
+        if not self.deleteCharDisabled then
+            self.deleteCharBg:SetBackColor(Turbine.UI.Color(0.18, 0.15, 0.08))
+        end
+    end
+    self.deleteCharBg.MouseUp = function()
+        self.deleteCharBg:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
+        if deleteHover and not self.deleteCharDisabled then
+            self:DeleteCharacter()
+        end
+    end
+
+    self.deleteCharLabel = Turbine.UI.Label()
+    self.deleteCharLabel:SetParent(self.deleteCharBg)
+    self.deleteCharLabel:SetSize(26, 20)
+    self.deleteCharLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
+    self.deleteCharLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    self.deleteCharLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
+    self.deleteCharLabel:SetText(_G.L("deleteCharBtn"))
+    self.deleteCharLabel:SetMouseVisible(false)
+    self.deleteCharLabel:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
+
+    -- shared tooltip label for the two character action buttons
+    self.headerTooltip = Turbine.UI.Label()
+    self.headerTooltip:SetParent(self.header)
+    self.headerTooltip:SetPosition(0, 0)
+    self.headerTooltip:SetHeight(32)
+    self.headerTooltip:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
+    self.headerTooltip:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    self.headerTooltip:SetFontStyle(Turbine.UI.FontStyle.Outline)
+    self.headerTooltip:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
+    self.headerTooltip:SetVisible(false)
+    self.headerTooltip:SetMouseVisible(false)
 
     -- separator line
     self.separator = Turbine.UI.Control()

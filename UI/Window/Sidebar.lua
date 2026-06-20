@@ -317,6 +317,32 @@ function Sidebar:RefreshItems()
 
 end
 
+function Sidebar:ClearSelection()
+
+    self:CreateServerItems()
+    self:CreateCharacterItems()
+
+    local itemWidth = self:GetWidth() - 22
+    for _, item in pairs(self.serverItems) do
+        item:SetWidth(itemWidth)
+    end
+    for _, item in pairs(self.characterItems) do
+        item:SetWidth(itemWidth)
+    end
+
+    self.selectedCharacter = nil
+    self.selectedServer    = nil
+
+    if self.characterSelected then
+        self:FillCharacterItems()
+    elseif self.contentSelected then
+        self:FillContentItems()
+    end
+
+    self:UpdateSelectionVisual()
+
+end
+
 function Sidebar:ApplyFilter(text)
 
     self.filterText = text
