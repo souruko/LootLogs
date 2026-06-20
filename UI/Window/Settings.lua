@@ -103,10 +103,10 @@ function Settings:MakeToggleRow(labelText, settingKey, onChanged)
 
     local function RefreshToggle()
         if _G.Settings[settingKey] then
-            toggleLabel:SetText("ON")
+            toggleLabel:SetText(_G.L("toggleOn"))
             toggleLabel:SetForeColor(COL_ACCENT)
         else
-            toggleLabel:SetText("OFF")
+            toggleLabel:SetText(_G.L("toggleOff"))
             toggleLabel:SetForeColor(COL_DIM)
         end
     end
@@ -162,7 +162,7 @@ function Settings:MakeTimezoneRow()
     nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana14)
     nameLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
     nameLabel:SetForeColor(COL_TEXT)
-    nameLabel:SetText("Timezone (UTC offset)")
+    nameLabel:SetText(_G.L("timezone"))
     nameLabel:SetMouseVisible(false)
 
     local BTN_W = 24
@@ -348,6 +348,160 @@ end
 
 -- ------------------------------------------------------------------------------------------------
 
+function Settings:MakeLanguageRow()
+
+    local row = Turbine.UI.Control()
+    row:SetHeight(34)
+    row:SetBackColor(COL_PANEL)
+    row:SetMouseVisible(false)
+
+    local nameLabel = Turbine.UI.Label()
+    nameLabel:SetParent(row)
+    nameLabel:SetPosition(12, 0)
+    nameLabel:SetHeight(34)
+    nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+    nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana14)
+    nameLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
+    nameLabel:SetForeColor(COL_TEXT)
+    nameLabel:SetText(_G.L("sectionLanguage"))
+    nameLabel:SetMouseVisible(false)
+
+    local LANGS  = { "en", "de", "fr" }
+    local LABELS = { "EN", "DE", "FR" }
+    local BTN_W  = 36
+    local BTN_H  = 22
+    local buttons = {}
+
+    local function RefreshButtons()
+        for i, lang in ipairs(LANGS) do
+            if _G.Settings.language == lang then
+                buttons[i].frame:SetBackColor(COL_HOVER)
+                buttons[i].label:SetForeColor(COL_ACCENT)
+            else
+                buttons[i].frame:SetBackColor(COL_FRAME)
+                buttons[i].label:SetForeColor(COL_DIM)
+            end
+        end
+    end
+
+    for i, lang in ipairs(LANGS) do
+        local frame = Turbine.UI.Control()
+        frame:SetParent(row)
+        frame:SetSize(BTN_W + 2, BTN_H + 2)
+        frame:SetBackColor(COL_FRAME)
+
+        local bg = Turbine.UI.Control()
+        bg:SetParent(frame)
+        bg:SetPosition(1, 1)
+        bg:SetSize(BTN_W, BTN_H)
+        bg:SetBackColor(COL_BG)
+
+        local lbl = Turbine.UI.Label()
+        lbl:SetParent(bg)
+        lbl:SetSize(BTN_W, BTN_H)
+        lbl:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
+        lbl:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+        lbl:SetFontStyle(Turbine.UI.FontStyle.Outline)
+        lbl:SetForeColor(COL_DIM)
+        lbl:SetText(LABELS[i])
+        lbl:SetMouseVisible(false)
+
+        buttons[i] = { frame = frame, bg = bg, label = lbl }
+
+        local hover = false
+        bg.MouseEnter = function()
+            hover = true
+            if _G.Settings.language ~= lang then
+                frame:SetBackColor(COL_HOVER)
+            end
+        end
+        bg.MouseLeave = function()
+            hover = false
+            RefreshButtons()
+        end
+        bg.MouseDown = function()
+            bg:SetBackColor(COL_PRESS)
+        end
+        bg.MouseUp = function()
+            bg:SetBackColor(COL_BG)
+            if hover and _G.Settings.language ~= lang then
+                _G.Settings.language = lang
+                _G.SaveSettings()
+                self:Rebuild()
+                self:GetParent().sidebar:ApplyLanguage()
+                self:GetParent().contentView:UpdateContent()
+            end
+        end
+    end
+
+    RefreshButtons()
+
+    row.SizeChanged = function()
+        local w      = row:GetWidth()
+        local top    = math.floor((34 - BTN_H - 2) / 2)
+        local right  = w - 10
+        for i = #LANGS, 1, -1 do
+            buttons[i].frame:SetLeft(right - (BTN_W + 2))
+            buttons[i].frame:SetTop(top)
+            right = right - (BTN_W + 2) - 4
+        end
+        nameLabel:SetWidth(right - 12)
+    end
+
+    return row
+
+end
+
+-- ------------------------------------------------------------------------------------------------
+
+function Settings:BuildRows()
+
+    local function addRow(row)
+        self.listbox:AddItem(row)
+        self.allRows[#self.allRows + 1] = row
+    end
+
+    addRow(self:MakeSectionHeader(_G.L("sectionChat")))
+    addRow(self:MakeToggleRow(_G.L("printAlerts"),  "printAlerts",  nil))
+    addRow(self:MakeToggleRow(_G.L("printWelcome"), "printWelcome", nil))
+
+    addRow(self:MakeSectionHeader(_G.L("sectionDisplay")))
+    addRow(self:MakeToggleRow(_G.L("showCustomList"), "showCustomList", function()
+        self:GetParent().sidebar:ApplySettings()
+    end))
+    addRow(self:MakeToggleRow(_G.L("showServers"), "showServers", function()
+        self:GetParent().sidebar:FillCharacterItems()
+    end))
+    addRow(self:MakeTimezoneRow())
+    addRow(self:MakeLanguageRow())
+
+    addRow(self:MakeSectionHeader(_G.L("sectionServer")))
+    for _, serverName in ipairs(_G.Servers) do
+        local row = self:MakeServerRow(serverName)
+        self.serverRowMap[serverName] = row
+        addRow(row)
+    end
+
+end
+
+-- ------------------------------------------------------------------------------------------------
+
+function Settings:Rebuild()
+
+    self.listbox:ClearItems()
+    self.allRows = {}
+    self.serverRowMap = {}
+    self:BuildRows()
+
+    local listW = self.listbox:GetWidth()
+    for _, row in ipairs(self.allRows) do
+        row:SetWidth(listW)
+    end
+
+end
+
+-- ------------------------------------------------------------------------------------------------
+
 function Settings:RefreshServerRows()
 
     for _, row in pairs(self.serverRowMap) do
@@ -414,7 +568,7 @@ function Settings:Build()
     self.headerName:SetFont(Turbine.UI.Lotro.Font.Verdana16)
     self.headerName:SetFontStyle(Turbine.UI.FontStyle.Outline)
     self.headerName:SetForeColor(COL_ACCENT)
-    self.headerName:SetText("Settings")
+    self.headerName:SetText(_G.L("settingsTitle"))
     self.headerName:SetMouseVisible(false)
 
     -- close button (top-right of header)
@@ -484,32 +638,6 @@ function Settings:Build()
     self.scrollbar:SetWidth(10)
     self.listbox:SetVerticalScrollBar(self.scrollbar)
 
-    local function addRow(row)
-        self.listbox:AddItem(row)
-        self.allRows[#self.allRows + 1] = row
-    end
-
-    -- Chat
-    addRow(self:MakeSectionHeader("Chat"))
-    addRow(self:MakeToggleRow("Print Alerts", "printAlerts", nil))
-    addRow(self:MakeToggleRow("Print Welcome", "printWelcome", nil))
-
-    -- Display
-    addRow(self:MakeSectionHeader("Display"))
-    addRow(self:MakeToggleRow("Show Custom List", "showCustomList", function()
-        self:GetParent().sidebar:ApplySettings()
-    end))
-    addRow(self:MakeToggleRow("Show Servers", "showServers", function()
-        self:GetParent().sidebar:FillCharacterItems()
-    end))
-    addRow(self:MakeTimezoneRow())
-
-    -- Server
-    addRow(self:MakeSectionHeader("Server"))
-    for _, serverName in ipairs(_G.Servers) do
-        local row = self:MakeServerRow(serverName)
-        self.serverRowMap[serverName] = row
-        addRow(row)
-    end
+    self:BuildRows()
 
 end

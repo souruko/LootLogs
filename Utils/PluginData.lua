@@ -85,6 +85,7 @@ if _G.Settings == nil then
     _G.Settings.printWelcome = true
     _G.Settings.showCustomList = true
     _G.Settings.showServers = true
+    _G.Settings.language = "en"
     _G.Settings.previousId = 3
 
     _G.Settings.window = {}
@@ -110,6 +111,10 @@ if _G.Settings == nil then
     _G.Settings.quickLaunch.left = 100
     _G.Settings.quickLaunch.top  = 100
 
+end
+
+if _G.Settings.language == nil then
+    _G.Settings.language = "en"
 end
 
 if _G.Settings.customList == nil then

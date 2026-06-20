@@ -18,6 +18,7 @@ import "LootLogs2.Utils.Type"
 -- static imports ----------------------------------------------------------------------------------
 import "LootLogs2.Utils.Constants"
 import "LootLogs2.Utils.Functions"
+import "LootLogs2.Utils.Locale"
 import "LootLogs2.Logs"
 
 -- load plugin data --------------------------------------------------------------------------------

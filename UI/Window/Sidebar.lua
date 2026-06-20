@@ -332,11 +332,21 @@ end
 function Sidebar:UpdateSelection(isCustomList, isContent, isCharacter)
 
     if isCustomList then
+        local wasContent   = self.contentSelected
+        local wasCharacter = self.characterSelected
         self.customListSelected = true
         self.contentSelected = false
         self.characterSelected = false
         _G.Settings.selected.customList = true
         _G.SaveSettings()
+        -- custom list has no sidebar items of its own; fill based on last tab
+        if not wasContent and not wasCharacter then
+            if _G.Settings.selected.tab == _G.Tab.Content then
+                self:FillContentItems()
+            else
+                self:FillCharacterItems()
+            end
+        end
 
     elseif isContent then
         if self.contentSelected == false then
@@ -379,9 +389,15 @@ function Sidebar:UpdateSelectionVisual()
         self.customList:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
     end
 
+    local contentDim   = self.customListSelected and _G.Settings.selected.tab == _G.Tab.Content
+    local characterDim = self.customListSelected and _G.Settings.selected.tab == _G.Tab.Characters
+
     if self.contentSelected then
         self.background5:SetBackColor(Turbine.UI.Color(0.22, 0.18, 0.08))
         self.content:SetForeColor(Turbine.UI.Color(1.0, 0.88, 0.55))
+    elseif contentDim then
+        self.background5:SetBackColor(Turbine.UI.Color(0.12, 0.10, 0.05))
+        self.content:SetForeColor(Turbine.UI.Color(0.65, 0.54, 0.28))
     else
         self.background5:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
         self.content:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
@@ -390,6 +406,9 @@ function Sidebar:UpdateSelectionVisual()
     if self.characterSelected then
         self.background6:SetBackColor(Turbine.UI.Color(0.22, 0.18, 0.08))
         self.characters:SetForeColor(Turbine.UI.Color(1.0, 0.88, 0.55))
+    elseif characterDim then
+        self.background6:SetBackColor(Turbine.UI.Color(0.12, 0.10, 0.05))
+        self.characters:SetForeColor(Turbine.UI.Color(0.65, 0.54, 0.28))
     else
         self.background6:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
         self.characters:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
@@ -510,6 +529,18 @@ function Sidebar:ApplySettings()
 
 end
 
+function Sidebar:ApplyLanguage()
+
+    self.customList:SetText(_G.L("customListBtn"))
+    self.content:SetText(_G.L("contentBtn"))
+    self.characters:SetText(_G.L("charactersBtn"))
+
+    if self.filterText == "" then
+        self.filter:SetText(_G.L("searchPlaceholder"))
+    end
+
+end
+
 function Sidebar:Build()
 
     -- base background: warm dark brown outer ring
@@ -560,7 +591,7 @@ function Sidebar:Build()
     self.customList:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
     self.customList:SetFont(Turbine.UI.Lotro.Font.Verdana16)
     self.customList:SetFontStyle(Turbine.UI.FontStyle.Outline)
-    self.customList:SetText("Custom List")
+    self.customList:SetText(_G.L("customListBtn"))
     self.customList:SetMouseVisible(false)
     self.customList:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
 
@@ -598,7 +629,7 @@ function Sidebar:Build()
     self.content:SetHeight(28)
     self.content:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
     self.content:SetFont(Turbine.UI.Lotro.Font.Verdana16)
-    self.content:SetText("Content")
+    self.content:SetText(_G.L("contentBtn"))
     self.content:SetMouseVisible(false)
     self.content:SetFontStyle(Turbine.UI.FontStyle.Outline)
     self.content:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
@@ -636,7 +667,7 @@ function Sidebar:Build()
     self.characters:SetHeight(28)
     self.characters:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
     self.characters:SetFont(Turbine.UI.Lotro.Font.Verdana16)
-    self.characters:SetText("Characters")
+    self.characters:SetText(_G.L("charactersBtn"))
     self.characters:SetMouseVisible(false)
     self.characters:SetFontStyle(Turbine.UI.FontStyle.Outline)
     self.characters:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
@@ -654,21 +685,21 @@ function Sidebar:Build()
     self.filter:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     self.filter:SetMultiline(false)
     self.filter:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
-    self.filter:SetText("search ...")
+    self.filter:SetText(_G.L("searchPlaceholder"))
     self.filter.FocusGained = function()
-        if self.filter:GetText() == "search ..." then
+        if self.filter:GetText() == _G.L("searchPlaceholder") then
             self.filter:SetText("")
         end
     end
     self.filter.FocusLost = function()
         if self.filter:GetText() == "" then
-            self.filter:SetText("search ...")
+            self.filter:SetText(_G.L("searchPlaceholder"))
             self:ApplyFilter("")
         end
     end
     self.filter.TextChanged = function()
         local text = self.filter:GetText()
-        if text == "search ..." then text = "" end
+        if text == _G.L("searchPlaceholder") then text = "" end
         self:ApplyFilter(text)
     end
 
@@ -695,7 +726,7 @@ function Sidebar:Build()
     self.clearBg.MouseUp = function()
         self.clearBg:SetBackColor(Turbine.UI.Color(0.07, 0.06, 0.04))
         if clearHover then
-            self.filter:SetText("search ...")
+            self.filter:SetText(_G.L("searchPlaceholder"))
             self:ApplyFilter("")
         end
     end
@@ -706,7 +737,7 @@ function Sidebar:Build()
     self.clearLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
     self.clearLabel:SetFont(Turbine.UI.Lotro.Font.Verdana16)
     self.clearLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
-    self.clearLabel:SetText("x")
+    self.clearLabel:SetText("X")
     self.clearLabel:SetMouseVisible(false)
     self.clearLabel:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
 

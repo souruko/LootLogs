@@ -54,9 +54,9 @@ function ContentView:UpdateHeader()
 
     if _G.Settings.selected.customList then
         self.headerIcon:SetVisible(false)
-        self.headerName:SetText("Custom List")
+        self.headerName:SetText(_G.L("customListName"))
         self.headerName:SetLeft(10)
-        self.headerType:SetText("List  ")
+        self.headerType:SetText(_G.L("headerCustomList"))
 
     elseif tab == _G.Tab.Content and instId ~= nil then
         local instance = _G.Instances[instId]
@@ -64,7 +64,7 @@ function ContentView:UpdateHeader()
             self.headerIcon:SetVisible(false)
             self.headerName:SetText(instance.name)
             self.headerName:SetLeft(10)
-            self.headerType:SetText("Instance  ")
+            self.headerType:SetText(_G.L("headerInstance"))
         end
 
     elseif tab == _G.Tab.Content and contentId ~= nil then
@@ -73,7 +73,7 @@ function ContentView:UpdateHeader()
             self.headerIcon:SetVisible(false)
             self.headerName:SetText(content.name)
             self.headerName:SetLeft(10)
-            self.headerType:SetText("Content  ")
+            self.headerType:SetText(_G.L("headerContent"))
         end
 
     elseif tab == _G.Tab.Characters and charId ~= nil then
@@ -83,14 +83,14 @@ function ContentView:UpdateHeader()
             self.headerIcon:SetVisible(true)
             self.headerName:SetText(character.name)
             self.headerName:SetLeft(32)
-            self.headerType:SetText("Character  ")
+            self.headerType:SetText(_G.L("headerCharacter"))
         end
 
     elseif tab == _G.Tab.Characters and serverId ~= nil then
         self.headerIcon:SetVisible(false)
         self.headerName:SetText(serverId)
         self.headerName:SetLeft(10)
-        self.headerType:SetText("Server  ")
+        self.headerType:SetText(_G.L("headerServer"))
 
     else
         self.headerIcon:SetVisible(false)
@@ -279,7 +279,7 @@ function ContentView:ShowCustomListView()
     end
 
     if not hadContent then
-        local row = self:MakeEmptyRow("No Custom List items selected.")
+        local row = self:MakeEmptyRow(_G.L("emptyCustomList"))
         row:SetWidth(listWidth)
         self.listbox:AddItem(row)
         self.currentRows[1] = row
@@ -309,7 +309,7 @@ function ContentView:ShowInstanceView(instanceId)
     local hadContent = self:_AddInstanceTierRows(instanceId, chars, currentTime, listWidth)
 
     if not hadContent then
-        local row = self:MakeEmptyRow("No events defined for this instance.")
+        local row = self:MakeEmptyRow(_G.L("emptyInstance"))
         row:SetWidth(listWidth)
         self.listbox:AddItem(row)
         self.currentRows[1] = row
@@ -345,7 +345,7 @@ function ContentView:ShowContentView(contentId)
     table.sort(instanceIds)
 
     if #instanceIds == 0 then
-        local row = self:MakeEmptyRow("No instances defined for this content.")
+        local row = self:MakeEmptyRow(_G.L("emptyContent"))
         row:SetWidth(listWidth)
         self.listbox:AddItem(row)
         self.currentRows[1] = row
@@ -416,7 +416,7 @@ function ContentView:ShowCharacterView(characterId)
     end
 
     if #self.currentRows == 0 then
-        local row = self:MakeEmptyRow("No logs recorded for this character.")
+        local row = self:MakeEmptyRow(_G.L("emptyCharacter"))
         row:SetWidth(listWidth)
         self.listbox:AddItem(row)
         self.currentRows[1] = row
@@ -477,7 +477,7 @@ function ContentView:ShowServerView(serverName)
     end
 
     if #self.currentRows == 0 then
-        local row = self:MakeEmptyRow("No logs recorded for this server.")
+        local row = self:MakeEmptyRow(_G.L("emptyServer"))
         row:SetWidth(listWidth)
         self.listbox:AddItem(row)
         self.currentRows[1] = row
@@ -551,7 +551,7 @@ function ContentView:MakeTierHeaderRow(instanceId, tierName)
     hoverLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
     hoverLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
     hoverLabel:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
-    hoverLabel:SetText("Add to / remove from Custom List")
+    hoverLabel:SetText(_G.L("customListHover"))
     hoverLabel:SetVisible(false)
     hoverLabel:SetMouseVisible(false)
 
@@ -815,7 +815,7 @@ function ContentView:MakeContentRow(content)
     levelLabel:SetFont(Turbine.UI.Lotro.Font.Verdana14)
     levelLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
     levelLabel:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
-    levelLabel:SetText("Lv " .. content.level .. "  ")
+    levelLabel:SetText(_G.L("levelPrefix") .. content.level .. "  ")
     levelLabel:SetMouseVisible(false)
 
     row.SizeChanged = function()
