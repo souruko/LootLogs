@@ -13,6 +13,17 @@ _G.Tab = {}
 _G.Tab.Content = 1
 _G.Tab.Characters = 2
 
+_G.Servers = {
+    "Orcrist [EU]",
+    "Grond [EU]",
+    "Sting",
+    "Peregrin [RP]",
+    "Meriadoc [EU-RP]",
+    "Glamdring",
+    "Angmar",
+    "Mordor [EU]",
+}
+
 -- _G.Settings = {}
 -- _G.Logs = {}
 

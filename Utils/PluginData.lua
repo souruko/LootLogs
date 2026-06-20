@@ -62,7 +62,6 @@ _G.Server = Turbine.PluginData.Load(Turbine.DataScope.Server, "GetServer", LoadS
 -- -- instance
 
 function SaveSettingsCompleteHandler()
-    PrintAlert("LL: Settings saved!")
 
 end
 
@@ -157,6 +156,7 @@ end
 
 -- remove "dead" logs
 local currentTime = Turbine.Engine.GetLocalTime()
+local logHasChanged = false
 
 -- iterate all characters
 for id, character in pairs(_G.Logs) do
@@ -164,12 +164,17 @@ for id, character in pairs(_G.Logs) do
     for index, log in pairs(character.logs) do
         
         if log.timeOfDeath <= currentTime then
-            PrintAlert("LL: " .. _G.Events[index].name .. " has reset.")
+            PrintAlert("LL: " .. character.name .. " - " .. _G.Events[index].name .. " has reset.")
             character.logs[index] = nil
+            logHasChanged = true
         end
 
     end
 
+end
+
+if logHasChanged then
+    _G.SaveLogs()
 end
 
 -- write current characters logs into chat

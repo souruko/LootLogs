@@ -7,6 +7,7 @@ function ContentItem:Constructor(content, index, sidebar)
 
     self.content = content
     self.index = index
+    self.id = index
     self.name = content.name
     self.sidebar = sidebar
     self.searchText = ""
@@ -37,24 +38,23 @@ function ContentItem:FillChildren()
     self:ClearItems()
     self:AddItem(self.blank)
 
-    if string.find(self.name, self.searchText) then
-        -- if search is in content name add all children
+    local lowerSearch = string.lower(self.searchText)
+    local lowerName = string.lower(self.name)
+
+    if self.searchText == "" or string.find(lowerName, lowerSearch, 1, true) then
         for _, child in ipairs(self.children) do
             self:AddItem(child)
         end
-
     else
-        -- search every child
         for _, child in ipairs(self.children) do
-            if string.find(child.name, self.searchText) then
+            if string.find(string.lower(child.name), lowerSearch, 1, true) then
                 self:AddItem(child)
             end
         end
-
     end
 
     if not(self.isCollapsed) then
-        self:SetHeight(35 * self:GetItemCount())
+        self:SetHeight(44 * self:GetItemCount())
     end
 
 end
@@ -96,10 +96,10 @@ end
 function ContentItem:ApplyCollapsed(value)
 
     if value then
-        self:SetHeight(35)
+        self:SetHeight(38)
         self.collapsed:SetText(">")
     else
-        self:SetHeight(35 * self:GetItemCount())
+        self:SetHeight(44 * self:GetItemCount())
         self.collapsed:SetText("v")
     end
 
@@ -128,15 +128,15 @@ end
 
 function ContentItem:Build()
 
-    self:SetHeight(35)
+    self:SetHeight(24)
     self:SetMouseVisible(false)
 
     self.blank = Turbine.UI.Control()
     self.blank:SetMouseVisible(false)
-    self.blank:SetHeight(35)
+    self.blank:SetHeight(36)
 
     self.frame2 = Turbine.UI.Control()
-    self.frame2:SetPosition(5, 15)
+    self.frame2:SetPosition(5, 12)
     self.frame2:SetParent(self.blank)
     self.frame2:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
     self.frame2:SetSize(20, 20)
@@ -176,7 +176,7 @@ function ContentItem:Build()
 
 
     self.frame1 = Turbine.UI.Control()
-    self.frame1:SetPosition(30, 15)
+    self.frame1:SetPosition(30, 12)
     self.frame1:SetParent(self.blank)
     self.frame1:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
     self.frame1:SetHeight(20)

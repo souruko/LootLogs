@@ -27,6 +27,8 @@ function Sidebar:Constructor()
     self.contentHover = false
     self.characterHover = false
 
+    self.filterText = ""
+
     self.characterItems = {}
     self.contenItems = {}
     self.serverItems = {}
@@ -234,14 +236,19 @@ function Sidebar:FillContentItems()
         item:ClearChildren()
     end
 
+    local text = self.filterText or ""
+
     for _, contentItem in pairs(self.contenItems) do
-        self.itemView:AddItem(contentItem)
+        contentItem.searchText = text
         for _, instanceItem in pairs(self.instanceItems) do
             if instanceItem.instance.content == contentItem.index then
                 contentItem:AddChild(instanceItem)
             end
         end
         contentItem:FillChildren()
+        if text == "" or contentItem:GetItemCount() > 1 then
+            self.itemView:AddItem(contentItem)
+        end
     end
 
 end
@@ -253,17 +260,23 @@ function Sidebar:FillCharacterItems()
         item:ClearChildren()
     end
 
+    local text = self.filterText or ""
+
     if _G.Settings.showServers then
         for index, serverItem in pairs(self.serverItems) do
-            self.itemView:AddItem(serverItem)
+            serverItem.searchText = text
             for cIndex, characterItem in pairs(self.characterItems) do
                 if characterItem.character.server == serverItem.name then
                     serverItem:AddChild(characterItem)
                 end
             end
             serverItem:FillChildren()
+            if text == "" or serverItem:GetItemCount() > 1 then
+                self.itemView:AddItem(serverItem)
+            end
         end
         local noServerItem = self.serverItems[#self.serverItems]
+        noServerItem.searchText = text
         for index, characterItem in pairs(self.characterItems) do
             if characterItem.character.server == nil then
                 noServerItem:AddChild(characterItem)
@@ -272,12 +285,47 @@ function Sidebar:FillCharacterItems()
         noServerItem:FillChildren()
 
     else
+        local lowerText = string.lower(text)
         for index, item in pairs(self.characterItems) do
-            self.itemView:AddItem(item)
+            if text == "" or string.find(string.lower(item.character.name), lowerText, 1, true) then
+                self.itemView:AddItem(item)
+            end
         end
 
     end
 
+end
+
+function Sidebar:RefreshItems()
+
+    self:CreateServerItems()
+    self:CreateCharacterItems()
+
+    local itemWidth = self:GetWidth() - 22
+    for _, item in pairs(self.serverItems) do
+        item:SetWidth(itemWidth)
+    end
+    for _, item in pairs(self.characterItems) do
+        item:SetWidth(itemWidth)
+    end
+
+    if self.characterSelected then
+        self:FillCharacterItems()
+    elseif self.contentSelected then
+        self:FillContentItems()
+    end
+
+end
+
+function Sidebar:ApplyFilter(text)
+
+    self.filterText = text
+
+    if self.contentSelected then
+        self:FillContentItems()
+    elseif self.characterSelected then
+        self:FillCharacterItems()
+    end
 
 end
 
@@ -299,6 +347,7 @@ function Sidebar:UpdateSelection(isTodo, isContent, isCharacter)
         self.toDoSelected = false
         self.contentSelected = true
         self.characterSelected = false
+        _G.Settings.selected.tab = _G.Tab.Content
 
     elseif isCharacter then
         if self.characterSelected == false then
@@ -308,9 +357,14 @@ function Sidebar:UpdateSelection(isTodo, isContent, isCharacter)
         self.toDoSelected = false
         self.contentSelected = false
         self.characterSelected = true
+        _G.Settings.selected.tab = _G.Tab.Characters
     end
 
     self:UpdateSelectionVisual()
+
+    if (isContent or isCharacter) and self:GetParent() ~= nil then
+        self:GetParent():SelectionChanged()
+    end
 
 end
 
@@ -344,13 +398,15 @@ end
 
 function Sidebar:CollapseAll()
 
-    for index, item in ipairs(self.serverItems) do
-        item:SetCollapsed(true)
+    if self.characterSelected then
+        for index, item in ipairs(self.serverItems) do
+            item:SetCollapsed(true)
+        end
+    elseif self.contentSelected then
+        for index, item in ipairs(self.contenItems) do
+            item:SetCollapsed(true)
+        end
     end
-
-    -- for index, item in ipairs(self.contentItems) do
-    --     item:SetCollapsed(true)
-    -- end
 
 end
 
@@ -377,8 +433,11 @@ function Sidebar:SizeChanged()
     self.characters:SetWidth(self.background6:GetWidth())
 
     -- filter
-    self.background2:SetWidth(width - 43)
-    self.filter:SetWidth(width - 43)
+    self.background2:SetWidth(width - 64)
+    self.filter:SetWidth(width - 64)
+
+    -- clear button
+    self.clearBg:SetLeft(width - 62)
 
     -- collapse button
     self.background3:SetLeft(width - 41)
@@ -435,6 +494,9 @@ function Sidebar:ApplySettings()
 
     -- filter
     self.background2:SetPosition(1, top)
+
+    -- clear button
+    self.clearBg:SetTop(top)
 
     -- collapse button
     self.background3:SetTop(top)
@@ -590,6 +652,60 @@ function Sidebar:Build()
     self.filter:SetMultiline(false)
     self.filter:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
     self.filter:SetText("search ...")
+    self.filter.FocusGained = function()
+        if self.filter:GetText() == "search ..." then
+            self.filter:SetText("")
+        end
+    end
+    self.filter.FocusLost = function()
+        if self.filter:GetText() == "" then
+            self.filter:SetText("search ...")
+            self:ApplyFilter("")
+        end
+    end
+    self.filter.TextChanged = function()
+        local text = self.filter:GetText()
+        if text == "search ..." then text = "" end
+        self:ApplyFilter(text)
+    end
+
+    -- clear search button
+    self.clearBg = Turbine.UI.Control()
+    self.clearBg:SetParent(self.frame1)
+    self.clearBg:SetSize(20, 20)
+    self.clearBg:SetBackColor(Turbine.UI.Color(0.07, 0.06, 0.04))
+
+    local clearHover = false
+    self.clearBg.MouseEnter = function()
+        clearHover = true
+        self.clearBg:SetBackColor(Turbine.UI.Color(0.18, 0.15, 0.08))
+        self.clearLabel:SetForeColor(Turbine.UI.Color(0.73, 0.65, 0.50))
+    end
+    self.clearBg.MouseLeave = function()
+        clearHover = false
+        self.clearBg:SetBackColor(Turbine.UI.Color(0.07, 0.06, 0.04))
+        self.clearLabel:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
+    end
+    self.clearBg.MouseDown = function()
+        self.clearBg:SetBackColor(Turbine.UI.Color(0.25, 0.20, 0.10))
+    end
+    self.clearBg.MouseUp = function()
+        self.clearBg:SetBackColor(Turbine.UI.Color(0.07, 0.06, 0.04))
+        if clearHover then
+            self.filter:SetText("search ...")
+            self:ApplyFilter("")
+        end
+    end
+
+    self.clearLabel = Turbine.UI.Label()
+    self.clearLabel:SetParent(self.clearBg)
+    self.clearLabel:SetSize(20, 20)
+    self.clearLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
+    self.clearLabel:SetFont(Turbine.UI.Lotro.Font.Verdana16)
+    self.clearLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
+    self.clearLabel:SetText("x")
+    self.clearLabel:SetMouseVisible(false)
+    self.clearLabel:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
 
     self.background3 = Turbine.UI.Control()
     self.background3:SetParent(self.frame1)
