@@ -11,8 +11,6 @@ function Sidebar:Constructor()
 	Turbine.UI.Control.Constructor( self )
 
     self:Build()
-    self:ApplySettings()
-
     self.toDoSelected = nil
     self.contentSelected = false
     self.characterSelected = false
@@ -38,6 +36,8 @@ function Sidebar:Constructor()
 
     self:CreateCharacterItems()
     self:CreateServerItems()
+
+    self:ApplySettings()
 
     local contentSelected = _G.Settings.selected.tab == _G.Tab.Content
     local characterSelected = _G.Settings.selected.tab == _G.Tab.Characters
@@ -488,7 +488,7 @@ function Sidebar:ApplySettings()
 
     -- content / character toggle
     self.frame3:SetPosition(1, top)
-    self.frame4:SetPosition(1, top)
+    self.frame4:SetTop(top)
 
     top = top + 31
 
@@ -504,6 +504,8 @@ function Sidebar:ApplySettings()
 
     -- select
     self.itemView:SetPosition(1, top)
+
+    self:SizeChanged()
 
 end
 
