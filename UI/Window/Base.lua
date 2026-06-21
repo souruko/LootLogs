@@ -50,14 +50,12 @@ function _G.LLWindow:Constructor()
     self.settingsBg:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
     self.settingsBg:SetMouseVisible(false)
 
-    self.settingsIcon = Turbine.UI.Label()
+    self.settingsIcon = Turbine.UI.Control()
     self.settingsIcon:SetParent(self.settingsBg)
     self.settingsIcon:SetSize(26, 26)
-    self.settingsIcon:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
-    self.settingsIcon:SetFont(Turbine.UI.Lotro.Font.Verdana16)
-    self.settingsIcon:SetFontStyle(Turbine.UI.FontStyle.Outline)
-    self.settingsIcon:SetText("S")
-    self.settingsIcon:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
+    self.settingsIcon:SetPosition(-1, -1)
+    self.settingsIcon:SetBackground("LootLogs2/Ressources/settings.tga")
+    self.settingsIcon:SetBlendMode(Turbine.UI.BlendMode.Overlay)
     self.settingsIcon:SetMouseVisible(false)
 
     local btnHover = false
@@ -144,9 +142,9 @@ function _G.LLWindow:ToggleSettings()
     self.contentView:SetVisible(not self.settingsVisible)
 
     if self.settingsVisible then
-        self.settingsIcon:SetForeColor(Turbine.UI.Color(1.0, 0.88, 0.55))
+        -- self.settingsIcon:SetForeColor(Turbine.UI.Color(1.0, 0.88, 0.55))
     else
-        self.settingsIcon:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
+        -- self.settingsIcon:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
     end
 
 end

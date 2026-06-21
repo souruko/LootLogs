@@ -34,9 +34,9 @@ function InstanceItem:SizeChanged()
 
     local width = self:GetWidth()
 
-    self.frame1:SetWidth(width - 17)
-    self.background1:SetWidth(width - 19)
-    self.nameLabel:SetWidth(width - 49)
+    self.frame1:SetWidth(width - 24)
+    self.background1:SetWidth(width - 26)
+    self.nameLabel:SetWidth(width - 56)
 
 end
 
@@ -48,7 +48,7 @@ function InstanceItem:Build()
     self:SetHeight(44)
 
     self.frame1 = Turbine.UI.Control()
-    self.frame1:SetPosition(5, 3)
+    self.frame1:SetPosition(12, 3)
     self.frame1:SetParent(self)
     self.frame1:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
     self.frame1:SetHeight(38)
