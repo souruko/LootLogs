@@ -152,9 +152,15 @@ function Sidebar:CreateContentItems()
 
     self.contenItems = {}
 
-    for contentIndex, content in ipairs(_G.Content) do
+    local contentIndices = {}
+    for contentIndex in pairs(_G.Content) do
+        table.insert(contentIndices, contentIndex)
+    end
+    table.sort(contentIndices, function(a, b) return a > b end)
+
+    for _, contentIndex in ipairs(contentIndices) do
         local index = #self.contenItems+1
-        self.contenItems[index] = SidebarItems.ContentItem(content, contentIndex, self)
+        self.contenItems[index] = SidebarItems.ContentItem(_G.Content[contentIndex], contentIndex, self)
     end
 
     -- no server selected
@@ -240,11 +246,19 @@ function Sidebar:FillContentItems()
 
     for _, contentItem in pairs(self.contenItems) do
         contentItem.searchText = text
+
+        local matching = {}
         for _, instanceItem in pairs(self.instanceItems) do
             if instanceItem.instance.content == contentItem.index then
-                contentItem:AddChild(instanceItem)
+                table.insert(matching, instanceItem)
             end
         end
+        table.sort(matching, function(a, b) return a.id > b.id end)
+
+        for _, instanceItem in ipairs(matching) do
+            contentItem:AddChild(instanceItem)
+        end
+
         contentItem:FillChildren()
         if text == "" or contentItem:GetItemCount() > 1 then
             self.itemView:AddItem(contentItem)

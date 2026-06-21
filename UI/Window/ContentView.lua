@@ -162,7 +162,7 @@ local function collectOrderGroups(instanceId, logs, currentTime)
     local result = {}
     for _, o in ipairs(keys) do
         local g = groups[o]
-        table.sort(g.tiers, function(a, b) return a.tierOrder < b.tierOrder end)
+        table.sort(g.tiers, function(a, b) return a.tierOrder > b.tierOrder end)
         result[#result + 1] = g
     end
     return result
@@ -192,7 +192,7 @@ function ContentView:_AddInstanceTierRows(instanceId, chars, currentTime, listWi
 
     local sortedTierNames = {}
     for tierName in pairs(tiers) do sortedTierNames[#sortedTierNames + 1] = tierName end
-    table.sort(sortedTierNames, function(a, b) return tiers[a].order < tiers[b].order end)
+    table.sort(sortedTierNames, function(a, b) return tiers[a].order > tiers[b].order end)
 
     local function addRow(row)
         row:SetWidth(listWidth)
@@ -261,7 +261,11 @@ function ContentView:ShowCustomListView()
 
     local hadContent = false
 
-    for contentIndex, content in ipairs(_G.Content) do
+    local contentIndices = {}
+    for contentIndex in pairs(_G.Content) do contentIndices[#contentIndices + 1] = contentIndex end
+    table.sort(contentIndices, function(a, b) return a > b end)
+
+    for _, contentIndex in ipairs(contentIndices) do
 
         local contentInstanceIds = {}
         for instanceId, instance in pairs(_G.Instances) do
@@ -277,7 +281,7 @@ function ContentView:ShowCustomListView()
                 end
             end
         end
-        table.sort(contentInstanceIds)
+        table.sort(contentInstanceIds, function(a, b) return a > b end)
 
         if #contentInstanceIds > 0 then
             hadContent = true
@@ -383,7 +387,7 @@ function ContentView:ShowContentView(contentId)
             instanceIds[#instanceIds + 1] = instanceId
         end
     end
-    table.sort(instanceIds)
+    table.sort(instanceIds, function(a, b) return a > b end)
 
     if #instanceIds == 0 then
         local row = self:MakeEmptyRow(_G.L("emptyContent"))
@@ -419,29 +423,37 @@ function ContentView:ShowCharacterView(characterId)
     local currentTime = Turbine.Engine.GetLocalTime()
     local listWidth   = self.listbox:GetWidth()
 
-    for contentIndex, content in ipairs(_G.Content) do
+    local contentIndices = {}
+    for contentIndex in pairs(_G.Content) do contentIndices[#contentIndices + 1] = contentIndex end
+    table.sort(contentIndices, function(a, b) return a > b end)
+
+    for _, contentIndex in ipairs(contentIndices) do
+        local content = _G.Content[contentIndex]
 
         local contentRow = self:MakeContentRow(content)
         contentRow:SetWidth(listWidth)
         local eventRows = {}
 
+        local instanceIds = {}
         for instanceId, instance in pairs(_G.Instances) do
-            if instance.content == contentIndex then
+            if instance.content == contentIndex then instanceIds[#instanceIds + 1] = instanceId end
+        end
+        table.sort(instanceIds, function(a, b) return a > b end)
 
-                local groups = collectOrderGroups(instanceId, character.logs, currentTime)
+        for _, instanceId in ipairs(instanceIds) do
+            local instance = _G.Instances[instanceId]
+            local groups = collectOrderGroups(instanceId, character.logs, currentTime)
 
-                if #groups > 0 then
-                    local instanceRow = self:MakeInstanceRow(instance)
-                    instanceRow:SetWidth(listWidth)
-                    eventRows[#eventRows + 1] = instanceRow
+            if #groups > 0 then
+                local instanceRow = self:MakeInstanceRow(instance)
+                instanceRow:SetWidth(listWidth)
+                eventRows[#eventRows + 1] = instanceRow
 
-                    for _, group in ipairs(groups) do
-                        local row = self:MakeCombinedEventRow(group.name, group.tiers)
-                        row:SetWidth(listWidth)
-                        eventRows[#eventRows + 1] = row
-                    end
+                for _, group in ipairs(groups) do
+                    local row = self:MakeCombinedEventRow(group.name, group.tiers)
+                    row:SetWidth(listWidth)
+                    eventRows[#eventRows + 1] = row
                 end
-
             end
         end
 
@@ -495,15 +507,24 @@ function ContentView:ShowServerView(serverName)
         local character  = entry.character
         local charRows   = {}
 
-        for contentIndex, _ in ipairs(_G.Content) do
+        local contentIndices = {}
+        for contentIndex in pairs(_G.Content) do contentIndices[#contentIndices + 1] = contentIndex end
+        table.sort(contentIndices, function(a, b) return a > b end)
+
+        for _, contentIndex in ipairs(contentIndices) do
+            local instanceIds = {}
             for instanceId, instance in pairs(_G.Instances) do
-                if instance.content == contentIndex then
-                    local groups = collectOrderGroups(instanceId, character.logs, currentTime)
-                    if #groups > 0 then
-                        charRows[#charRows + 1] = self:MakeInstanceRow(instance)
-                        for _, group in ipairs(groups) do
-                            charRows[#charRows + 1] = self:MakeCombinedEventRow(group.name, group.tiers)
-                        end
+                if instance.content == contentIndex then instanceIds[#instanceIds + 1] = instanceId end
+            end
+            table.sort(instanceIds, function(a, b) return a > b end)
+
+            for _, instanceId in ipairs(instanceIds) do
+                local instance = _G.Instances[instanceId]
+                local groups = collectOrderGroups(instanceId, character.logs, currentTime)
+                if #groups > 0 then
+                    charRows[#charRows + 1] = self:MakeInstanceRow(instance)
+                    for _, group in ipairs(groups) do
+                        charRows[#charRows + 1] = self:MakeCombinedEventRow(group.name, group.tiers)
                     end
                 end
             end
