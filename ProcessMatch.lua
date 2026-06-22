@@ -9,7 +9,7 @@
 function ProcessMatch(message, log, logIndex)
 
     local logs = _G.Logs[_G.characterId].logs
-Turbine.Shell.WriteLine("Processing log: " .. log.name)
+
     -- mark as done
     if log.type == EventTypes.Done then
         logs[logIndex] = {
@@ -67,49 +67,36 @@ end
 -- calculate death --------------------------------------------------------------------------------
 function CalculateDeath(log)
 
-    local currentTime = Turbine.Engine.GetLocalTime()
-    local current = Turbine.Engine.GetDate()
+    local currentTime    = Turbine.Engine.GetLocalTime()
+    local current        = Turbine.Engine.GetDate()
+    local resetTimeOfDay = log.reset.time + Settings.timezone
+    local currentHours   = current.Hour
 
-    local daysUntilReset = -1
-    local dayOfWeek = current.DayOfWeek
+    local daysUntilReset = 0
+    local dayOfWeek      = current.DayOfWeek
 
     while true do
-        
+
         if _G.TableContains(log.reset.days, dayOfWeek) then
-            break
+            -- Use this day if it's in the future, or if it's today and the reset hasn't passed yet.
+            if daysUntilReset > 0 or resetTimeOfDay > currentHours then
+                break
+            end
         end
 
-        if daysUntilReset > 7 then
-            -- make sure to break the while
+        daysUntilReset = daysUntilReset + 1
+        if daysUntilReset > 8 then
             PrintAlert("LL: Error: log has no reset day: " .. log.name)
             return
         end
-
-        daysUntilReset = daysUntilReset + 1
-
-        dayOfWeek = dayOfWeek % 7
-        dayOfWeek = dayOfWeek + 1
+        dayOfWeek = dayOfWeek % 7 + 1
 
     end
 
-    -- round hours up because minutes will be added
-    local currentHours = current.Hour + 1
-    -- add timezone
-    local resetTimeOfDay = log.reset.time + Settings.timezone
-    if resetTimeOfDay > currentHours then
-        -- if resetTime > currentHour add a full day and the rest of the hours
-        daysUntilReset = daysUntilReset + 1
-
-    else
-        -- if restTime is smaller subtract 24 hours
-        currentHours = currentHours - 24
-
-    end
-
-    local timeUntilDeath = (daysUntilReset * 24 * 60 * 60) -- days
-    timeUntilDeath = timeUntilDeath + ((resetTimeOfDay - currentHours) * 60 * 60) -- hours
-    timeUntilDeath = timeUntilDeath + ((60 - current.Minute + 1) * 60) -- minutes
-    timeUntilDeath = timeUntilDeath + (60 - current.Second) -- seconds
+    local timeUntilDeath = daysUntilReset * 24 * 3600
+                         + (resetTimeOfDay - currentHours) * 3600
+                         - current.Minute * 60
+                         - current.Second
 
     Turbine.Shell.WriteLine(currentTime + timeUntilDeath)
 

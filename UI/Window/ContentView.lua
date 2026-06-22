@@ -445,7 +445,7 @@ function ContentView:ShowCharacterView(characterId)
             local groups = collectOrderGroups(instanceId, character.logs, currentTime)
 
             if #groups > 0 then
-                local instanceRow = self:MakeInstanceRow(instance)
+                local instanceRow = self:MakeInstanceRow(instance, true)
                 instanceRow:SetWidth(listWidth)
                 eventRows[#eventRows + 1] = instanceRow
 
@@ -522,7 +522,7 @@ function ContentView:ShowServerView(serverName)
                 local instance = _G.Instances[instanceId]
                 local groups = collectOrderGroups(instanceId, character.logs, currentTime)
                 if #groups > 0 then
-                    charRows[#charRows + 1] = self:MakeInstanceRow(instance)
+                    charRows[#charRows + 1] = self:MakeInstanceRow(instance, true)
                     for _, group in ipairs(groups) do
                         charRows[#charRows + 1] = self:MakeCombinedEventRow(group.name, group.tiers)
                     end
@@ -552,26 +552,26 @@ end
 function ContentView:MakeTierHeaderRow(instanceId, tierName)
 
     local row = Turbine.UI.Control()
-    row:SetHeight(28)
+    row:SetHeight(32)
     row:SetBackColor(Turbine.UI.Color(0.10, 0.08, 0.04))
     row.MouseEnter = function() row:SetBackColor(Turbine.UI.Color(0.16, 0.13, 0.07)) end
     row.MouseLeave = function() row:SetBackColor(Turbine.UI.Color(0.10, 0.08, 0.04)) end
 
     local accent = Turbine.UI.Control()
     accent:SetParent(row)
-    accent:SetPosition(10, 7)
+    accent:SetPosition(12, 9)
     accent:SetSize(2, 14)
-    accent:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
+    accent:SetBackColor(Turbine.UI.Color(0.65, 0.54, 0.28))
     accent:SetMouseVisible(false)
 
     local label = Turbine.UI.Label()
     label:SetParent(row)
-    label:SetPosition(20, 0)
-    label:SetHeight(28)
+    label:SetPosition(22, 0)
+    label:SetHeight(32)
     label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     label:SetFont(Turbine.UI.Lotro.Font.Verdana14)
     label:SetFontStyle(Turbine.UI.FontStyle.Outline)
-    label:SetForeColor(Turbine.UI.Color(0.73, 0.65, 0.50))
+    label:SetForeColor(Turbine.UI.Color(1.0, 0.88, 0.55))
     label:SetText(tierName)
     label:SetMouseVisible(false)
 
@@ -607,8 +607,8 @@ function ContentView:MakeTierHeaderRow(instanceId, tierName)
     -- hover tooltip label
     local hoverLabel = Turbine.UI.Label()
     hoverLabel:SetParent(row)
-    hoverLabel:SetHeight(28)
-    hoverLabel:SetPosition(20, 0)
+    hoverLabel:SetHeight(32)
+    hoverLabel:SetPosition(22, 0)
     hoverLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
     hoverLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
     hoverLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
@@ -643,10 +643,10 @@ function ContentView:MakeTierHeaderRow(instanceId, tierName)
 
     row.SizeChanged = function()
         local w = row:GetWidth()
-        label:SetWidth(w - 20 - 24)
-        checkFrame:SetTop(7)
+        label:SetWidth(w - 22 - 24)
+        checkFrame:SetTop(9)
         checkFrame:SetLeft(w - 20)
-        hoverLabel:SetWidth(w - 20 - 24 - 6)
+        hoverLabel:SetWidth(w - 22 - 24 - 6)
     end
 
     return row
@@ -893,34 +893,64 @@ end
 
 -- ------------------------------------------------------------------------------------------------
 
-function ContentView:MakeInstanceRow(instance)
+function ContentView:MakeInstanceRow(instance, indented)
 
     local row = Turbine.UI.Control()
-    row:SetHeight(30)
-    row:SetBackColor(Turbine.UI.Color(0.14, 0.11, 0.05))
-    row.MouseEnter = function() row:SetBackColor(Turbine.UI.Color(0.20, 0.16, 0.07)) end
-    row.MouseLeave = function() row:SetBackColor(Turbine.UI.Color(0.14, 0.11, 0.05)) end
 
-    local accent = Turbine.UI.Control()
-    accent:SetParent(row)
-    accent:SetPosition(0, 0)
-    accent:SetSize(3, 30)
-    accent:SetBackColor(Turbine.UI.Color(0.65, 0.54, 0.28))
-    accent:SetMouseVisible(false)
+    if indented then
+        row:SetHeight(28)
+        row:SetBackColor(Turbine.UI.Color(0.10, 0.08, 0.04))
+        row.MouseEnter = function() row:SetBackColor(Turbine.UI.Color(0.16, 0.13, 0.07)) end
+        row.MouseLeave = function() row:SetBackColor(Turbine.UI.Color(0.10, 0.08, 0.04)) end
 
-    local label = Turbine.UI.Label()
-    label:SetParent(row)
-    label:SetPosition(12, 0)
-    label:SetHeight(30)
-    label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    label:SetFont(Turbine.UI.Lotro.Font.Verdana16)
-    label:SetFontStyle(Turbine.UI.FontStyle.Outline)
-    label:SetForeColor(Turbine.UI.Color(1.0, 0.88, 0.55))
-    label:SetText(instance.name)
-    label:SetMouseVisible(false)
+        local accent = Turbine.UI.Control()
+        accent:SetParent(row)
+        accent:SetPosition(12, 7)
+        accent:SetSize(2, 14)
+        accent:SetBackColor(Turbine.UI.Color(0.65, 0.54, 0.28))
+        accent:SetMouseVisible(false)
 
-    row.SizeChanged = function()
-        label:SetWidth(row:GetWidth() - 12)
+        local label = Turbine.UI.Label()
+        label:SetParent(row)
+        label:SetPosition(22, 0)
+        label:SetHeight(28)
+        label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+        label:SetFont(Turbine.UI.Lotro.Font.Verdana16)
+        label:SetFontStyle(Turbine.UI.FontStyle.Outline)
+        label:SetForeColor(Turbine.UI.Color(1.0, 0.88, 0.55))
+        label:SetText(instance.name)
+        label:SetMouseVisible(false)
+
+        row.SizeChanged = function()
+            label:SetWidth(row:GetWidth() - 22)
+        end
+    else
+        row:SetHeight(30)
+        row:SetBackColor(Turbine.UI.Color(0.14, 0.11, 0.05))
+        row.MouseEnter = function() row:SetBackColor(Turbine.UI.Color(0.20, 0.16, 0.07)) end
+        row.MouseLeave = function() row:SetBackColor(Turbine.UI.Color(0.14, 0.11, 0.05)) end
+
+        local accent = Turbine.UI.Control()
+        accent:SetParent(row)
+        accent:SetPosition(0, 0)
+        accent:SetSize(3, 30)
+        accent:SetBackColor(Turbine.UI.Color(0.65, 0.54, 0.28))
+        accent:SetMouseVisible(false)
+
+        local label = Turbine.UI.Label()
+        label:SetParent(row)
+        label:SetPosition(12, 0)
+        label:SetHeight(30)
+        label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+        label:SetFont(Turbine.UI.Lotro.Font.Verdana16)
+        label:SetFontStyle(Turbine.UI.FontStyle.Outline)
+        label:SetForeColor(Turbine.UI.Color(1.0, 0.88, 0.55))
+        label:SetText(instance.name)
+        label:SetMouseVisible(false)
+
+        row.SizeChanged = function()
+            label:SetWidth(row:GetWidth() - 12)
+        end
     end
 
     return row

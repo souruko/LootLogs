@@ -277,7 +277,8 @@ function Sidebar:FillCharacterItems()
     local text = self.filterText or ""
 
     if _G.Settings.showServers then
-        for index, serverItem in pairs(self.serverItems) do
+        for index = 1, #self.serverItems - 1 do
+            local serverItem = self.serverItems[index]
             serverItem.searchText = text
             for cIndex, characterItem in pairs(self.characterItems) do
                 if characterItem.character.server == serverItem.name then
@@ -297,6 +298,9 @@ function Sidebar:FillCharacterItems()
             end
         end
         noServerItem:FillChildren()
+        if noServerItem:GetItemCount() > 1 then
+            self.itemView:AddItem(noServerItem)
+        end
 
     else
         local lowerText = string.lower(text)
