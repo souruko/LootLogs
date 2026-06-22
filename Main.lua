@@ -19,7 +19,14 @@ import "LootLogs2.Utils.Type"
 import "LootLogs2.Utils.Constants"
 import "LootLogs2.Utils.Functions"
 import "LootLogs2.Utils.Locale"
-import "LootLogs2.Logs"
+
+if Turbine.Shell.IsCommand("hilfe") then
+    import "LootLogs2.Logs.German"
+elseif Turbine.Shell.IsCommand("aide") then
+    import "LootLogs2.Logs.French"
+else
+    import "LootLogs2.Logs.English"
+end
 
 -- load plugin data --------------------------------------------------------------------------------
 import "LootLogs2.Utils.PluginData"

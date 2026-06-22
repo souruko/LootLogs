@@ -11,14 +11,14 @@ function ProcessMatch(message, log, logIndex)
     local logs = _G.Logs[_G.characterId].logs
 
     -- mark as done
-    if log.type == EventTypes.Done then
+    if log.type == _G.EventTypes.Done then
         logs[logIndex] = {
             value = "Done",
             timeOfDeath = CalculateDeath(log)
         }
 
     -- quest / progress tracker: extract (X/Y) from message
-    elseif log.type == EventTypes.ExtractValue then
+    elseif log.type == _G.EventTypes.ExtractValue then
         local progress = string.match(message, "%((%d+/%d+)%)")
         local value
         if progress then
@@ -36,7 +36,7 @@ function ProcessMatch(message, log, logIndex)
         end
 
     -- instance chest with favoured / common / locked states
-    elseif log.type == EventTypes.Completions then
+    elseif log.type == _G.EventTypes.Completions then
         local favCount = string.match(message, ": You have (%d+) favoured completion")
         local comCount = not favCount and string.match(message, ": You have (%d+) completion")
         local isReset  = not favCount and not comCount and string.find(message, "resets in: ")
