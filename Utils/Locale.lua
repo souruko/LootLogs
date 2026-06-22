@@ -50,6 +50,7 @@ _G.Locale = {
         relativeTomorrow  = "Tomorrow",
         sectionLanguage   = "Display Language",
         sectionServer     = "Server",
+        quickslotCmd      = "/raid locks",
     },
 
     de = {
@@ -93,6 +94,7 @@ _G.Locale = {
         relativeTomorrow  = "Morgen",
         sectionLanguage   = "Anzeigesprache",
         sectionServer     = "Server",
+        quickslotCmd      = "/schlachtzug sperren",
     },
 
     fr = {
@@ -136,6 +138,7 @@ _G.Locale = {
         relativeTomorrow  = "Demain",
         sectionLanguage   = "Langue d'affichage",
         sectionServer     = "Serveur",
+        quickslotCmd      = "/raid verrouill\233",
     },
 
 }
