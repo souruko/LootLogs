@@ -20,6 +20,7 @@ function ProcessMatch(message, log, logIndex)
     -- quest / progress tracker: extract (X/Y) from message
     elseif log.type == _G.EventTypes.ExtractValue then
         local progress = string.match(message, "%((%d+/%d+)%)")
+                      or string.match(message, "%.(%d+/%d+)%.")
         local value
         if progress then
             local a, b = string.match(progress, "(%d+)/(%d+)")
