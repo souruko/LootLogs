@@ -9,7 +9,7 @@
 function ProcessMatch(message, log, logIndex)
 
     local logs = _G.Logs[_G.characterId].logs
-
+Turbine.Shell.WriteLine("Processing log: " .. log.name)
     -- mark as done
     if log.type == EventTypes.Done then
         logs[logIndex] = {
