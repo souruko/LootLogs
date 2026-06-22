@@ -114,6 +114,14 @@ function _G.LLWindow:Constructor()
     self.clockUpdater:SetWantsUpdates(true)
     self.contentView:UpdateContent()
 
+    self.KeyDown = function(sender, args)
+        if args.Action == Turbine.UI.Lotro.Action.Escape then
+            self:SetVisible(false)
+        end
+    end
+
+    self:SetWantsKeyEvents(true)
+
     if _G.Server == nil then
         self.serverSelectPopup = ServerSelectPopup(function()
             self.sidebar:RefreshItems()
