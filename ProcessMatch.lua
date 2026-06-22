@@ -44,9 +44,9 @@ function ProcessMatch(message, log, logIndex)
 
         local value
         if favCount then
-            value = "Fav: " .. favCount
+            value = favCount .. "f"
         elseif comCount then
-            value = "Com: " .. comCount
+            value = comCount .. "c"
         elseif isReset then
             value = "Locked"
         end

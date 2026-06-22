@@ -211,7 +211,9 @@ local function collectOrderGroups(instanceId, logs, currentTime)
             if log ~= nil then
                 local o = event.order or 99
                 if groups[o] == nil then
-                    groups[o] = { name = event.name, tiers = {} }
+                    groups[o] = { name = event.name, tiers = {}, minIndex = eventIndex }
+                else
+                    if eventIndex < groups[o].minIndex then groups[o].minIndex = eventIndex end
                 end
                 local t = groups[o].tiers
                 t[#t + 1] = {
@@ -227,7 +229,7 @@ local function collectOrderGroups(instanceId, logs, currentTime)
 
     local keys = {}
     for o in pairs(groups) do keys[#keys + 1] = o end
-    table.sort(keys)
+    table.sort(keys, function(a, b) return groups[a].minIndex < groups[b].minIndex end)
 
     local result = {}
     for _, o in ipairs(keys) do
@@ -524,9 +526,14 @@ function ContentView:ShowCharacterView(characterId)
                 eventRows[#eventRows + 1] = instanceRow
 
                 for _, group in ipairs(groups) do
-                    local row = self:MakeCombinedEventRow(group.name, group.tiers)
-                    row:SetWidth(listWidth)
-                    eventRows[#eventRows + 1] = row
+                    local nameRow = self:MakeBossNameRow(group.name)
+                    nameRow:SetWidth(listWidth)
+                    eventRows[#eventRows + 1] = nameRow
+                    for _, t in ipairs(group.tiers) do
+                        local tierRow = self:MakeBossTierRow(t)
+                        tierRow:SetWidth(listWidth)
+                        eventRows[#eventRows + 1] = tierRow
+                    end
                 end
             end
         end
@@ -598,7 +605,10 @@ function ContentView:ShowServerView(serverName)
                 if #groups > 0 then
                     charRows[#charRows + 1] = self:MakeInstanceRow(instance, true)
                     for _, group in ipairs(groups) do
-                        charRows[#charRows + 1] = self:MakeCombinedEventRow(group.name, group.tiers)
+                        charRows[#charRows + 1] = self:MakeBossNameRow(group.name)
+                        for _, t in ipairs(group.tiers) do
+                            charRows[#charRows + 1] = self:MakeBossTierRow(t)
+                        end
                     end
                 end
             end
@@ -764,7 +774,7 @@ function ContentView:MakeInstanceBossRow(bossName, completedChars, timeText, val
         local parts = {}
         for i, char in ipairs(completedChars) do
             local v = values and values[i]
-            local suffix = (v and v ~= "Done") and (" (" .. v .. ")") or ""
+            local suffix = (v and v ~= "Done") and (" " .. v) or ""
             parts[#parts + 1] = char.name .. suffix
         end
         if #completedChars <= 3 then
@@ -784,7 +794,7 @@ function ContentView:MakeInstanceBossRow(bossName, completedChars, timeText, val
     if #completedChars == 0 then
         charsLabel:SetForeColor(Turbine.UI.Color(0.30, 0.26, 0.18))
     else
-        charsLabel:SetForeColor(Turbine.UI.Color(0.73, 0.65, 0.50))
+        charsLabel:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
     end
     charsLabel:SetText(charText)
     charsLabel:SetMouseVisible(false)
@@ -823,7 +833,7 @@ end
 
 -- ------------------------------------------------------------------------------------------------
 
-function ContentView:MakeCombinedEventRow(name, tiers)
+function ContentView:MakeBossNameRow(name)
 
     local row = Turbine.UI.Control()
     row:SetHeight(26)
@@ -849,28 +859,82 @@ function ContentView:MakeCombinedEventRow(name, tiers)
     nameLabel:SetText(name)
     nameLabel:SetMouseVisible(false)
 
-    local parts = {}
-    for _, t in ipairs(tiers) do
-        local valueStr = (t.value and t.value ~= "Done") and (t.value .. "  ") or ""
-        parts[#parts + 1] = t.tier .. "  " .. valueStr .. FormatTimeRemaining(t.time, t.timeOfDeath)
+    row.SizeChanged = function()
+        nameLabel:SetWidth(row:GetWidth() - 30)
     end
 
-    local tiersLabel = Turbine.UI.Label()
-    tiersLabel:SetParent(row)
-    tiersLabel:SetHeight(26)
-    tiersLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
-    tiersLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
-    tiersLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
-    tiersLabel:SetForeColor(Turbine.UI.Color(1.0, 0.88, 0.55))
-    tiersLabel:SetText(table.concat(parts, "   ·   ") .. "  ")
-    tiersLabel:SetMouseVisible(false)
+    return row
+
+end
+
+-- ------------------------------------------------------------------------------------------------
+
+function ContentView:MakeBossTierRow(t)
+
+    local TIME_W = (_G.Settings.timeDisplay == "timestamp" and 140)
+               or  (_G.Settings.timeDisplay == "both" and 95)
+               or  68
+    local TIER_W  = 40
+    local VALUE_W = 44
+    local GAP     = 5
+    local LEFT    = 36
+
+    local row = Turbine.UI.Control()
+    row:SetHeight(22)
+    row:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
+    row.MouseEnter = function() row:SetBackColor(Turbine.UI.Color(0.09, 0.08, 0.05)) end
+    row.MouseLeave = function() row:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03)) end
+
+    local dot = Turbine.UI.Control()
+    dot:SetParent(row)
+    dot:SetPosition(LEFT - 8, 9)
+    dot:SetSize(2, 4)
+    dot:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
+    dot:SetMouseVisible(false)
+
+    local tierLabel = Turbine.UI.Label()
+    tierLabel:SetParent(row)
+    tierLabel:SetHeight(22)
+    tierLabel:SetWidth(TIER_W)
+    tierLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+    tierLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    tierLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
+    tierLabel:SetForeColor(Turbine.UI.Color(0.65, 0.54, 0.28))
+    tierLabel:SetText(t.tier)
+    tierLabel:SetMouseVisible(false)
+
+    local valueLabel = nil
+    if t.value then
+        valueLabel = Turbine.UI.Label()
+        valueLabel:SetParent(row)
+        valueLabel:SetHeight(22)
+        valueLabel:SetWidth(VALUE_W)
+        valueLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+        valueLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+        valueLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
+        valueLabel:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
+        valueLabel:SetText(t.value)
+        valueLabel:SetMouseVisible(false)
+    end
+
+    local timeLabel = Turbine.UI.Label()
+    timeLabel:SetParent(row)
+    timeLabel:SetHeight(22)
+    timeLabel:SetWidth(TIME_W)
+    timeLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
+    timeLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    timeLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
+    timeLabel:SetForeColor(Turbine.UI.Color(1.0, 0.88, 0.55))
+    timeLabel:SetText(FormatTimeRemaining(t.time, t.timeOfDeath))
+    timeLabel:SetMouseVisible(false)
 
     row.SizeChanged = function()
-        local w         = row:GetWidth()
-        local nameWidth = math.floor(w * 0.38)
-        nameLabel:SetWidth(nameWidth)
-        tiersLabel:SetLeft(30 + nameWidth)
-        tiersLabel:SetWidth(w - 30 - nameWidth)
+        local w = row:GetWidth()
+        tierLabel:SetLeft(LEFT)
+        if valueLabel then
+            valueLabel:SetLeft(LEFT + TIER_W + GAP)
+        end
+        timeLabel:SetLeft(w - TIME_W)
     end
 
     return row
