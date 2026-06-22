@@ -178,14 +178,14 @@ function ContentItem:Build()
     self.nameBtn.MouseLeave = function()
         self.nameHover = false
         if not self.collapseHover then
-            -- self.headerFrame:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
+            self.headerFrame:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
         end
     end
     self.nameBtn.MouseDown = function()
         self.headerBg:SetBackColor(Turbine.UI.Color(0.22, 0.18, 0.08))
     end
     self.nameBtn.MouseUp = function()
-        -- self.headerBg:SetBackColor(Turbine.UI.Color(0.16, 0.13, 0.07))
+        self.headerBg:SetBackColor(Turbine.UI.Color(0.16, 0.13, 0.07))
         if self.nameHover then
             self:Clicked()
         end

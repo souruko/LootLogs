@@ -189,17 +189,18 @@ local logHasChanged = false
 
 -- iterate all characters
 for id, character in pairs(_G.Logs) do
-    -- iterate all logs
+    -- collect expired indices first to avoid mutating while iterating
+    local toDelete = {}
     for index, log in pairs(character.logs) do
-        
         if log.timeOfDeath <= currentTime then
-            PrintAlert("LL: " .. character.name .. " - " .. _G.Events[index].name .. " has reset.")
-            character.logs[index] = nil
-            logHasChanged = true
+            table.insert(toDelete, index)
         end
-
     end
-
+    for _, index in ipairs(toDelete) do
+        PrintAlert("LL: " .. character.name .. " - " .. _G.Events[index].name .. " has reset.")
+        character.logs[index] = nil
+        logHasChanged = true
+    end
 end
 
 if logHasChanged then
@@ -210,7 +211,7 @@ end
 if _G.Settings.printWelcome then
 
     Turbine.Shell.WriteLine("LL: == LootLogs ==============================")
-    if #_G.Logs[_G.characterId].logs > 0 then 
+    if next(_G.Logs[_G.characterId].logs) ~= nil then
         for index, log in pairs(_G.Logs[_G.characterId].logs) do
             Turbine.Shell.WriteLine("LL: " .. _G.Events[index].name .. " will reset in " .. math.floor(log.timeOfDeath - currentTime)  .. "s.")
         end

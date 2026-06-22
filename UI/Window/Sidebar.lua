@@ -163,10 +163,6 @@ function Sidebar:CreateContentItems()
         self.contenItems[index] = SidebarItems.ContentItem(_G.Content[contentIndex], contentIndex, self)
     end
 
-    -- no server selected
-    local index = #self.serverItems+1
-    self.serverItems[index] = SidebarItems.ServerItem("No Server Selected", self)
-
     self.selectedContent = self:FindItemById(_G.Settings.selected.content, self.contenItems)
 
     if self.selectedContent then

@@ -12,9 +12,11 @@ function ProcessMatch(message, log, logIndex)
 
     -- mark as done
     if log.type == _G.EventTypes.Done then
+        local tod = CalculateDeath(log)
+        if tod == nil then return end
         logs[logIndex] = {
             value = "Done",
-            timeOfDeath = CalculateDeath(log)
+            timeOfDeath = tod
         }
 
     -- quest / progress tracker: extract (X/Y) from message
@@ -30,9 +32,11 @@ function ProcessMatch(message, log, logIndex)
         end
         -- don't overwrite a "Done" entry with partial progress
         if logs[logIndex] == nil or logs[logIndex].value ~= "Done" or value == "Done" then
+            local tod = CalculateDeath(log)
+            if tod == nil then return end
             logs[logIndex] = {
                 value = value,
-                timeOfDeath = CalculateDeath(log)
+                timeOfDeath = tod
             }
         end
 
@@ -52,9 +56,11 @@ function ProcessMatch(message, log, logIndex)
         end
 
         if value then
+            local tod = CalculateDeath(log)
+            if tod == nil then return end
             logs[logIndex] = {
                 value = value,
-                timeOfDeath = CalculateDeath(log)
+                timeOfDeath = tod
             }
         end
 
@@ -102,8 +108,6 @@ function CalculateDeath(log)
                          + (resetTimeOfDay - currentHours) * 3600
                          - current.Minute * 60
                          - current.Second
-
-    Turbine.Shell.WriteLine(currentTime + timeUntilDeath)
 
     return currentTime + timeUntilDeath
 
