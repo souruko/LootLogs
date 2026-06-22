@@ -16,6 +16,15 @@ function Turbine.Chat.Received(sender, args)
 
     end
 
+    -- filter chat types
+    if (args.ChatType == Turbine.ChatType.FellowLoot
+        or args.ChatType == Turbine.ChatType.SelfLoot
+        or args.ChatType == Turbine.ChatType.PlayerCombat
+        or args.ChatType == Turbine.ChatType.EnemyCombat) then
+        return
+
+    end
+
     -- iterate logs and compare to the message
     for logIndex, log in ipairs(_G.Events) do
 
