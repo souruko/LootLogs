@@ -85,6 +85,7 @@ if _G.Settings == nil then
     _G.Settings.printWelcome = true
     _G.Settings.showCustomList = true
     _G.Settings.showServers = true
+    _G.Settings.showBadge = true
     _G.Settings.language = "en"
     _G.Settings.previousId = 3
 
@@ -129,6 +130,10 @@ end
 
 if _G.Settings.timeDisplay == nil then
     _G.Settings.timeDisplay = "timespan"
+end
+
+if _G.Settings.showBadge == nil then
+    _G.Settings.showBadge = true
 end
 
 -- logs ---------------------------------------------------------------------------------------------

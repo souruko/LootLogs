@@ -68,6 +68,10 @@ function ProcessMatch(message, log, logIndex)
 
     SaveLogs()
 
+    if _G.QuickLaunchBtn then
+        _G.QuickLaunchBtn:IncrementBadge()
+    end
+
     if _G.Window and _G.Window.contentView then
         _G.Window.contentView:UpdateContent()
     end

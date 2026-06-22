@@ -576,6 +576,11 @@ function Settings:BuildRows()
     addRow(self:MakeToggleRow(_G.L("showServers"), "showServers", function()
         self:GetParent().sidebar:FillCharacterItems()
     end))
+    addRow(self:MakeToggleRow(_G.L("showBadge"), "showBadge", function()
+        if not _G.Settings.showBadge and _G.QuickLaunchBtn then
+            _G.QuickLaunchBtn:ClearBadge()
+        end
+    end))
     addRow(self:MakeTimezoneRow())
     addRow(self:MakeTimeDisplayRow())
     addRow(self:MakeLanguageRow())

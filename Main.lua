@@ -40,4 +40,4 @@ import "LootLogs2.UI.Window.Base"
 import "LootLogs2.UI.QuickLaunch"
 
 _G.Window = _G.LLWindow()
-QuickLaunchBtn = _G.QuickLaunch()
+_G.QuickLaunchBtn = _G.QuickLaunch()
