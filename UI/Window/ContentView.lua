@@ -219,6 +219,7 @@ local function collectOrderGroups(instanceId, logs, currentTime)
                     tierOrder   = tierOrder(event.tier),
                     time        = math.max(0, log.timeOfDeath - currentTime),
                     timeOfDeath = log.timeOfDeath,
+                    value       = log.value,
                 }
             end
         end
@@ -284,22 +285,24 @@ function ContentView:_AddInstanceTierRows(instanceId, chars, currentTime, listWi
             for _, o in ipairs(sortedBossOrders) do
                 local boss = tierData.bosses[o]
 
-                local completedChars = {}
-                local timeRemaining  = 0
-                local timeOfDeath    = 0
+                local completedChars  = {}
+                local completedValues = {}
+                local timeRemaining   = 0
+                local timeOfDeath     = 0
                 for _, character in ipairs(chars) do
                     for _, ei in ipairs(boss.indices) do
                         if character.logs and character.logs[ei] ~= nil then
                             timeOfDeath   = character.logs[ei].timeOfDeath
                             timeRemaining = math.max(0, timeOfDeath - currentTime)
-                            completedChars[#completedChars + 1] = character
+                            completedChars[#completedChars + 1]  = character
+                            completedValues[#completedValues + 1] = character.logs[ei].value
                             break
                         end
                     end
                 end
 
                 local timeText = #completedChars > 0 and FormatTimeRemaining(timeRemaining, timeOfDeath) or "—"
-                addRow(self:MakeInstanceBossRow(boss.name, completedChars, timeText))
+                addRow(self:MakeInstanceBossRow(boss.name, completedChars, timeText, completedValues))
             end
         end
     end
@@ -726,7 +729,7 @@ end
 
 -- ------------------------------------------------------------------------------------------------
 
-function ContentView:MakeInstanceBossRow(bossName, completedChars, timeText)
+function ContentView:MakeInstanceBossRow(bossName, completedChars, timeText, values)
 
     local row = Turbine.UI.Control()
     row:SetHeight(26)
@@ -759,8 +762,10 @@ function ContentView:MakeInstanceBossRow(bossName, completedChars, timeText)
         charText = "—"
     else
         local parts = {}
-        for _, char in ipairs(completedChars) do
-            parts[#parts + 1] = char.name
+        for i, char in ipairs(completedChars) do
+            local v = values and values[i]
+            local suffix = (v and v ~= "Done") and (" (" .. v .. ")") or ""
+            parts[#parts + 1] = char.name .. suffix
         end
         if #completedChars <= 3 then
             charText = table.concat(parts, ",  ")
@@ -846,7 +851,8 @@ function ContentView:MakeCombinedEventRow(name, tiers)
 
     local parts = {}
     for _, t in ipairs(tiers) do
-        parts[#parts + 1] = t.tier .. "  " .. FormatTimeRemaining(t.time, t.timeOfDeath)
+        local valueStr = (t.value and t.value ~= "Done") and (t.value .. "  ") or ""
+        parts[#parts + 1] = t.tier .. "  " .. valueStr .. FormatTimeRemaining(t.time, t.timeOfDeath)
     end
 
     local tiersLabel = Turbine.UI.Label()
