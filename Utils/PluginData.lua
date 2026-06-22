@@ -127,6 +127,10 @@ if _G.Settings.quickLaunch == nil then
     _G.Settings.quickLaunch.top  = 100
 end
 
+if _G.Settings.timeDisplay == nil then
+    _G.Settings.timeDisplay = "timespan"
+end
+
 -- logs ---------------------------------------------------------------------------------------------
 -- structure
 -- 

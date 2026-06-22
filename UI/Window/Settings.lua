@@ -348,6 +348,110 @@ end
 
 -- ------------------------------------------------------------------------------------------------
 
+function Settings:MakeTimeDisplayRow()
+
+    local row = Turbine.UI.Control()
+    row:SetHeight(34)
+    row:SetBackColor(COL_PANEL)
+    row:SetMouseVisible(false)
+
+    local nameLabel = Turbine.UI.Label()
+    nameLabel:SetParent(row)
+    nameLabel:SetPosition(12, 0)
+    nameLabel:SetHeight(34)
+    nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+    nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana14)
+    nameLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
+    nameLabel:SetForeColor(COL_TEXT)
+    nameLabel:SetText(_G.L("timeDisplay"))
+    nameLabel:SetMouseVisible(false)
+
+    local MODES  = { "timespan", "timestamp", "both" }
+    local LABELS = { _G.L("timeDisplaySpan"), _G.L("timeDisplayStamp"), _G.L("timeDisplayBoth") }
+    local BTN_W  = 76
+    local BTN_H  = 22
+    local buttons = {}
+
+    local function RefreshButtons()
+        for i, mode in ipairs(MODES) do
+            if _G.Settings.timeDisplay == mode then
+                buttons[i].frame:SetBackColor(COL_HOVER)
+                buttons[i].label:SetForeColor(COL_ACCENT)
+            else
+                buttons[i].frame:SetBackColor(COL_FRAME)
+                buttons[i].label:SetForeColor(COL_DIM)
+            end
+        end
+    end
+
+    for i, mode in ipairs(MODES) do
+        local frame = Turbine.UI.Control()
+        frame:SetParent(row)
+        frame:SetSize(BTN_W + 2, BTN_H + 2)
+        frame:SetBackColor(COL_FRAME)
+
+        local bg = Turbine.UI.Control()
+        bg:SetParent(frame)
+        bg:SetPosition(1, 1)
+        bg:SetSize(BTN_W, BTN_H)
+        bg:SetBackColor(COL_BG)
+
+        local lbl = Turbine.UI.Label()
+        lbl:SetParent(bg)
+        lbl:SetSize(BTN_W, BTN_H)
+        lbl:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
+        lbl:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+        lbl:SetFontStyle(Turbine.UI.FontStyle.Outline)
+        lbl:SetForeColor(COL_DIM)
+        lbl:SetText(LABELS[i])
+        lbl:SetMouseVisible(false)
+
+        buttons[i] = { frame = frame, bg = bg, label = lbl }
+
+        local hover = false
+        bg.MouseEnter = function()
+            hover = true
+            if _G.Settings.timeDisplay ~= mode then
+                frame:SetBackColor(COL_HOVER)
+            end
+        end
+        bg.MouseLeave = function()
+            hover = false
+            RefreshButtons()
+        end
+        bg.MouseDown = function()
+            bg:SetBackColor(COL_PRESS)
+        end
+        bg.MouseUp = function()
+            bg:SetBackColor(COL_BG)
+            if hover and _G.Settings.timeDisplay ~= mode then
+                _G.Settings.timeDisplay = mode
+                _G.SaveSettings()
+                self:GetParent().contentView:UpdateContent()
+            end
+        end
+    end
+
+    RefreshButtons()
+
+    row.SizeChanged = function()
+        local w     = row:GetWidth()
+        local top   = math.floor((34 - BTN_H - 2) / 2)
+        local right = w - 10
+        for i = #MODES, 1, -1 do
+            buttons[i].frame:SetLeft(right - (BTN_W + 2))
+            buttons[i].frame:SetTop(top)
+            right = right - (BTN_W + 2) - 4
+        end
+        nameLabel:SetWidth(right - 12)
+    end
+
+    return row
+
+end
+
+-- ------------------------------------------------------------------------------------------------
+
 function Settings:MakeLanguageRow()
 
     local row = Turbine.UI.Control()
@@ -473,6 +577,7 @@ function Settings:BuildRows()
         self:GetParent().sidebar:FillCharacterItems()
     end))
     addRow(self:MakeTimezoneRow())
+    addRow(self:MakeTimeDisplayRow())
     addRow(self:MakeLanguageRow())
 
     addRow(self:MakeSectionHeader(_G.L("sectionServer")))

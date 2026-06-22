@@ -121,7 +121,66 @@ local function tierOrder(tier)
     return (_G.TierOrder and _G.TierOrder[tostring(tier)]) or 99
 end
 
-local function FormatTimeRemaining(seconds)
+local WEEKDAY_NAMES = {
+    en = {"Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"},
+    de = {"Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"},
+    fr = {"Dimanche","Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi"},
+}
+
+local WEEKDAY_SHORT = {
+    en = {"Sun","Mon","Tue","Wed","Thu","Fri","Sat"},
+    de = {"So","Mo","Di","Mi","Do","Fr","Sa"},
+    fr = {"Dim","Lun","Mar","Mer","Jeu","Ven","Sam"},
+}
+
+local RELATIVE_DAYS_TEMPLATE = {
+    en = "In %d days",
+    de = "In %d Tagen",
+    fr = "Dans %d jours",
+}
+
+local function _DateFromUnix(absTime, wdayTable, sep)
+    local days  = math.floor(absTime / 86400)
+    local wday  = (days + 4) % 7 + 1
+    local jdn = days + 2440588
+    local a = jdn + 32044
+    local b = math.floor((4 * a + 3) / 146097)
+    local c = a - math.floor(146097 * b / 4)
+    local d = math.floor((4 * c + 3) / 1461)
+    local e = c - math.floor(1461 * d / 4)
+    local m = math.floor((5 * e + 2) / 153)
+    local day   = e - math.floor((153 * m + 2) / 5) + 1
+    local month = m + 3 - 12 * math.floor(m / 10)
+    local lang  = (_G.Settings and _G.Settings.language) or "en"
+    local wdays = wdayTable[lang] or wdayTable.en
+    return wdays[wday] .. sep .. day .. "." .. string.format("%02d", month)
+end
+
+local function FormatTimestamp(absTime)
+    return _DateFromUnix(absTime, WEEKDAY_NAMES, ", ")
+end
+
+local function FormatTimestampShort(absTime)
+    return _DateFromUnix(absTime, WEEKDAY_SHORT, " ")
+end
+
+local function FormatRelativeDays(absTime)
+    local tz         = ((_G.Settings and _G.Settings.timezone) or 0) * 3600
+    local currentDay = math.floor((Turbine.Engine.GetLocalTime() + tz) / 86400)
+    local deathDay   = math.floor((absTime + tz) / 86400)
+    local dayDiff    = deathDay - currentDay
+    local lang       = (_G.Settings and _G.Settings.language) or "en"
+    if dayDiff <= 0 then
+        return _G.L("relativeToday")
+    elseif dayDiff == 1 then
+        return _G.L("relativeTomorrow")
+    else
+        local tmpl = RELATIVE_DAYS_TEMPLATE[lang] or RELATIVE_DAYS_TEMPLATE.en
+        return string.format(tmpl, dayDiff)
+    end
+end
+
+local function FormatTimeSpan(seconds)
     if seconds <= 0 then return "< 1m" end
     local d = math.floor(seconds / 86400)
     local h = math.floor((seconds % 86400) / 3600)
@@ -130,6 +189,15 @@ local function FormatTimeRemaining(seconds)
     elseif h > 0 then return h .. "h " .. m .. "m"
     else return m .. "m"
     end
+end
+
+local function FormatTimeRemaining(seconds, absTime)
+    if _G.Settings.timeDisplay == "timestamp" and absTime ~= nil then
+        return FormatTimestamp(absTime)
+    elseif _G.Settings.timeDisplay == "both" and absTime ~= nil then
+        return FormatRelativeDays(absTime)
+    end
+    return FormatTimeSpan(seconds)
 end
 
 -- Collect events for an instance grouped by order, returning sorted list of groups.
@@ -147,9 +215,10 @@ local function collectOrderGroups(instanceId, logs, currentTime)
                 end
                 local t = groups[o].tiers
                 t[#t + 1] = {
-                    tier      = tostring(event.tier),
-                    tierOrder = tierOrder(event.tier),
-                    time      = math.max(0, log.timeOfDeath - currentTime),
+                    tier        = tostring(event.tier),
+                    tierOrder   = tierOrder(event.tier),
+                    time        = math.max(0, log.timeOfDeath - currentTime),
+                    timeOfDeath = log.timeOfDeath,
                 }
             end
         end
@@ -217,17 +286,19 @@ function ContentView:_AddInstanceTierRows(instanceId, chars, currentTime, listWi
 
                 local completedChars = {}
                 local timeRemaining  = 0
+                local timeOfDeath    = 0
                 for _, character in ipairs(chars) do
                     for _, ei in ipairs(boss.indices) do
                         if character.logs and character.logs[ei] ~= nil then
-                            timeRemaining = math.max(0, character.logs[ei].timeOfDeath - currentTime)
+                            timeOfDeath   = character.logs[ei].timeOfDeath
+                            timeRemaining = math.max(0, timeOfDeath - currentTime)
                             completedChars[#completedChars + 1] = character
                             break
                         end
                     end
                 end
 
-                local timeText = #completedChars > 0 and FormatTimeRemaining(timeRemaining) or "—"
+                local timeText = #completedChars > 0 and FormatTimeRemaining(timeRemaining, timeOfDeath) or "—"
                 addRow(self:MakeInstanceBossRow(boss.name, completedChars, timeText))
             end
         end
@@ -727,7 +798,9 @@ function ContentView:MakeInstanceBossRow(bossName, completedChars, timeText)
     timeLabel:SetText(timeText .. "  ")
     timeLabel:SetMouseVisible(false)
 
-    local TIME_W = 68
+    local TIME_W = (_G.Settings.timeDisplay == "timestamp" and 140)
+              or  (_G.Settings.timeDisplay == "both" and 95)
+              or  68
 
     row.SizeChanged = function()
         local w      = row:GetWidth()
@@ -773,7 +846,7 @@ function ContentView:MakeCombinedEventRow(name, tiers)
 
     local parts = {}
     for _, t in ipairs(tiers) do
-        parts[#parts + 1] = t.tier .. "  " .. FormatTimeRemaining(t.time)
+        parts[#parts + 1] = t.tier .. "  " .. FormatTimeRemaining(t.time, t.timeOfDeath)
     end
 
     local tiersLabel = Turbine.UI.Label()
