@@ -202,7 +202,12 @@ for id, character in pairs(_G.Logs) do
         end
     end
     for _, index in ipairs(toDelete) do
-        PrintAlert("LL: " .. character.name .. " - " .. _G.Events[index].name .. " has reset.")
+        local event    = _G.Events[index]
+        local instance = _G.Instances[event.instance]
+        PrintAlert(
+            "LL: [" .. (instance and instance.name or "?") .. "] " ..
+            event.name .. " (" .. event.tier .. ") - reset for " .. character.name .. "."
+        )
         character.logs[index] = nil
         logHasChanged = true
     end
@@ -215,15 +220,28 @@ end
 -- write current characters logs into chat
 if _G.Settings.printWelcome then
 
-    Turbine.Shell.WriteLine("LL: == LootLogs ==============================")
-    if next(_G.Logs[_G.characterId].logs) ~= nil then
-        for index, log in pairs(_G.Logs[_G.characterId].logs) do
-            Turbine.Shell.WriteLine("LL: " .. _G.Events[index].name .. " will reset in " .. math.floor(log.timeOfDeath - currentTime)  .. "s.")
+    Turbine.Shell.WriteLine("LL: ========== LootLogs ==========")
+    local activeLogs = _G.Logs[_G.characterId].logs
+    if next(activeLogs) ~= nil then
+        local sorted = {}
+        for index, log in pairs(activeLogs) do
+            table.insert(sorted, { index = index, log = log })
         end
-
+        table.sort(sorted, function(a, b)
+            return a.log.timeOfDeath < b.log.timeOfDeath
+        end)
+        for _, entry in ipairs(sorted) do
+            local event    = _G.Events[entry.index]
+            local instance = _G.Instances[event.instance]
+            local remaining = entry.log.timeOfDeath - currentTime
+            Turbine.Shell.WriteLine(
+                "LL: [" .. (instance and instance.name or "?") .. "] " ..
+                event.name .. " (" .. event.tier .. ") - resets in " ..
+                FormatTimeSpan(remaining)
+            )
+        end
     else
-        Turbine.Shell.WriteLine("LL: You do not have any logs on this character.")
-
+        Turbine.Shell.WriteLine("LL: No active lockouts on this character.")
     end
-    
+
 end

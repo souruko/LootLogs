@@ -8,16 +8,14 @@
 -- process match ----------------------------------------------------------------------------------
 function ProcessMatch(message, log, logIndex)
 
-    local logs = _G.Logs[_G.characterId].logs
+    local logs     = _G.Logs[_G.characterId].logs
+    local newEntry = nil
 
     -- mark as done
     if log.type == _G.EventTypes.Done then
         local tod = CalculateDeath(log)
         if tod == nil then return end
-        logs[logIndex] = {
-            value = "Done",
-            timeOfDeath = tod
-        }
+        newEntry = { value = "Done", timeOfDeath = tod }
 
     -- quest / progress tracker: extract (X/Y) from message
     elseif log.type == _G.EventTypes.ExtractValue then
@@ -34,10 +32,7 @@ function ProcessMatch(message, log, logIndex)
         if logs[logIndex] == nil or logs[logIndex].value ~= "Done" or value == "Done" then
             local tod = CalculateDeath(log)
             if tod == nil then return end
-            logs[logIndex] = {
-                value = value,
-                timeOfDeath = tod
-            }
+            newEntry = { value = value, timeOfDeath = tod }
         end
 
     -- instance chest with favoured / common / locked states
@@ -58,15 +53,27 @@ function ProcessMatch(message, log, logIndex)
         if value then
             local tod = CalculateDeath(log)
             if tod == nil then return end
-            logs[logIndex] = {
-                value = value,
-                timeOfDeath = tod
-            }
+            newEntry = { value = value, timeOfDeath = tod }
         end
 
     end
 
+    if newEntry then
+        logs[logIndex] = newEntry
+    end
+
     SaveLogs()
+
+    if newEntry then
+        local event     = _G.Events[logIndex]
+        local instance  = _G.Instances[event.instance]
+        local remaining = newEntry.timeOfDeath - Turbine.Engine.GetLocalTime()
+        PrintAlert(
+            "LL: [" .. (instance and instance.name or "?") .. "] " ..
+            event.name .. " (" .. event.tier .. ")" ..
+            " - " .. newEntry.value .. ", resets in " .. FormatTimeSpan(remaining)
+        )
+    end
 
     if _G.QuickLaunchBtn then
         _G.QuickLaunchBtn:IncrementBadge()

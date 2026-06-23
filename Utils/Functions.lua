@@ -38,6 +38,17 @@ function RemoveDuplicates(t)
     return result
 end
 
+function FormatTimeSpan(seconds)
+    if seconds <= 0 then return "< 1m" end
+    local d = math.floor(seconds / 86400)
+    local h = math.floor((seconds % 86400) / 3600)
+    local m = math.floor((seconds % 3600) / 60)
+    if d > 0 then return d .. "d " .. h .. "h"
+    elseif h > 0 then return h .. "h " .. m .. "m"
+    else return m .. "m"
+    end
+end
+
 function _G.GetServerList()
     
     local serverList = {}
