@@ -300,10 +300,20 @@ function Sidebar:FillCharacterItems()
 
     else
         local lowerText = string.lower(text)
-        for index, item in pairs(self.characterItems) do
+        local sorted = {}
+        for _, item in pairs(self.characterItems) do
             if text == "" or string.find(string.lower(item.character.name), lowerText, 1, true) then
-                self.itemView:AddItem(item)
+                table.insert(sorted, item)
             end
+        end
+        table.sort(sorted, function(a, b)
+            local aLevel = a.character and a.character.level or 0
+            local bLevel = b.character and b.character.level or 0
+            if aLevel ~= bLevel then return aLevel > bLevel end
+            return string.lower(a.name) < string.lower(b.name)
+        end)
+        for _, item in ipairs(sorted) do
+            self.itemView:AddItem(item)
         end
 
     end

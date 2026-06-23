@@ -2,7 +2,7 @@
 
 A Lord of the Rings Online plugin that tracks per-character loot lockouts across instances. When you open a loot chest, LootLogs automatically records the lockout and shows a countdown to the next reset.
 
-**Version:** 0.0.0  
+**Version:** 3.0.0  
 **Author:** Souru
 
 ---

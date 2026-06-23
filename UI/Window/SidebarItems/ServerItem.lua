@@ -32,6 +32,13 @@ function ServerItem:FillChildren()
     self:ClearItems()
     self:AddItem(self.blank)
 
+    table.sort(self.children, function(a, b)
+        local aLevel = a.character and a.character.level or 0
+        local bLevel = b.character and b.character.level or 0
+        if aLevel ~= bLevel then return aLevel > bLevel end
+        return string.lower(a.name) < string.lower(b.name)
+    end)
+
     local lowerSearch = string.lower(self.searchText)
     local lowerName   = string.lower(self.name)
 
