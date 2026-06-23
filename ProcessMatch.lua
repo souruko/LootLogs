@@ -4,6 +4,7 @@
 --= process a match from chat parsing
 --=================================================================================================
 
+import "LootLogsBeta.Utils.Functions"
 
 -- process match ----------------------------------------------------------------------------------
 function ProcessMatch(message, log, logIndex)

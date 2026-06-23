@@ -47,8 +47,8 @@ function _G.QuickLaunch:Constructor()
     end
 
     self.MouseDown = function(sender, args)
+        self:ClearBadge()
         if args.Button == Turbine.UI.MouseButton.Right then
-            self:ClearBadge()
             _G.Window:SetVisible(not _G.Window:IsVisible())
         elseif args.Button == Turbine.UI.MouseButton.Left then
             isDragging = true
