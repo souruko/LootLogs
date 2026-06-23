@@ -210,9 +210,10 @@ for id, character in pairs(_G.Logs) do
         local instance = _G.Instances[event.instance]
         _G.PrintAlert(
             _G.CM("ACCENT") .. "LL:" .. _G.CMR ..
-            " [" .. (instance and instance.name or "?") .. "] " ..
-            event.name .. " (" .. event.tier .. ") - reset for " ..
-            _G.CM("ACCENT") .. character.name .. _G.CMR .. "."
+            "  " .. _G.CM("HOVER") .. "[" .. (instance and instance.name or "?") .. "]" .. _G.CMR ..
+            " " .. event.name ..
+            " " .. _G.CM("DIM") .. "(" .. event.tier .. ")" .. _G.CMR ..
+            " reset for " .. _G.CM("ACCENT") .. character.name .. _G.CMR
         )
         character.logs[index] = nil
         logHasChanged = true
@@ -226,7 +227,7 @@ end
 -- write current characters logs into chat
 if _G.Settings.printWelcome then
 
-    Turbine.Shell.WriteLine(_G.CM("ACCENT") .. "LL:" .. _G.CMR .. " ========== LootLogs ==========")
+    Turbine.Shell.WriteLine(_G.CM("ACCENT") .. "LL: LootLogs" .. _G.CMR .. _G.CM("DIM") .. "  — " .. _G.name .. _G.CMR)
     local activeLogs = _G.Logs[_G.characterId].logs
     if next(activeLogs) ~= nil then
         local sorted = {}
@@ -241,14 +242,15 @@ if _G.Settings.printWelcome then
             local instance = _G.Instances[event.instance]
             local remaining = entry.log.timeOfDeath - currentTime
             Turbine.Shell.WriteLine(
-                _G.CM("ACCENT") .. "LL:" .. _G.CMR ..
-                " [" .. (instance and instance.name or "?") .. "] " ..
-                event.name .. " (" .. event.tier .. ") - resets in " ..
-                _G.CM("ACCENT") .. FormatTimeSpan(remaining) .. _G.CMR
+                _G.CM("DIM") .. " · " .. _G.CMR ..
+                _G.CM("HOVER") .. "[" .. (instance and instance.name or "?") .. "]" .. _G.CMR ..
+                " " .. event.name ..
+                " " .. _G.CM("DIM") .. "(" .. event.tier .. ")" .. _G.CMR ..
+                "  " .. _G.CM("ACCENT") .. FormatTimeSpan(remaining) .. _G.CMR
             )
         end
     else
-        Turbine.Shell.WriteLine(_G.CM("ACCENT") .. "LL:" .. _G.CMR .. " No active lockouts on this character.")
+        Turbine.Shell.WriteLine("  No active lockouts.")
     end
 
 end
