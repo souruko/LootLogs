@@ -52,7 +52,7 @@ end
 
 _G.CMR = "</rgb>"
 
-function FormatTimeSpan(seconds)
+function _G.FormatTimeSpan(seconds)
     if seconds <= 0 then return "< 1m" end
     local d = math.floor(seconds / 86400)
     local h = math.floor((seconds % 86400) / 3600)

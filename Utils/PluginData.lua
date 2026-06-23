@@ -245,7 +245,7 @@ if _G.Settings.printWelcome then
                 _G.CM("HOVER") .. "[" .. (instance and instance.name or "?") .. "]" .. _G.CMR ..
                 " " .. event.name ..
                 " " .. _G.CM("DIM") .. "(" .. event.tier .. ")" .. _G.CMR ..
-                "  " .. _G.CM("ACCENT") .. FormatTimeSpan(remaining) .. _G.CMR
+                "  " .. _G.CM("ACCENT") .. _G.FormatTimeSpan(remaining) .. _G.CMR
             )
         end
     else

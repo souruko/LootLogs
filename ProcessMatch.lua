@@ -73,7 +73,7 @@ function ProcessMatch(message, log, logIndex)
             " " .. event.name ..
             " " .. _G.CM("DIM") .. "(" .. event.tier .. ")" .. _G.CMR ..
             "  " .. newEntry.value ..
-            "  " .. _G.CM("ACCENT") .. FormatTimeSpan(remaining) .. _G.CMR
+            "  " .. _G.CM("ACCENT") .. _G.FormatTimeSpan(remaining) .. _G.CMR
         )
     end
 
