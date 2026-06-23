@@ -61,11 +61,11 @@ end
 
 function ServerItem:SetSelected(value)
     if value then
-        self.headerBg:SetBackColor(Turbine.UI.Color(0.30, 0.24, 0.09))
-        self.nameLabel:SetForeColor(Turbine.UI.Color(1.0, 0.88, 0.55))
+        self.headerBg:SetBackColor(_G.Theme.SEL_BG)
+        self.nameLabel:SetForeColor(_G.Theme.ACCENT)
     else
-        self.headerBg:SetBackColor(Turbine.UI.Color(0.16, 0.13, 0.07))
-        self.nameLabel:SetForeColor(Turbine.UI.Color(0.85, 0.75, 0.55))
+        self.headerBg:SetBackColor(_G.Theme.HEADER)
+        self.nameLabel:SetForeColor(_G.Theme.TEXT)
     end
 end
 
@@ -95,6 +95,7 @@ function ServerItem:Clicked()
 end
 
 function ServerItem:SizeChanged()
+    if not self.blank then return end
     local width = self:GetWidth()
     self.blank:SetWidth(width)
     self.accentStrip:SetWidth(width - 12)
@@ -119,7 +120,7 @@ function ServerItem:Build()
     self.accentStrip:SetParent(self.blank)
     self.accentStrip:SetPosition(0, 6)
     self.accentStrip:SetHeight(2)
-    self.accentStrip:SetBackColor(Turbine.UI.Color(0.55, 0.45, 0.22))
+    self.accentStrip:SetBackColor(_G.Theme.STRIP)
     self.accentStrip:SetMouseVisible(false)
 
     -- single unified header bar
@@ -127,13 +128,13 @@ function ServerItem:Build()
     self.headerFrame:SetParent(self.blank)
     self.headerFrame:SetPosition(0, 8)
     self.headerFrame:SetHeight(28)
-    self.headerFrame:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
+    self.headerFrame:SetBackColor(_G.Theme.FRAME)
 
     self.headerBg = Turbine.UI.Control()
     self.headerBg:SetParent(self.headerFrame)
     self.headerBg:SetPosition(1, 1)
     self.headerBg:SetHeight(26)
-    self.headerBg:SetBackColor(Turbine.UI.Color(0.16, 0.13, 0.07))
+    self.headerBg:SetBackColor(_G.Theme.HEADER)
     self.headerBg:SetMouseVisible(false)
 
     -- collapse button (left 26px of header)
@@ -143,12 +144,12 @@ function ServerItem:Build()
     self.arrowBtn:SetSize(26, 26)
     self.arrowBtn.MouseEnter = function()
         self.collapseHover = true
-        self.headerFrame:SetBackColor(Turbine.UI.Color(0.65, 0.54, 0.28))
+        self.headerFrame:SetBackColor(_G.Theme.HOVER)
     end
     self.arrowBtn.MouseLeave = function()
         self.collapseHover = false
         if not self.nameHover then
-            self.headerFrame:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
+            self.headerFrame:SetBackColor(_G.Theme.FRAME)
         end
     end
     self.arrowBtn.MouseUp = function()
@@ -171,19 +172,19 @@ function ServerItem:Build()
     self.nameBtn:SetHeight(26)
     self.nameBtn.MouseEnter = function()
         self.nameHover = true
-        self.headerFrame:SetBackColor(Turbine.UI.Color(0.65, 0.54, 0.28))
+        self.headerFrame:SetBackColor(_G.Theme.HOVER)
     end
     self.nameBtn.MouseLeave = function()
         self.nameHover = false
         if not self.collapseHover then
-            self.headerFrame:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
+            self.headerFrame:SetBackColor(_G.Theme.FRAME)
         end
     end
     self.nameBtn.MouseDown = function()
-        self.headerBg:SetBackColor(Turbine.UI.Color(0.22, 0.18, 0.08))
+        self.headerBg:SetBackColor(_G.Theme.SEL_BG)
     end
     self.nameBtn.MouseUp = function()
-        self.headerBg:SetBackColor(Turbine.UI.Color(0.16, 0.13, 0.07))
+        self.headerBg:SetBackColor(_G.Theme.HEADER)
         if self.nameHover then
             self:Clicked()
         end
@@ -193,10 +194,10 @@ function ServerItem:Build()
     self.nameLabel:SetParent(self.nameBtn)
     self.nameLabel:SetHeight(26)
     self.nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    self.nameLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
+    self.nameLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     self.nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana16)
     self.nameLabel:SetText(self.name)
-    self.nameLabel:SetForeColor(Turbine.UI.Color(0.85, 0.75, 0.55))
+    self.nameLabel:SetForeColor(_G.Theme.TEXT)
     self.nameLabel:SetMouseVisible(false)
 
     self:AddItem(self.blank)

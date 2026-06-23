@@ -31,8 +31,8 @@ function ServerSelectPopup:Build()
     self.prompt:SetSize(280, 28)
     self.prompt:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
     self.prompt:SetFont(Turbine.UI.Lotro.Font.Verdana14)
-    self.prompt:SetFontStyle(Turbine.UI.FontStyle.Outline)
-    self.prompt:SetForeColor(Turbine.UI.Color(0.73, 0.65, 0.50))
+    self.prompt:SetFontStyle(_G.Theme.FONT_STYLE)
+    self.prompt:SetForeColor(_G.Theme.TEXT)
     self.prompt:SetText("Which server are you currently on?")
 
     for i, serverName in ipairs(_G.Servers) do
@@ -43,21 +43,21 @@ function ServerSelectPopup:Build()
         frame:SetParent(self)
         frame:SetPosition(10, top)
         frame:SetSize(280, 36)
-        frame:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
+        frame:SetBackColor(_G.Theme.FRAME)
 
         local bg = Turbine.UI.Control()
         bg:SetParent(frame)
         bg:SetPosition(1, 1)
         bg:SetSize(278, 34)
-        bg:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
+        bg:SetBackColor(_G.Theme.BG)
 
         local label = Turbine.UI.Label()
         label:SetParent(bg)
         label:SetSize(278, 34)
         label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
         label:SetFont(Turbine.UI.Lotro.Font.Verdana16)
-        label:SetFontStyle(Turbine.UI.FontStyle.Outline)
-        label:SetForeColor(Turbine.UI.Color(0.73, 0.65, 0.50))
+        label:SetFontStyle(_G.Theme.FONT_STYLE)
+        label:SetForeColor(_G.Theme.TEXT)
         label:SetText(serverName)
         label:SetMouseVisible(false)
 
@@ -65,17 +65,17 @@ function ServerSelectPopup:Build()
 
         bg.MouseEnter = function()
             hover = true
-            frame:SetBackColor(Turbine.UI.Color(0.65, 0.54, 0.28))
+            frame:SetBackColor(_G.Theme.HOVER)
         end
         bg.MouseLeave = function()
             hover = false
-            frame:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
+            frame:SetBackColor(_G.Theme.FRAME)
         end
         bg.MouseDown = function()
-            bg:SetBackColor(Turbine.UI.Color(0.18, 0.15, 0.08))
+            bg:SetBackColor(_G.Theme.PRESS)
         end
         bg.MouseUp = function()
-            bg:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
+            bg:SetBackColor(_G.Theme.BG)
             if hover then
                 self:SelectServer(serverName)
             end

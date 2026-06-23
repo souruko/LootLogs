@@ -68,10 +68,12 @@ function ProcessMatch(message, log, logIndex)
         local event     = _G.Events[logIndex]
         local instance  = _G.Instances[event.instance]
         local remaining = newEntry.timeOfDeath - Turbine.Engine.GetLocalTime()
-        PrintAlert(
-            "LL: [" .. (instance and instance.name or "?") .. "] " ..
+        _G.PrintAlert(
+            _G.CM("ACCENT") .. "LL:" .. _G.CMR ..
+            " [" .. (instance and instance.name or "?") .. "] " ..
             event.name .. " (" .. event.tier .. ")" ..
-            " - " .. newEntry.value .. ", resets in " .. FormatTimeSpan(remaining)
+            " - " .. newEntry.value .. ", resets in " ..
+            _G.CM("ACCENT") .. FormatTimeSpan(remaining) .. _G.CMR
         )
     end
 
@@ -108,7 +110,7 @@ function CalculateDeath(log)
 
         daysUntilReset = daysUntilReset + 1
         if daysUntilReset > 8 then
-            PrintAlert("LL: Error: log has no reset day: " .. log.name)
+            _G.PrintAlert("LL: Error: log has no reset day: " .. log.name)
             return
         end
         dayOfWeek = dayOfWeek % 7 + 1

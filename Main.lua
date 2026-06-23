@@ -19,6 +19,7 @@ import "LootLogsBeta.Utils.Type"
 import "LootLogsBeta.Utils.Constants"
 import "LootLogsBeta.Utils.Functions"
 import "LootLogsBeta.Utils.Locale"
+import "LootLogsBeta.UI.Theme"
 
 if Turbine.Shell.IsCommand("hilfe") then
     import "LootLogsBeta.Logs.German"

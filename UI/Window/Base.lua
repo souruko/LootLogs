@@ -34,20 +34,20 @@ function _G.LLWindow:Constructor()
     self.footer = Turbine.UI.Control()
     self.footer:SetParent(self)
     self.footer:SetSize(300, 28)
-    self.footer:SetBackColor(Turbine.UI.Color(0.22, 0.18, 0.12))
+    self.footer:SetBackColor(_G.Theme.OUTER)
 
     -- settings button (left side)
     self.settingsBtn = Turbine.UI.Control()
     self.settingsBtn:SetParent(self.footer)
     self.settingsBtn:SetPosition(0, 0)
     self.settingsBtn:SetSize(28, 28)
-    self.settingsBtn:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
+    self.settingsBtn:SetBackColor(_G.Theme.FRAME)
 
     self.settingsBg = Turbine.UI.Control()
     self.settingsBg:SetParent(self.settingsBtn)
     self.settingsBg:SetPosition(1, 1)
     self.settingsBg:SetSize(26, 26)
-    self.settingsBg:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
+    self.settingsBg:SetBackColor(_G.Theme.BG)
     self.settingsBg:SetMouseVisible(false)
 
     self.settingsIcon = Turbine.UI.Control()
@@ -61,17 +61,17 @@ function _G.LLWindow:Constructor()
     local btnHover = false
     self.settingsBtn.MouseEnter = function()
         btnHover = true
-        self.settingsBtn:SetBackColor(Turbine.UI.Color(0.65, 0.54, 0.28))
+        self.settingsBtn:SetBackColor(_G.Theme.HOVER)
     end
     self.settingsBtn.MouseLeave = function()
         btnHover = false
-        self.settingsBtn:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
+        self.settingsBtn:SetBackColor(_G.Theme.FRAME)
     end
     self.settingsBtn.MouseDown = function()
-        self.settingsBg:SetBackColor(Turbine.UI.Color(0.18, 0.15, 0.08))
+        self.settingsBg:SetBackColor(_G.Theme.PRESS)
     end
     self.settingsBtn.MouseUp = function()
-        self.settingsBg:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
+        self.settingsBg:SetBackColor(_G.Theme.BG)
         if btnHover then
             self:ToggleSettings()
         end
@@ -90,7 +90,7 @@ function _G.LLWindow:Constructor()
     self.clockBg:SetParent(self.footer)
     self.clockBg:SetPosition(65, 5)
     self.clockBg:SetSize(230, 17)
-    self.clockBg:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
+    self.clockBg:SetBackColor(_G.Theme.BG)
     self.clockBg:SetMouseVisible(false)
 
     self.clockLabel = Turbine.UI.Label()
@@ -99,8 +99,8 @@ function _G.LLWindow:Constructor()
     self.clockLabel:SetHeight(28)
     self.clockLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
     self.clockLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
-    self.clockLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
-    self.clockLabel:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
+    self.clockLabel:SetFontStyle(_G.Theme.FONT_STYLE)
+    self.clockLabel:SetForeColor(_G.Theme.DIM2)
     self.clockLabel:SetMouseVisible(false)
 
     -- clock ticker (fires every game tick, updates label when minute changes)
@@ -160,7 +160,7 @@ function _G.LLWindow:ToggleSettings()
     if self.settingsVisible then
         -- self.settingsIcon:SetForeColor(Turbine.UI.Color(1.0, 0.88, 0.55))
     else
-        -- self.settingsIcon:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
+        -- self.settingsIcon:SetForeColor(_G.Theme.DIM2)
     end
 
 end

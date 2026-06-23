@@ -17,7 +17,7 @@ end
 -- server -----------------------------------------------------------------------------------------
 
 function SaveServerCompleteHandler()
-    PrintAlert("LL: Server saved!")
+    _G.PrintAlert("LL: Server saved!")
 
 end
 
@@ -38,7 +38,7 @@ _G.Server = Turbine.PluginData.Load(Turbine.DataScope.Server, "GetServer", LoadS
 -- structure
 -- 
 -- timezone
--- printAlerts
+-- _G.PrintAlerts
 -- printWelcome
 -- useCustomList
 -- showServers
@@ -81,7 +81,7 @@ _G.Settings = Turbine.PluginData.Load(Turbine.DataScope.Account, "LootSettings",
 if _G.Settings == nil then
     _G.Settings = {}
     _G.Settings.timezone = 1
-    _G.Settings.printAlerts = true
+    _G.Settings._G.PrintAlerts = true
     _G.Settings.printWelcome = true
     _G.Settings.showCustomList = true
     _G.Settings.showServers = true
@@ -130,6 +130,10 @@ end
 
 if _G.Settings.timeDisplay == nil then
     _G.Settings.timeDisplay = "timespan"
+end
+
+if _G.Settings.colorTheme == nil then
+    _G.Settings.colorTheme = "moria"
 end
 
 if _G.Settings.showBadge == nil then
@@ -204,9 +208,11 @@ for id, character in pairs(_G.Logs) do
     for _, index in ipairs(toDelete) do
         local event    = _G.Events[index]
         local instance = _G.Instances[event.instance]
-        PrintAlert(
-            "LL: [" .. (instance and instance.name or "?") .. "] " ..
-            event.name .. " (" .. event.tier .. ") - reset for " .. character.name .. "."
+        _G.PrintAlert(
+            _G.CM("ACCENT") .. "LL:" .. _G.CMR ..
+            " [" .. (instance and instance.name or "?") .. "] " ..
+            event.name .. " (" .. event.tier .. ") - reset for " ..
+            _G.CM("ACCENT") .. character.name .. _G.CMR .. "."
         )
         character.logs[index] = nil
         logHasChanged = true
@@ -220,7 +226,7 @@ end
 -- write current characters logs into chat
 if _G.Settings.printWelcome then
 
-    Turbine.Shell.WriteLine("LL: ========== LootLogs ==========")
+    Turbine.Shell.WriteLine(_G.CM("ACCENT") .. "LL:" .. _G.CMR .. " ========== LootLogs ==========")
     local activeLogs = _G.Logs[_G.characterId].logs
     if next(activeLogs) ~= nil then
         local sorted = {}
@@ -235,13 +241,16 @@ if _G.Settings.printWelcome then
             local instance = _G.Instances[event.instance]
             local remaining = entry.log.timeOfDeath - currentTime
             Turbine.Shell.WriteLine(
-                "LL: [" .. (instance and instance.name or "?") .. "] " ..
+                _G.CM("ACCENT") .. "LL:" .. _G.CMR ..
+                " [" .. (instance and instance.name or "?") .. "] " ..
                 event.name .. " (" .. event.tier .. ") - resets in " ..
-                FormatTimeSpan(remaining)
+                _G.CM("ACCENT") .. FormatTimeSpan(remaining) .. _G.CMR
             )
         end
     else
-        Turbine.Shell.WriteLine("LL: No active lockouts on this character.")
+        Turbine.Shell.WriteLine(_G.CM("ACCENT") .. "LL:" .. _G.CMR .. " No active lockouts on this character.")
     end
 
 end
+
+_G.ApplyTheme(_G.Settings.colorTheme or "moria")

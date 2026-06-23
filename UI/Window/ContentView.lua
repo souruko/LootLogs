@@ -93,11 +93,11 @@ function ContentView:UpdateHeader()
             self.deleteCharDisabled = isCurrentChar
             self.deleteCharFrame:SetVisible(true)
             if isCurrentChar then
-                self.deleteCharFrame:SetBackColor(Turbine.UI.Color(0.20, 0.17, 0.10))
-                self.deleteCharLabel:SetForeColor(Turbine.UI.Color(0.22, 0.18, 0.10))
+                self.deleteCharFrame:SetBackColor(_G.Theme.PRESS)
+                self.deleteCharLabel:SetForeColor(_G.Theme.OUTER)
             else
-                self.deleteCharFrame:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
-                self.deleteCharLabel:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
+                self.deleteCharFrame:SetBackColor(_G.Theme.FRAME)
+                self.deleteCharLabel:SetForeColor(_G.Theme.DIM2)
             end
         end
 
@@ -637,15 +637,15 @@ function ContentView:MakeTierHeaderRow(instanceId, tierName)
 
     local row = Turbine.UI.Control()
     row:SetHeight(32)
-    row:SetBackColor(Turbine.UI.Color(0.10, 0.08, 0.04))
-    row.MouseEnter = function() row:SetBackColor(Turbine.UI.Color(0.16, 0.13, 0.07)) end
-    row.MouseLeave = function() row:SetBackColor(Turbine.UI.Color(0.10, 0.08, 0.04)) end
+    row:SetBackColor(_G.Theme.SECTION)
+    row.MouseEnter = function() row:SetBackColor(_G.Theme.HEADER) end
+    row.MouseLeave = function() row:SetBackColor(_G.Theme.SECTION) end
 
     local accent = Turbine.UI.Control()
     accent:SetParent(row)
     accent:SetPosition(12, 9)
     accent:SetSize(2, 14)
-    accent:SetBackColor(Turbine.UI.Color(0.65, 0.54, 0.28))
+    accent:SetBackColor(_G.Theme.HOVER)
     accent:SetMouseVisible(false)
 
     local label = Turbine.UI.Label()
@@ -654,8 +654,8 @@ function ContentView:MakeTierHeaderRow(instanceId, tierName)
     label:SetHeight(32)
     label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     label:SetFont(Turbine.UI.Lotro.Font.Verdana14)
-    label:SetFontStyle(Turbine.UI.FontStyle.Outline)
-    label:SetForeColor(Turbine.UI.Color(1.0, 0.88, 0.55))
+    label:SetFontStyle(_G.Theme.FONT_STYLE)
+    label:SetForeColor(_G.Theme.ACCENT)
     label:SetText(tierName)
     label:SetMouseVisible(false)
 
@@ -665,7 +665,7 @@ function ContentView:MakeTierHeaderRow(instanceId, tierName)
     local checkFrame = Turbine.UI.Control()
     checkFrame:SetParent(row)
     checkFrame:SetSize(14, 14)
-    checkFrame:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
+    checkFrame:SetBackColor(_G.Theme.FRAME)
 
     local checkBg = Turbine.UI.Control()
     checkBg:SetParent(checkFrame)
@@ -680,9 +680,9 @@ function ContentView:MakeTierHeaderRow(instanceId, tierName)
 
     local function updateCheckVisual()
         if isChecked() then
-            checkBg:SetBackColor(Turbine.UI.Color(0.65, 0.54, 0.28))
+            checkBg:SetBackColor(_G.Theme.HOVER)
         else
-            checkBg:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
+            checkBg:SetBackColor(_G.Theme.BG)
         end
     end
 
@@ -695,24 +695,24 @@ function ContentView:MakeTierHeaderRow(instanceId, tierName)
     hoverLabel:SetPosition(22, 0)
     hoverLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
     hoverLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
-    hoverLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
-    hoverLabel:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
+    hoverLabel:SetFontStyle(_G.Theme.FONT_STYLE)
+    hoverLabel:SetForeColor(_G.Theme.DIM2)
     hoverLabel:SetText(_G.L("customListHover"))
     hoverLabel:SetVisible(false)
     hoverLabel:SetMouseVisible(false)
 
     checkFrame.MouseEnter = function()
         checkHover = true
-        checkFrame:SetBackColor(Turbine.UI.Color(0.65, 0.54, 0.28))
+        checkFrame:SetBackColor(_G.Theme.HOVER)
         hoverLabel:SetVisible(true)
     end
     checkFrame.MouseLeave = function()
         checkHover = false
-        checkFrame:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
+        checkFrame:SetBackColor(_G.Theme.FRAME)
         hoverLabel:SetVisible(false)
     end
     checkFrame.MouseDown = function()
-        checkBg:SetBackColor(Turbine.UI.Color(0.22, 0.18, 0.08))
+        checkBg:SetBackColor(_G.Theme.SEL_BG)
     end
     checkFrame.MouseUp = function()
         if checkHover then
@@ -743,15 +743,15 @@ function ContentView:MakeInstanceBossRow(bossName, completedChars, timeText, val
 
     local row = Turbine.UI.Control()
     row:SetHeight(26)
-    row:SetBackColor(Turbine.UI.Color(0.07, 0.06, 0.04))
-    row.MouseEnter = function() row:SetBackColor(Turbine.UI.Color(0.11, 0.09, 0.05)) end
-    row.MouseLeave = function() row:SetBackColor(Turbine.UI.Color(0.07, 0.06, 0.04)) end
+    row:SetBackColor(_G.Theme.PANEL)
+    row.MouseEnter = function() row:SetBackColor(_G.Theme.PANEL) end
+    row.MouseLeave = function() row:SetBackColor(_G.Theme.PANEL) end
 
     local accent = Turbine.UI.Control()
     accent:SetParent(row)
     accent:SetPosition(20, 6)
     accent:SetSize(2, 14)
-    accent:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
+    accent:SetBackColor(_G.Theme.FRAME)
     accent:SetMouseVisible(false)
 
     local bossLabel = Turbine.UI.Label()
@@ -760,8 +760,8 @@ function ContentView:MakeInstanceBossRow(bossName, completedChars, timeText, val
     bossLabel:SetHeight(26)
     bossLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     bossLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
-    bossLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
-    bossLabel:SetForeColor(Turbine.UI.Color(0.73, 0.65, 0.50))
+    bossLabel:SetFontStyle(_G.Theme.FONT_STYLE)
+    bossLabel:SetForeColor(_G.Theme.TEXT)
     bossLabel:SetText(bossName)
     bossLabel:SetMouseVisible(false)
 
@@ -790,11 +790,11 @@ function ContentView:MakeInstanceBossRow(bossName, completedChars, timeText, val
     charsLabel:SetHeight(26)
     charsLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     charsLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
-    charsLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
+    charsLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     if #completedChars == 0 then
-        charsLabel:SetForeColor(Turbine.UI.Color(0.30, 0.26, 0.18))
+        charsLabel:SetForeColor(_G.Theme.DIM)
     else
-        charsLabel:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
+        charsLabel:SetForeColor(_G.Theme.DIM2)
     end
     charsLabel:SetText(charText)
     charsLabel:SetMouseVisible(false)
@@ -804,11 +804,11 @@ function ContentView:MakeInstanceBossRow(bossName, completedChars, timeText, val
     timeLabel:SetHeight(26)
     timeLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
     timeLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
-    timeLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
+    timeLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     if #completedChars == 0 then
-        timeLabel:SetForeColor(Turbine.UI.Color(0.30, 0.26, 0.18))
+        timeLabel:SetForeColor(_G.Theme.DIM)
     else
-        timeLabel:SetForeColor(Turbine.UI.Color(1.0, 0.88, 0.55))
+        timeLabel:SetForeColor(_G.Theme.ACCENT)
     end
     timeLabel:SetText(timeText .. "  ")
     timeLabel:SetMouseVisible(false)
@@ -837,15 +837,15 @@ function ContentView:MakeBossNameRow(name)
 
     local row = Turbine.UI.Control()
     row:SetHeight(26)
-    row:SetBackColor(Turbine.UI.Color(0.07, 0.06, 0.04))
-    row.MouseEnter = function() row:SetBackColor(Turbine.UI.Color(0.13, 0.11, 0.07)) end
-    row.MouseLeave = function() row:SetBackColor(Turbine.UI.Color(0.07, 0.06, 0.04)) end
+    row:SetBackColor(_G.Theme.PANEL)
+    row.MouseEnter = function() row:SetBackColor(_G.Theme.SECTION) end
+    row.MouseLeave = function() row:SetBackColor(_G.Theme.PANEL) end
 
     local accent = Turbine.UI.Control()
     accent:SetParent(row)
     accent:SetPosition(20, 6)
     accent:SetSize(2, 14)
-    accent:SetBackColor(Turbine.UI.Color(0.65, 0.54, 0.28))
+    accent:SetBackColor(_G.Theme.HOVER)
     accent:SetMouseVisible(false)
 
     local nameLabel = Turbine.UI.Label()
@@ -854,8 +854,8 @@ function ContentView:MakeBossNameRow(name)
     nameLabel:SetHeight(26)
     nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana14)
-    nameLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
-    nameLabel:SetForeColor(Turbine.UI.Color(0.73, 0.65, 0.50))
+    nameLabel:SetFontStyle(_G.Theme.FONT_STYLE)
+    nameLabel:SetForeColor(_G.Theme.TEXT)
     nameLabel:SetText(name)
     nameLabel:SetMouseVisible(false)
 
@@ -881,15 +881,15 @@ function ContentView:MakeBossTierRow(t)
 
     local row = Turbine.UI.Control()
     row:SetHeight(22)
-    row:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
-    row.MouseEnter = function() row:SetBackColor(Turbine.UI.Color(0.09, 0.08, 0.05)) end
-    row.MouseLeave = function() row:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03)) end
+    row:SetBackColor(_G.Theme.BG)
+    row.MouseEnter = function() row:SetBackColor(_G.Theme.PANEL) end
+    row.MouseLeave = function() row:SetBackColor(_G.Theme.BG) end
 
     local dot = Turbine.UI.Control()
     dot:SetParent(row)
     dot:SetPosition(LEFT - 8, 9)
     dot:SetSize(2, 4)
-    dot:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
+    dot:SetBackColor(_G.Theme.FRAME)
     dot:SetMouseVisible(false)
 
     local tierLabel = Turbine.UI.Label()
@@ -898,8 +898,8 @@ function ContentView:MakeBossTierRow(t)
     tierLabel:SetWidth(TIER_W)
     tierLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     tierLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
-    tierLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
-    tierLabel:SetForeColor(Turbine.UI.Color(0.65, 0.54, 0.28))
+    tierLabel:SetFontStyle(_G.Theme.FONT_STYLE)
+    tierLabel:SetForeColor(_G.Theme.HOVER)
     tierLabel:SetText(t.tier)
     tierLabel:SetMouseVisible(false)
 
@@ -911,8 +911,8 @@ function ContentView:MakeBossTierRow(t)
         valueLabel:SetWidth(VALUE_W)
         valueLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
         valueLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
-        valueLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
-        valueLabel:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
+        valueLabel:SetFontStyle(_G.Theme.FONT_STYLE)
+        valueLabel:SetForeColor(_G.Theme.DIM2)
         valueLabel:SetText(t.value)
         valueLabel:SetMouseVisible(false)
     end
@@ -923,8 +923,8 @@ function ContentView:MakeBossTierRow(t)
     timeLabel:SetWidth(TIME_W)
     timeLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
     timeLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
-    timeLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
-    timeLabel:SetForeColor(Turbine.UI.Color(1.0, 0.88, 0.55))
+    timeLabel:SetFontStyle(_G.Theme.FONT_STYLE)
+    timeLabel:SetForeColor(_G.Theme.ACCENT)
     timeLabel:SetText(FormatTimeRemaining(t.time, t.timeOfDeath))
     timeLabel:SetMouseVisible(false)
 
@@ -947,15 +947,15 @@ function ContentView:MakeCharacterHeaderRow(character)
 
     local row = Turbine.UI.Control()
     row:SetHeight(34)
-    row:SetBackColor(Turbine.UI.Color(0.14, 0.11, 0.05))
-    row.MouseEnter = function() row:SetBackColor(Turbine.UI.Color(0.21, 0.17, 0.08)) end
-    row.MouseLeave = function() row:SetBackColor(Turbine.UI.Color(0.14, 0.11, 0.05)) end
+    row:SetBackColor(_G.Theme.SECTION)
+    row.MouseEnter = function() row:SetBackColor(_G.Theme.PRESS) end
+    row.MouseLeave = function() row:SetBackColor(_G.Theme.SECTION) end
 
     local accent = Turbine.UI.Control()
     accent:SetParent(row)
     accent:SetPosition(0, 0)
     accent:SetSize(3, 34)
-    accent:SetBackColor(Turbine.UI.Color(0.65, 0.54, 0.28))
+    accent:SetBackColor(_G.Theme.HOVER)
     accent:SetMouseVisible(false)
 
     local classIcon = Turbine.UI.Control()
@@ -972,8 +972,8 @@ function ContentView:MakeCharacterHeaderRow(character)
     nameLabel:SetHeight(34)
     nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana16)
-    nameLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
-    nameLabel:SetForeColor(Turbine.UI.Color(1.0, 0.88, 0.55))
+    nameLabel:SetFontStyle(_G.Theme.FONT_STYLE)
+    nameLabel:SetForeColor(_G.Theme.ACCENT)
     nameLabel:SetText(character.name)
     nameLabel:SetMouseVisible(false)
 
@@ -991,15 +991,15 @@ function ContentView:MakeContentRow(content)
 
     local row = Turbine.UI.Control()
     row:SetHeight(34)
-    row:SetBackColor(Turbine.UI.Color(0.18, 0.14, 0.06))
-    row.MouseEnter = function() row:SetBackColor(Turbine.UI.Color(0.25, 0.20, 0.09)) end
-    row.MouseLeave = function() row:SetBackColor(Turbine.UI.Color(0.18, 0.14, 0.06)) end
+    row:SetBackColor(_G.Theme.PRESS)
+    row.MouseEnter = function() row:SetBackColor(_G.Theme.SEL_BG) end
+    row.MouseLeave = function() row:SetBackColor(_G.Theme.PRESS) end
 
     local accent = Turbine.UI.Control()
     accent:SetParent(row)
     accent:SetPosition(0, 0)
     accent:SetSize(3, 34)
-    accent:SetBackColor(Turbine.UI.Color(0.65, 0.54, 0.28))
+    accent:SetBackColor(_G.Theme.HOVER)
     accent:SetMouseVisible(false)
 
     local nameLabel = Turbine.UI.Label()
@@ -1008,8 +1008,8 @@ function ContentView:MakeContentRow(content)
     nameLabel:SetHeight(34)
     nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana16)
-    nameLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
-    nameLabel:SetForeColor(Turbine.UI.Color(1.0, 0.88, 0.55))
+    nameLabel:SetFontStyle(_G.Theme.FONT_STYLE)
+    nameLabel:SetForeColor(_G.Theme.ACCENT)
     nameLabel:SetText(content.name)
     nameLabel:SetMouseVisible(false)
 
@@ -1018,8 +1018,8 @@ function ContentView:MakeContentRow(content)
     levelLabel:SetHeight(34)
     levelLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
     levelLabel:SetFont(Turbine.UI.Lotro.Font.Verdana14)
-    levelLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
-    levelLabel:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
+    levelLabel:SetFontStyle(_G.Theme.FONT_STYLE)
+    levelLabel:SetForeColor(_G.Theme.DIM2)
     levelLabel:SetText(_G.L("levelPrefix") .. content.level .. "  ")
     levelLabel:SetMouseVisible(false)
 
@@ -1042,15 +1042,15 @@ function ContentView:MakeInstanceRow(instance, indented)
 
     if indented then
         row:SetHeight(28)
-        row:SetBackColor(Turbine.UI.Color(0.10, 0.08, 0.04))
-        row.MouseEnter = function() row:SetBackColor(Turbine.UI.Color(0.16, 0.13, 0.07)) end
-        row.MouseLeave = function() row:SetBackColor(Turbine.UI.Color(0.10, 0.08, 0.04)) end
+        row:SetBackColor(_G.Theme.SECTION)
+        row.MouseEnter = function() row:SetBackColor(_G.Theme.HEADER) end
+        row.MouseLeave = function() row:SetBackColor(_G.Theme.SECTION) end
 
         local accent = Turbine.UI.Control()
         accent:SetParent(row)
         accent:SetPosition(12, 7)
         accent:SetSize(2, 14)
-        accent:SetBackColor(Turbine.UI.Color(0.65, 0.54, 0.28))
+        accent:SetBackColor(_G.Theme.HOVER)
         accent:SetMouseVisible(false)
 
         local label = Turbine.UI.Label()
@@ -1059,8 +1059,8 @@ function ContentView:MakeInstanceRow(instance, indented)
         label:SetHeight(28)
         label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
         label:SetFont(Turbine.UI.Lotro.Font.Verdana16)
-        label:SetFontStyle(Turbine.UI.FontStyle.Outline)
-        label:SetForeColor(Turbine.UI.Color(1.0, 0.88, 0.55))
+        label:SetFontStyle(_G.Theme.FONT_STYLE)
+        label:SetForeColor(_G.Theme.ACCENT)
         label:SetText(instance.name)
         label:SetMouseVisible(false)
 
@@ -1069,15 +1069,15 @@ function ContentView:MakeInstanceRow(instance, indented)
         end
     else
         row:SetHeight(30)
-        row:SetBackColor(Turbine.UI.Color(0.14, 0.11, 0.05))
-        row.MouseEnter = function() row:SetBackColor(Turbine.UI.Color(0.20, 0.16, 0.07)) end
-        row.MouseLeave = function() row:SetBackColor(Turbine.UI.Color(0.14, 0.11, 0.05)) end
+        row:SetBackColor(_G.Theme.SECTION)
+        row.MouseEnter = function() row:SetBackColor(_G.Theme.PRESS) end
+        row.MouseLeave = function() row:SetBackColor(_G.Theme.SECTION) end
 
         local accent = Turbine.UI.Control()
         accent:SetParent(row)
         accent:SetPosition(0, 0)
         accent:SetSize(3, 30)
-        accent:SetBackColor(Turbine.UI.Color(0.65, 0.54, 0.28))
+        accent:SetBackColor(_G.Theme.HOVER)
         accent:SetMouseVisible(false)
 
         local label = Turbine.UI.Label()
@@ -1086,8 +1086,8 @@ function ContentView:MakeInstanceRow(instance, indented)
         label:SetHeight(30)
         label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
         label:SetFont(Turbine.UI.Lotro.Font.Verdana16)
-        label:SetFontStyle(Turbine.UI.FontStyle.Outline)
-        label:SetForeColor(Turbine.UI.Color(1.0, 0.88, 0.55))
+        label:SetFontStyle(_G.Theme.FONT_STYLE)
+        label:SetForeColor(_G.Theme.ACCENT)
         label:SetText(instance.name)
         label:SetMouseVisible(false)
 
@@ -1106,7 +1106,7 @@ function ContentView:MakeEmptyRow(message)
 
     local row = Turbine.UI.Control()
     row:SetHeight(40)
-    row:SetBackColor(Turbine.UI.Color(0.07, 0.06, 0.04))
+    row:SetBackColor(_G.Theme.PANEL)
     row:SetMouseVisible(false)
 
     local label = Turbine.UI.Label()
@@ -1115,8 +1115,8 @@ function ContentView:MakeEmptyRow(message)
     label:SetHeight(40)
     label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
     label:SetFont(Turbine.UI.Lotro.Font.Verdana14)
-    label:SetFontStyle(Turbine.UI.FontStyle.Outline)
-    label:SetForeColor(Turbine.UI.Color(0.45, 0.38, 0.26))
+    label:SetFontStyle(_G.Theme.FONT_STYLE)
+    label:SetForeColor(_G.Theme.DIM)
     label:SetText(message)
     label:SetMouseVisible(false)
 
@@ -1163,16 +1163,16 @@ end
 
 function ContentView:Build()
 
-    self:SetBackColor(Turbine.UI.Color(0.22, 0.18, 0.12))
+    self:SetBackColor(_G.Theme.OUTER)
 
     self.background1 = Turbine.UI.Control()
     self.background1:SetParent(self)
-    self.background1:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
+    self.background1:SetBackColor(_G.Theme.BG)
     self.background1:SetPosition(5, 5)
 
     self.frame1 = Turbine.UI.Control()
     self.frame1:SetParent(self.background1)
-    self.frame1:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
+    self.frame1:SetBackColor(_G.Theme.FRAME)
     self.frame1:SetPosition(5, 5)
 
     -- header bar
@@ -1180,7 +1180,7 @@ function ContentView:Build()
     self.header:SetParent(self.frame1)
     self.header:SetPosition(1, 1)
     self.header:SetHeight(32)
-    self.header:SetBackColor(Turbine.UI.Color(0.12, 0.10, 0.06))
+    self.header:SetBackColor(_G.Theme.HEADER)
 
     self.headerIcon = Turbine.UI.Control()
     self.headerIcon:SetParent(self.header)
@@ -1196,8 +1196,8 @@ function ContentView:Build()
     self.headerName:SetHeight(32)
     self.headerName:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     self.headerName:SetFont(Turbine.UI.Lotro.Font.Verdana16)
-    self.headerName:SetFontStyle(Turbine.UI.FontStyle.Outline)
-    self.headerName:SetForeColor(Turbine.UI.Color(1.0, 0.88, 0.55))
+    self.headerName:SetFontStyle(_G.Theme.FONT_STYLE)
+    self.headerName:SetForeColor(_G.Theme.ACCENT)
     self.headerName:SetMouseVisible(false)
 
     self.headerType = Turbine.UI.Label()
@@ -1205,42 +1205,42 @@ function ContentView:Build()
     self.headerType:SetHeight(32)
     self.headerType:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
     self.headerType:SetFont(Turbine.UI.Lotro.Font.Verdana12)
-    self.headerType:SetFontStyle(Turbine.UI.FontStyle.Outline)
-    self.headerType:SetForeColor(Turbine.UI.Color(0.45, 0.38, 0.26))
+    self.headerType:SetFontStyle(_G.Theme.FONT_STYLE)
+    self.headerType:SetForeColor(_G.Theme.DIM)
     self.headerType:SetMouseVisible(false)
 
     -- clear logs button
     self.clearLogsFrame = Turbine.UI.Control()
     self.clearLogsFrame:SetParent(self.header)
     self.clearLogsFrame:SetSize(28, 22)
-    self.clearLogsFrame:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
+    self.clearLogsFrame:SetBackColor(_G.Theme.FRAME)
     self.clearLogsFrame:SetVisible(false)
 
     self.clearLogsBg = Turbine.UI.Control()
     self.clearLogsBg:SetParent(self.clearLogsFrame)
     self.clearLogsBg:SetPosition(1, 1)
     self.clearLogsBg:SetSize(26, 20)
-    self.clearLogsBg:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
+    self.clearLogsBg:SetBackColor(_G.Theme.BG)
 
     local clearHover = false
     self.clearLogsBg.MouseEnter = function()
         clearHover = true
-        self.clearLogsFrame:SetBackColor(Turbine.UI.Color(0.65, 0.54, 0.28))
+        self.clearLogsFrame:SetBackColor(_G.Theme.HOVER)
         self.headerTooltip:SetText(_G.L("clearLogsTooltip"))
         self.headerTooltip:SetVisible(true)
         self.headerType:SetVisible(false)
     end
     self.clearLogsBg.MouseLeave = function()
         clearHover = false
-        self.clearLogsFrame:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
+        self.clearLogsFrame:SetBackColor(_G.Theme.FRAME)
         self.headerTooltip:SetVisible(false)
         self.headerType:SetVisible(true)
     end
     self.clearLogsBg.MouseDown = function()
-        self.clearLogsBg:SetBackColor(Turbine.UI.Color(0.18, 0.15, 0.08))
+        self.clearLogsBg:SetBackColor(_G.Theme.PRESS)
     end
     self.clearLogsBg.MouseUp = function()
-        self.clearLogsBg:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
+        self.clearLogsBg:SetBackColor(_G.Theme.BG)
         if clearHover then
             self:ClearCharacterLogs()
         end
@@ -1251,10 +1251,10 @@ function ContentView:Build()
     self.clearLogsLabel:SetSize(26, 20)
     self.clearLogsLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
     self.clearLogsLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
-    self.clearLogsLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
+    self.clearLogsLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     self.clearLogsLabel:SetText(_G.L("clearLogsBtn"))
     self.clearLogsLabel:SetMouseVisible(false)
-    self.clearLogsLabel:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
+    self.clearLogsLabel:SetForeColor(_G.Theme.DIM2)
 
     -- delete character button
     self.deleteCharDisabled = false
@@ -1262,20 +1262,20 @@ function ContentView:Build()
     self.deleteCharFrame = Turbine.UI.Control()
     self.deleteCharFrame:SetParent(self.header)
     self.deleteCharFrame:SetSize(28, 22)
-    self.deleteCharFrame:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
+    self.deleteCharFrame:SetBackColor(_G.Theme.FRAME)
     self.deleteCharFrame:SetVisible(false)
 
     self.deleteCharBg = Turbine.UI.Control()
     self.deleteCharBg:SetParent(self.deleteCharFrame)
     self.deleteCharBg:SetPosition(1, 1)
     self.deleteCharBg:SetSize(26, 20)
-    self.deleteCharBg:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
+    self.deleteCharBg:SetBackColor(_G.Theme.BG)
 
     local deleteHover = false
     self.deleteCharBg.MouseEnter = function()
         if not self.deleteCharDisabled then
             deleteHover = true
-            self.deleteCharFrame:SetBackColor(Turbine.UI.Color(0.65, 0.54, 0.28))
+            self.deleteCharFrame:SetBackColor(_G.Theme.HOVER)
             self.headerTooltip:SetText(_G.L("deleteCharTooltip"))
         else
             self.headerTooltip:SetText(_G.L("deleteCharTooltipDisabled"))
@@ -1285,17 +1285,17 @@ function ContentView:Build()
     end
     self.deleteCharBg.MouseLeave = function()
         deleteHover = false
-        self.deleteCharFrame:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
+        self.deleteCharFrame:SetBackColor(_G.Theme.FRAME)
         self.headerTooltip:SetVisible(false)
         self.headerType:SetVisible(true)
     end
     self.deleteCharBg.MouseDown = function()
         if not self.deleteCharDisabled then
-            self.deleteCharBg:SetBackColor(Turbine.UI.Color(0.18, 0.15, 0.08))
+            self.deleteCharBg:SetBackColor(_G.Theme.PRESS)
         end
     end
     self.deleteCharBg.MouseUp = function()
-        self.deleteCharBg:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
+        self.deleteCharBg:SetBackColor(_G.Theme.BG)
         if deleteHover and not self.deleteCharDisabled then
             self:DeleteCharacter()
         end
@@ -1306,10 +1306,10 @@ function ContentView:Build()
     self.deleteCharLabel:SetSize(26, 20)
     self.deleteCharLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
     self.deleteCharLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
-    self.deleteCharLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
+    self.deleteCharLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     self.deleteCharLabel:SetText(_G.L("deleteCharBtn"))
     self.deleteCharLabel:SetMouseVisible(false)
-    self.deleteCharLabel:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
+    self.deleteCharLabel:SetForeColor(_G.Theme.DIM2)
 
     -- shared tooltip label for the two character action buttons
     self.headerTooltip = Turbine.UI.Label()
@@ -1318,8 +1318,8 @@ function ContentView:Build()
     self.headerTooltip:SetHeight(32)
     self.headerTooltip:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
     self.headerTooltip:SetFont(Turbine.UI.Lotro.Font.Verdana12)
-    self.headerTooltip:SetFontStyle(Turbine.UI.FontStyle.Outline)
-    self.headerTooltip:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
+    self.headerTooltip:SetFontStyle(_G.Theme.FONT_STYLE)
+    self.headerTooltip:SetForeColor(_G.Theme.DIM2)
     self.headerTooltip:SetVisible(false)
     self.headerTooltip:SetMouseVisible(false)
 
@@ -1328,17 +1328,17 @@ function ContentView:Build()
     self.separator:SetParent(self.frame1)
     self.separator:SetPosition(1, 33)
     self.separator:SetHeight(1)
-    self.separator:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
+    self.separator:SetBackColor(_G.Theme.FRAME)
 
     -- content area below header
     self.background2 = Turbine.UI.Control()
     self.background2:SetParent(self.frame1)
-    self.background2:SetBackColor(Turbine.UI.Color(0.07, 0.06, 0.04))
+    self.background2:SetBackColor(_G.Theme.PANEL)
     self.background2:SetPosition(1, 34)
 
     self.listbox = Turbine.UI.ListBox()
     self.listbox:SetParent(self.background2)
-    self.listbox:SetBackColor(Turbine.UI.Color(0.07, 0.06, 0.04))
+    self.listbox:SetBackColor(_G.Theme.PANEL)
 
     self.scrollbar = Turbine.UI.Lotro.ScrollBar()
     self.scrollbar:SetOrientation(Turbine.UI.Orientation.Vertical)

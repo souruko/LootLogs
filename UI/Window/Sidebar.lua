@@ -422,36 +422,36 @@ end
 function Sidebar:UpdateSelectionVisual()
 
     if self.customListSelected then
-        self.background4:SetBackColor(Turbine.UI.Color(0.22, 0.18, 0.08))
-        self.customList:SetForeColor(Turbine.UI.Color(1.0, 0.88, 0.55))
+        self.background4:SetBackColor(_G.Theme.SEL_BG)
+        self.customList:SetForeColor(_G.Theme.ACCENT)
     else
-        self.background4:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
-        self.customList:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
+        self.background4:SetBackColor(_G.Theme.BG)
+        self.customList:SetForeColor(_G.Theme.DIM2)
     end
 
     local contentDim   = self.customListSelected and _G.Settings.selected.tab == _G.Tab.Content
     local characterDim = self.customListSelected and _G.Settings.selected.tab == _G.Tab.Characters
 
     if self.contentSelected then
-        self.background5:SetBackColor(Turbine.UI.Color(0.22, 0.18, 0.08))
-        self.content:SetForeColor(Turbine.UI.Color(1.0, 0.88, 0.55))
+        self.background5:SetBackColor(_G.Theme.SEL_BG)
+        self.content:SetForeColor(_G.Theme.ACCENT)
     elseif contentDim then
-        self.background5:SetBackColor(Turbine.UI.Color(0.12, 0.10, 0.05))
-        self.content:SetForeColor(Turbine.UI.Color(0.65, 0.54, 0.28))
+        self.background5:SetBackColor(_G.Theme.HEADER)
+        self.content:SetForeColor(_G.Theme.HOVER)
     else
-        self.background5:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
-        self.content:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
+        self.background5:SetBackColor(_G.Theme.BG)
+        self.content:SetForeColor(_G.Theme.DIM2)
     end
 
     if self.characterSelected then
-        self.background6:SetBackColor(Turbine.UI.Color(0.22, 0.18, 0.08))
-        self.characters:SetForeColor(Turbine.UI.Color(1.0, 0.88, 0.55))
+        self.background6:SetBackColor(_G.Theme.SEL_BG)
+        self.characters:SetForeColor(_G.Theme.ACCENT)
     elseif characterDim then
-        self.background6:SetBackColor(Turbine.UI.Color(0.12, 0.10, 0.05))
-        self.characters:SetForeColor(Turbine.UI.Color(0.65, 0.54, 0.28))
+        self.background6:SetBackColor(_G.Theme.HEADER)
+        self.characters:SetForeColor(_G.Theme.HOVER)
     else
-        self.background6:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
-        self.characters:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
+        self.background6:SetBackColor(_G.Theme.BG)
+        self.characters:SetForeColor(_G.Theme.DIM2)
     end
 
 end
@@ -584,42 +584,42 @@ end
 function Sidebar:Build()
 
     -- base background: warm dark brown outer ring
-	self:SetBackColor(Turbine.UI.Color(0.22, 0.18, 0.12))
+	self:SetBackColor(_G.Theme.OUTER)
 
     self.background1 = Turbine.UI.Control()
     self.background1:SetParent(self)
-    self.background1:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
+    self.background1:SetBackColor(_G.Theme.BG)
     self.background1:SetPosition(5, 5)
 
     self.frame1 = Turbine.UI.Control()
     self.frame1:SetParent(self.background1)
-    self.frame1:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
+    self.frame1:SetBackColor(_G.Theme.FRAME)
     self.frame1:SetPosition(5, 5)
 
     -- todo row
     self.frame2 = Turbine.UI.Control()
     self.frame2:SetParent(self.frame1)
-    self.frame2:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
+    self.frame2:SetBackColor(_G.Theme.BG)
     self.frame2:SetHeight(30)
 
     self.background4 = Turbine.UI.Control()
     self.background4:SetParent(self.frame2)
-    self.background4:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
+    self.background4:SetBackColor(_G.Theme.BG)
     self.background4:SetPosition(1, 1)
     self.background4:SetHeight(28)
     self.background4.MouseEnter = function ()
         self.customListHover = true
-        self.frame2:SetBackColor(Turbine.UI.Color(0.65, 0.54, 0.28))
+        self.frame2:SetBackColor(_G.Theme.HOVER)
     end
     self.background4.MouseLeave = function ()
         self.customListHover = false
-        self.frame2:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
+        self.frame2:SetBackColor(_G.Theme.BG)
     end
     self.background4.MouseDown = function ()
-        self.background4:SetBackColor(Turbine.UI.Color(0.18, 0.15, 0.08))
+        self.background4:SetBackColor(_G.Theme.PRESS)
     end
     self.background4.MouseUp = function ()
-        self.background4:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
+        self.background4:SetBackColor(_G.Theme.BG)
         if self.customListHover then
             self:UpdateSelection(true, false, false)
         end
@@ -630,35 +630,35 @@ function Sidebar:Build()
     self.customList:SetHeight(28)
     self.customList:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
     self.customList:SetFont(Turbine.UI.Lotro.Font.Verdana16)
-    self.customList:SetFontStyle(Turbine.UI.FontStyle.Outline)
+    self.customList:SetFontStyle(_G.Theme.FONT_STYLE)
     self.customList:SetText(_G.L("customListBtn"))
     self.customList:SetMouseVisible(false)
-    self.customList:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
+    self.customList:SetForeColor(_G.Theme.DIM2)
 
     -- content / characters row
     self.frame3 = Turbine.UI.Control()
     self.frame3:SetParent(self.frame1)
-    self.frame3:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
+    self.frame3:SetBackColor(_G.Theme.BG)
     self.frame3:SetHeight(30)
 
     self.background5 = Turbine.UI.Control()
     self.background5:SetParent(self.frame3)
-    self.background5:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
+    self.background5:SetBackColor(_G.Theme.BG)
     self.background5:SetPosition(1, 1)
     self.background5:SetHeight(28)
     self.background5.MouseEnter = function ()
         self.contentHover = true
-        self.frame3:SetBackColor(Turbine.UI.Color(0.65, 0.54, 0.28))
+        self.frame3:SetBackColor(_G.Theme.HOVER)
     end
     self.background5.MouseLeave = function ()
         self.contentHover = false
-        self.frame3:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
+        self.frame3:SetBackColor(_G.Theme.BG)
     end
     self.background5.MouseDown = function ()
-        self.background5:SetBackColor(Turbine.UI.Color(0.18, 0.15, 0.08))
+        self.background5:SetBackColor(_G.Theme.PRESS)
     end
     self.background5.MouseUp = function ()
-        self.background5:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
+        self.background5:SetBackColor(_G.Theme.BG)
         if self.contentHover then
             self:UpdateSelection(false, true, false)
         end
@@ -671,32 +671,32 @@ function Sidebar:Build()
     self.content:SetFont(Turbine.UI.Lotro.Font.Verdana16)
     self.content:SetText(_G.L("contentBtn"))
     self.content:SetMouseVisible(false)
-    self.content:SetFontStyle(Turbine.UI.FontStyle.Outline)
-    self.content:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
+    self.content:SetFontStyle(_G.Theme.FONT_STYLE)
+    self.content:SetForeColor(_G.Theme.DIM2)
 
     self.frame4 = Turbine.UI.Control()
     self.frame4:SetParent(self.frame1)
-    self.frame4:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
+    self.frame4:SetBackColor(_G.Theme.BG)
     self.frame4:SetHeight(30)
 
     self.background6 = Turbine.UI.Control()
     self.background6:SetParent(self.frame4)
-    self.background6:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
+    self.background6:SetBackColor(_G.Theme.BG)
     self.background6:SetPosition(1, 1)
     self.background6:SetHeight(28)
     self.background6.MouseEnter = function ()
         self.characterHover = true
-        self.frame4:SetBackColor(Turbine.UI.Color(0.65, 0.54, 0.28))
+        self.frame4:SetBackColor(_G.Theme.HOVER)
     end
     self.background6.MouseLeave = function ()
         self.characterHover = false
-        self.frame4:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
+        self.frame4:SetBackColor(_G.Theme.BG)
     end
     self.background6.MouseDown = function ()
-        self.background6:SetBackColor(Turbine.UI.Color(0.18, 0.15, 0.08))
+        self.background6:SetBackColor(_G.Theme.PRESS)
     end
     self.background6.MouseUp = function ()
-        self.background6:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
+        self.background6:SetBackColor(_G.Theme.BG)
         if self.characterHover then
             self:UpdateSelection(false, false, true)
         end
@@ -709,13 +709,13 @@ function Sidebar:Build()
     self.characters:SetFont(Turbine.UI.Lotro.Font.Verdana16)
     self.characters:SetText(_G.L("charactersBtn"))
     self.characters:SetMouseVisible(false)
-    self.characters:SetFontStyle(Turbine.UI.FontStyle.Outline)
-    self.characters:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
+    self.characters:SetFontStyle(_G.Theme.FONT_STYLE)
+    self.characters:SetForeColor(_G.Theme.DIM2)
 
     -- filter / collapse row
     self.background2 = Turbine.UI.Control()
     self.background2:SetParent(self.frame1)
-    self.background2:SetBackColor(Turbine.UI.Color(0.07, 0.06, 0.04))
+    self.background2:SetBackColor(_G.Theme.PANEL)
     self.background2:SetHeight(20)
 
     self.filter = Turbine.UI.Lotro.TextBox()
@@ -724,7 +724,7 @@ function Sidebar:Build()
     self.filter:SetFont(Turbine.UI.Lotro.Font.Verdana12)
     self.filter:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     self.filter:SetMultiline(false)
-    self.filter:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
+    self.filter:SetForeColor(_G.Theme.DIM2)
     self.filter:SetText(_G.L("searchPlaceholder"))
     self.filter.FocusGained = function()
         if self.filter:GetText() == _G.L("searchPlaceholder") then
@@ -747,24 +747,24 @@ function Sidebar:Build()
     self.clearBg = Turbine.UI.Control()
     self.clearBg:SetParent(self.frame1)
     self.clearBg:SetSize(20, 20)
-    self.clearBg:SetBackColor(Turbine.UI.Color(0.07, 0.06, 0.04))
+    self.clearBg:SetBackColor(_G.Theme.PANEL)
 
     local clearHover = false
     self.clearBg.MouseEnter = function()
         clearHover = true
-        self.clearBg:SetBackColor(Turbine.UI.Color(0.18, 0.15, 0.08))
-        self.clearLabel:SetForeColor(Turbine.UI.Color(0.73, 0.65, 0.50))
+        self.clearBg:SetBackColor(_G.Theme.PRESS)
+        self.clearLabel:SetForeColor(_G.Theme.TEXT)
     end
     self.clearBg.MouseLeave = function()
         clearHover = false
-        self.clearBg:SetBackColor(Turbine.UI.Color(0.07, 0.06, 0.04))
-        self.clearLabel:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
+        self.clearBg:SetBackColor(_G.Theme.PANEL)
+        self.clearLabel:SetForeColor(_G.Theme.DIM2)
     end
     self.clearBg.MouseDown = function()
-        self.clearBg:SetBackColor(Turbine.UI.Color(0.25, 0.20, 0.10))
+        self.clearBg:SetBackColor(_G.Theme.SEL_BG)
     end
     self.clearBg.MouseUp = function()
-        self.clearBg:SetBackColor(Turbine.UI.Color(0.07, 0.06, 0.04))
+        self.clearBg:SetBackColor(_G.Theme.PANEL)
         if clearHover then
             self.filter:SetText(_G.L("searchPlaceholder"))
             self:ApplyFilter("")
@@ -776,31 +776,31 @@ function Sidebar:Build()
     self.clearLabel:SetSize(20, 20)
     self.clearLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
     self.clearLabel:SetFont(Turbine.UI.Lotro.Font.Verdana16)
-    self.clearLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
+    self.clearLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     self.clearLabel:SetText("X")
     self.clearLabel:SetMouseVisible(false)
-    self.clearLabel:SetForeColor(Turbine.UI.Color(0.52, 0.45, 0.32))
+    self.clearLabel:SetForeColor(_G.Theme.DIM2)
 
     self.background3 = Turbine.UI.Control()
     self.background3:SetParent(self.frame1)
-    self.background3:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
+    self.background3:SetBackColor(_G.Theme.BG)
     self.background3:SetBackground("LootLogsBeta/Ressources/collaps.tga")
     self.background3:SetBlendMode(Turbine.UI.BlendMode.Multiplys)
     self.background3:SetSize(20, 20)
     self.background3.MouseEnter = function ()
         self.collapseHover = true
-        self.background3:SetBackColor(Turbine.UI.Color(0.18, 0.15, 0.08))
+        self.background3:SetBackColor(_G.Theme.PRESS)
     end
     self.background3.MouseLeave = function ()
         self.collapseHover = false
-        self.background3:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
+        self.background3:SetBackColor(_G.Theme.BG)
     end
     self.background3.MouseDown = function ()
-        self.background3:SetBackColor(Turbine.UI.Color(0.25, 0.20, 0.10))
+        self.background3:SetBackColor(_G.Theme.SEL_BG)
     end
     self.background3.MouseUp = function ()
         if self.collapseHover then
-            self.background3:SetBackColor(Turbine.UI.Color(0.18, 0.15, 0.08))
+            self.background3:SetBackColor(_G.Theme.PRESS)
             self:CollapseAll()
         end
     end
@@ -815,7 +815,7 @@ function Sidebar:Build()
 
     self.itemView = Turbine.UI.ListBox()
     self.itemView:SetParent(self.frame1)
-    self.itemView:SetBackColor(Turbine.UI.Color(0.07, 0.06, 0.04))
+    self.itemView:SetBackColor(_G.Theme.PANEL)
 
     self.itemScrollbar = Turbine.UI.Lotro.ScrollBar()
     self.itemScrollbar:SetOrientation(Turbine.UI.Orientation.Vertical)

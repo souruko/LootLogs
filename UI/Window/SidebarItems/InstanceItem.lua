@@ -17,11 +17,11 @@ end
 function InstanceItem:SetSelected(value)
 
     if value then
-        self.background1:SetBackColor(Turbine.UI.Color(0.22, 0.18, 0.08))
-        self.nameLabel:SetForeColor(Turbine.UI.Color(1.0, 0.88, 0.55))
+        self.background1:SetBackColor(_G.Theme.SEL_BG)
+        self.nameLabel:SetForeColor(_G.Theme.ACCENT)
     else
-        self.background1:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
-        self.nameLabel:SetForeColor(Turbine.UI.Color(0.73, 0.65, 0.50))
+        self.background1:SetBackColor(_G.Theme.BG)
+        self.nameLabel:SetForeColor(_G.Theme.TEXT)
     end
 
 end
@@ -32,6 +32,7 @@ end
 
 function InstanceItem:SizeChanged()
 
+    if not self.frame1 then return end
     local width = self:GetWidth()
 
     self.frame1:SetWidth(width - 24)
@@ -50,27 +51,27 @@ function InstanceItem:Build()
     self.frame1 = Turbine.UI.Control()
     self.frame1:SetPosition(12, 3)
     self.frame1:SetParent(self)
-    self.frame1:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
+    self.frame1:SetBackColor(_G.Theme.FRAME)
     self.frame1:SetHeight(38)
 
     self.background1 = Turbine.UI.Control()
     self.background1:SetPosition(1, 1)
     self.background1:SetParent(self.frame1)
-    self.background1:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
+    self.background1:SetBackColor(_G.Theme.BG)
     self.background1:SetHeight(36)
     self.background1.MouseEnter = function()
         self.hover = true
-        self.frame1:SetBackColor(Turbine.UI.Color(0.65, 0.54, 0.28))
+        self.frame1:SetBackColor(_G.Theme.HOVER)
     end
     self.background1.MouseLeave = function()
         self.hover = false
-        self.frame1:SetBackColor(Turbine.UI.Color(0.40, 0.33, 0.20))
+        self.frame1:SetBackColor(_G.Theme.FRAME)
     end
     self.background1.MouseDown = function()
-        self.background1:SetBackColor(Turbine.UI.Color(0.18, 0.15, 0.08))
+        self.background1:SetBackColor(_G.Theme.PRESS)
     end
     self.background1.MouseUp = function()
-        self.background1:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
+        self.background1:SetBackColor(_G.Theme.BG)
         if self.hover then self:Clicked() end
     end
 
@@ -86,11 +87,11 @@ function InstanceItem:Build()
     self.nameLabel:SetHeight(36)
     self.nameLabel:SetLeft(30)
     self.nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    self.nameLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
+    self.nameLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     self.nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana16)
     self.nameLabel:SetMultiline(true)
     self.nameLabel:SetText(self.name)
     self.nameLabel:SetMouseVisible(false)
-    self.nameLabel:SetForeColor(Turbine.UI.Color(0.73, 0.65, 0.50))
+    self.nameLabel:SetForeColor(_G.Theme.TEXT)
 
 end

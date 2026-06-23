@@ -11,18 +11,6 @@ end
 
 -- ------------------------------------------------------------------------------------------------
 
-local COL_OUTER   = Turbine.UI.Color(0.22, 0.18, 0.12)
-local COL_FRAME   = Turbine.UI.Color(0.40, 0.33, 0.20)
-local COL_BG      = Turbine.UI.Color(0.05, 0.04, 0.03)
-local COL_PANEL   = Turbine.UI.Color(0.07, 0.06, 0.04)
-local COL_HOVER   = Turbine.UI.Color(0.65, 0.54, 0.28)
-local COL_PRESS   = Turbine.UI.Color(0.18, 0.15, 0.08)
-local COL_TEXT    = Turbine.UI.Color(0.73, 0.65, 0.50)
-local COL_ACCENT  = Turbine.UI.Color(1.0,  0.88, 0.55)
-local COL_DIM     = Turbine.UI.Color(0.45, 0.38, 0.26)
-local COL_SECTION = Turbine.UI.Color(0.10, 0.08, 0.04)
-local COL_HEADER  = Turbine.UI.Color(0.12, 0.10, 0.06)
-local COL_SEL_BG  = Turbine.UI.Color(0.22, 0.18, 0.08)
 
 -- ------------------------------------------------------------------------------------------------
 
@@ -30,14 +18,14 @@ function Settings:MakeSectionHeader(title)
 
     local row = Turbine.UI.Control()
     row:SetHeight(26)
-    row:SetBackColor(COL_SECTION)
+    row:SetBackColor(_G.Theme.SECTION)
     row:SetMouseVisible(false)
 
     local accent = Turbine.UI.Control()
     accent:SetParent(row)
     accent:SetPosition(0, 0)
     accent:SetSize(3, 26)
-    accent:SetBackColor(COL_FRAME)
+    accent:SetBackColor(_G.Theme.FRAME)
     accent:SetMouseVisible(false)
 
     local label = Turbine.UI.Label()
@@ -46,8 +34,8 @@ function Settings:MakeSectionHeader(title)
     label:SetHeight(26)
     label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     label:SetFont(Turbine.UI.Lotro.Font.Verdana12)
-    label:SetFontStyle(Turbine.UI.FontStyle.Outline)
-    label:SetForeColor(COL_DIM)
+    label:SetFontStyle(_G.Theme.FONT_STYLE)
+    label:SetForeColor(_G.Theme.DIM)
     label:SetText(string.upper(title))
     label:SetMouseVisible(false)
 
@@ -65,7 +53,7 @@ function Settings:MakeToggleRow(labelText, settingKey, onChanged)
 
     local row = Turbine.UI.Control()
     row:SetHeight(34)
-    row:SetBackColor(COL_PANEL)
+    row:SetBackColor(_G.Theme.PANEL)
     row:SetMouseVisible(false)
 
     local nameLabel = Turbine.UI.Label()
@@ -74,8 +62,8 @@ function Settings:MakeToggleRow(labelText, settingKey, onChanged)
     nameLabel:SetHeight(34)
     nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana14)
-    nameLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
-    nameLabel:SetForeColor(COL_TEXT)
+    nameLabel:SetFontStyle(_G.Theme.FONT_STYLE)
+    nameLabel:SetForeColor(_G.Theme.TEXT)
     nameLabel:SetText(labelText)
     nameLabel:SetMouseVisible(false)
 
@@ -85,29 +73,29 @@ function Settings:MakeToggleRow(labelText, settingKey, onChanged)
     local toggleFrame = Turbine.UI.Control()
     toggleFrame:SetParent(row)
     toggleFrame:SetSize(TOGGLE_W + 2, TOGGLE_H + 2)
-    toggleFrame:SetBackColor(COL_FRAME)
+    toggleFrame:SetBackColor(_G.Theme.FRAME)
 
     local toggleBg = Turbine.UI.Control()
     toggleBg:SetParent(toggleFrame)
     toggleBg:SetPosition(1, 1)
     toggleBg:SetSize(TOGGLE_W, TOGGLE_H)
-    toggleBg:SetBackColor(COL_BG)
+    toggleBg:SetBackColor(_G.Theme.BG)
 
     local toggleLabel = Turbine.UI.Label()
     toggleLabel:SetParent(toggleBg)
     toggleLabel:SetSize(TOGGLE_W, TOGGLE_H)
     toggleLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
     toggleLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
-    toggleLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
+    toggleLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     toggleLabel:SetMouseVisible(false)
 
     local function RefreshToggle()
         if _G.Settings[settingKey] then
             toggleLabel:SetText(_G.L("toggleOn"))
-            toggleLabel:SetForeColor(COL_ACCENT)
+            toggleLabel:SetForeColor(_G.Theme.ACCENT)
         else
             toggleLabel:SetText(_G.L("toggleOff"))
-            toggleLabel:SetForeColor(COL_DIM)
+            toggleLabel:SetForeColor(_G.Theme.DIM)
         end
     end
     RefreshToggle()
@@ -115,17 +103,17 @@ function Settings:MakeToggleRow(labelText, settingKey, onChanged)
     local hover = false
     toggleBg.MouseEnter = function()
         hover = true
-        toggleFrame:SetBackColor(COL_HOVER)
+        toggleFrame:SetBackColor(_G.Theme.HOVER)
     end
     toggleBg.MouseLeave = function()
         hover = false
-        toggleFrame:SetBackColor(COL_FRAME)
+        toggleFrame:SetBackColor(_G.Theme.FRAME)
     end
     toggleBg.MouseDown = function()
-        toggleBg:SetBackColor(COL_PRESS)
+        toggleBg:SetBackColor(_G.Theme.PRESS)
     end
     toggleBg.MouseUp = function()
-        toggleBg:SetBackColor(COL_BG)
+        toggleBg:SetBackColor(_G.Theme.BG)
         if hover then
             _G.Settings[settingKey] = not _G.Settings[settingKey]
             _G.SaveSettings()
@@ -151,7 +139,7 @@ function Settings:MakeTimezoneRow()
 
     local row = Turbine.UI.Control()
     row:SetHeight(34)
-    row:SetBackColor(COL_PANEL)
+    row:SetBackColor(_G.Theme.PANEL)
     row:SetMouseVisible(false)
 
     local nameLabel = Turbine.UI.Label()
@@ -160,8 +148,8 @@ function Settings:MakeTimezoneRow()
     nameLabel:SetHeight(34)
     nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana14)
-    nameLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
-    nameLabel:SetForeColor(COL_TEXT)
+    nameLabel:SetFontStyle(_G.Theme.FONT_STYLE)
+    nameLabel:SetForeColor(_G.Theme.TEXT)
     nameLabel:SetText(_G.L("timezone"))
     nameLabel:SetMouseVisible(false)
 
@@ -172,7 +160,7 @@ function Settings:MakeTimezoneRow()
     local valBg = Turbine.UI.Control()
     valBg:SetParent(row)
     valBg:SetSize(VAL_W, BTN_H)
-    valBg:SetBackColor(COL_BG)
+    valBg:SetBackColor(_G.Theme.BG)
     valBg:SetMouseVisible(false)
 
     local valLabel = Turbine.UI.Label()
@@ -180,8 +168,8 @@ function Settings:MakeTimezoneRow()
     valLabel:SetSize(VAL_W, BTN_H)
     valLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
     valLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
-    valLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
-    valLabel:SetForeColor(COL_ACCENT)
+    valLabel:SetFontStyle(_G.Theme.FONT_STYLE)
+    valLabel:SetForeColor(_G.Theme.ACCENT)
     valLabel:SetMouseVisible(false)
 
     local function RefreshVal()
@@ -198,38 +186,38 @@ function Settings:MakeTimezoneRow()
         local frame = Turbine.UI.Control()
         frame:SetParent(row)
         frame:SetSize(BTN_W + 2, BTN_H + 2)
-        frame:SetBackColor(COL_FRAME)
+        frame:SetBackColor(_G.Theme.FRAME)
 
         local bg = Turbine.UI.Control()
         bg:SetParent(frame)
         bg:SetPosition(1, 1)
         bg:SetSize(BTN_W, BTN_H)
-        bg:SetBackColor(COL_BG)
+        bg:SetBackColor(_G.Theme.BG)
 
         local lbl = Turbine.UI.Label()
         lbl:SetParent(bg)
         lbl:SetSize(BTN_W, BTN_H)
         lbl:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
         lbl:SetFont(Turbine.UI.Lotro.Font.Verdana14)
-        lbl:SetFontStyle(Turbine.UI.FontStyle.Outline)
-        lbl:SetForeColor(COL_TEXT)
+        lbl:SetFontStyle(_G.Theme.FONT_STYLE)
+        lbl:SetForeColor(_G.Theme.TEXT)
         lbl:SetText(sign)
         lbl:SetMouseVisible(false)
 
         local hover = false
         bg.MouseEnter = function()
             hover = true
-            frame:SetBackColor(COL_HOVER)
+            frame:SetBackColor(_G.Theme.HOVER)
         end
         bg.MouseLeave = function()
             hover = false
-            frame:SetBackColor(COL_FRAME)
+            frame:SetBackColor(_G.Theme.FRAME)
         end
         bg.MouseDown = function()
-            bg:SetBackColor(COL_PRESS)
+            bg:SetBackColor(_G.Theme.PRESS)
         end
         bg.MouseUp = function()
-            bg:SetBackColor(COL_BG)
+            bg:SetBackColor(_G.Theme.BG)
             if hover then
                 local tz = (_G.Settings.timezone or 0) + delta
                 if tz < -12 then tz = -12 end
@@ -277,13 +265,13 @@ function Settings:MakeServerRow(serverName)
     row:SetHeight(34)
 
     local function GetBgColor()
-        if _G.Server == serverName then return COL_SEL_BG else return COL_PANEL end
+        if _G.Server == serverName then return _G.Theme.SEL_BG else return _G.Theme.PANEL end
     end
     local function GetAccentColor()
-        if _G.Server == serverName then return COL_HOVER else return COL_FRAME end
+        if _G.Server == serverName then return _G.Theme.HOVER else return _G.Theme.FRAME end
     end
     local function GetTextColor()
-        if _G.Server == serverName then return COL_ACCENT else return COL_TEXT end
+        if _G.Server == serverName then return _G.Theme.ACCENT else return _G.Theme.TEXT end
     end
 
     row:SetBackColor(GetBgColor())
@@ -301,7 +289,7 @@ function Settings:MakeServerRow(serverName)
     label:SetHeight(34)
     label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     label:SetFont(Turbine.UI.Lotro.Font.Verdana14)
-    label:SetFontStyle(Turbine.UI.FontStyle.Outline)
+    label:SetFontStyle(_G.Theme.FONT_STYLE)
     label:SetForeColor(GetTextColor())
     label:SetText(serverName)
     label:SetMouseVisible(false)
@@ -316,7 +304,7 @@ function Settings:MakeServerRow(serverName)
     row.MouseEnter = function()
         hover = true
         if _G.Server ~= serverName then
-            row:SetBackColor(Turbine.UI.Color(0.13, 0.11, 0.06))
+            row:SetBackColor(_G.Theme.SECTION)
         end
     end
     row.MouseLeave = function()
@@ -324,7 +312,7 @@ function Settings:MakeServerRow(serverName)
         row:SetBackColor(GetBgColor())
     end
     row.MouseDown = function()
-        row:SetBackColor(COL_PRESS)
+        row:SetBackColor(_G.Theme.PRESS)
     end
     row.MouseUp = function()
         if hover and _G.Server ~= serverName then
@@ -352,7 +340,7 @@ function Settings:MakeTimeDisplayRow()
 
     local row = Turbine.UI.Control()
     row:SetHeight(34)
-    row:SetBackColor(COL_PANEL)
+    row:SetBackColor(_G.Theme.PANEL)
     row:SetMouseVisible(false)
 
     local nameLabel = Turbine.UI.Label()
@@ -361,8 +349,8 @@ function Settings:MakeTimeDisplayRow()
     nameLabel:SetHeight(34)
     nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana14)
-    nameLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
-    nameLabel:SetForeColor(COL_TEXT)
+    nameLabel:SetFontStyle(_G.Theme.FONT_STYLE)
+    nameLabel:SetForeColor(_G.Theme.TEXT)
     nameLabel:SetText(_G.L("timeDisplay"))
     nameLabel:SetMouseVisible(false)
 
@@ -375,11 +363,11 @@ function Settings:MakeTimeDisplayRow()
     local function RefreshButtons()
         for i, mode in ipairs(MODES) do
             if _G.Settings.timeDisplay == mode then
-                buttons[i].frame:SetBackColor(COL_HOVER)
-                buttons[i].label:SetForeColor(COL_ACCENT)
+                buttons[i].frame:SetBackColor(_G.Theme.HOVER)
+                buttons[i].label:SetForeColor(_G.Theme.ACCENT)
             else
-                buttons[i].frame:SetBackColor(COL_FRAME)
-                buttons[i].label:SetForeColor(COL_DIM)
+                buttons[i].frame:SetBackColor(_G.Theme.FRAME)
+                buttons[i].label:SetForeColor(_G.Theme.DIM)
             end
         end
     end
@@ -388,21 +376,21 @@ function Settings:MakeTimeDisplayRow()
         local frame = Turbine.UI.Control()
         frame:SetParent(row)
         frame:SetSize(BTN_W + 2, BTN_H + 2)
-        frame:SetBackColor(COL_FRAME)
+        frame:SetBackColor(_G.Theme.FRAME)
 
         local bg = Turbine.UI.Control()
         bg:SetParent(frame)
         bg:SetPosition(1, 1)
         bg:SetSize(BTN_W, BTN_H)
-        bg:SetBackColor(COL_BG)
+        bg:SetBackColor(_G.Theme.BG)
 
         local lbl = Turbine.UI.Label()
         lbl:SetParent(bg)
         lbl:SetSize(BTN_W, BTN_H)
         lbl:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
         lbl:SetFont(Turbine.UI.Lotro.Font.Verdana12)
-        lbl:SetFontStyle(Turbine.UI.FontStyle.Outline)
-        lbl:SetForeColor(COL_DIM)
+        lbl:SetFontStyle(_G.Theme.FONT_STYLE)
+        lbl:SetForeColor(_G.Theme.DIM)
         lbl:SetText(LABELS[i])
         lbl:SetMouseVisible(false)
 
@@ -412,7 +400,7 @@ function Settings:MakeTimeDisplayRow()
         bg.MouseEnter = function()
             hover = true
             if _G.Settings.timeDisplay ~= mode then
-                frame:SetBackColor(COL_HOVER)
+                frame:SetBackColor(_G.Theme.HOVER)
             end
         end
         bg.MouseLeave = function()
@@ -420,10 +408,10 @@ function Settings:MakeTimeDisplayRow()
             RefreshButtons()
         end
         bg.MouseDown = function()
-            bg:SetBackColor(COL_PRESS)
+            bg:SetBackColor(_G.Theme.PRESS)
         end
         bg.MouseUp = function()
-            bg:SetBackColor(COL_BG)
+            bg:SetBackColor(_G.Theme.BG)
             if hover and _G.Settings.timeDisplay ~= mode then
                 _G.Settings.timeDisplay = mode
                 _G.SaveSettings()
@@ -456,7 +444,7 @@ function Settings:MakeLanguageRow()
 
     local row = Turbine.UI.Control()
     row:SetHeight(34)
-    row:SetBackColor(COL_PANEL)
+    row:SetBackColor(_G.Theme.PANEL)
     row:SetMouseVisible(false)
 
     local nameLabel = Turbine.UI.Label()
@@ -465,8 +453,8 @@ function Settings:MakeLanguageRow()
     nameLabel:SetHeight(34)
     nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana14)
-    nameLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
-    nameLabel:SetForeColor(COL_TEXT)
+    nameLabel:SetFontStyle(_G.Theme.FONT_STYLE)
+    nameLabel:SetForeColor(_G.Theme.TEXT)
     nameLabel:SetText(_G.L("sectionLanguage"))
     nameLabel:SetMouseVisible(false)
 
@@ -479,11 +467,11 @@ function Settings:MakeLanguageRow()
     local function RefreshButtons()
         for i, lang in ipairs(LANGS) do
             if _G.Settings.language == lang then
-                buttons[i].frame:SetBackColor(COL_HOVER)
-                buttons[i].label:SetForeColor(COL_ACCENT)
+                buttons[i].frame:SetBackColor(_G.Theme.HOVER)
+                buttons[i].label:SetForeColor(_G.Theme.ACCENT)
             else
-                buttons[i].frame:SetBackColor(COL_FRAME)
-                buttons[i].label:SetForeColor(COL_DIM)
+                buttons[i].frame:SetBackColor(_G.Theme.FRAME)
+                buttons[i].label:SetForeColor(_G.Theme.DIM)
             end
         end
     end
@@ -492,21 +480,21 @@ function Settings:MakeLanguageRow()
         local frame = Turbine.UI.Control()
         frame:SetParent(row)
         frame:SetSize(BTN_W + 2, BTN_H + 2)
-        frame:SetBackColor(COL_FRAME)
+        frame:SetBackColor(_G.Theme.FRAME)
 
         local bg = Turbine.UI.Control()
         bg:SetParent(frame)
         bg:SetPosition(1, 1)
         bg:SetSize(BTN_W, BTN_H)
-        bg:SetBackColor(COL_BG)
+        bg:SetBackColor(_G.Theme.BG)
 
         local lbl = Turbine.UI.Label()
         lbl:SetParent(bg)
         lbl:SetSize(BTN_W, BTN_H)
         lbl:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
         lbl:SetFont(Turbine.UI.Lotro.Font.Verdana12)
-        lbl:SetFontStyle(Turbine.UI.FontStyle.Outline)
-        lbl:SetForeColor(COL_DIM)
+        lbl:SetFontStyle(_G.Theme.FONT_STYLE)
+        lbl:SetForeColor(_G.Theme.DIM)
         lbl:SetText(LABELS[i])
         lbl:SetMouseVisible(false)
 
@@ -516,7 +504,7 @@ function Settings:MakeLanguageRow()
         bg.MouseEnter = function()
             hover = true
             if _G.Settings.language ~= lang then
-                frame:SetBackColor(COL_HOVER)
+                frame:SetBackColor(_G.Theme.HOVER)
             end
         end
         bg.MouseLeave = function()
@@ -524,10 +512,10 @@ function Settings:MakeLanguageRow()
             RefreshButtons()
         end
         bg.MouseDown = function()
-            bg:SetBackColor(COL_PRESS)
+            bg:SetBackColor(_G.Theme.PRESS)
         end
         bg.MouseUp = function()
-            bg:SetBackColor(COL_BG)
+            bg:SetBackColor(_G.Theme.BG)
             if hover and _G.Settings.language ~= lang then
                 _G.Settings.language = lang
                 _G.SaveSettings()
@@ -545,6 +533,135 @@ function Settings:MakeLanguageRow()
         local top    = math.floor((34 - BTN_H - 2) / 2)
         local right  = w - 10
         for i = #LANGS, 1, -1 do
+            buttons[i].frame:SetLeft(right - (BTN_W + 2))
+            buttons[i].frame:SetTop(top)
+            right = right - (BTN_W + 2) - 4
+        end
+        nameLabel:SetWidth(right - 12)
+    end
+
+    return row
+
+end
+
+-- ------------------------------------------------------------------------------------------------
+
+function Settings:MakeColorThemeRow()
+
+    local row = Turbine.UI.Control()
+    row:SetHeight(34)
+    row:SetBackColor(_G.Theme.PANEL)
+    row:SetMouseVisible(false)
+
+    local nameLabel = Turbine.UI.Label()
+    nameLabel:SetParent(row)
+    nameLabel:SetPosition(12, 0)
+    nameLabel:SetHeight(34)
+    nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+    nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana14)
+    nameLabel:SetFontStyle(_G.Theme.FONT_STYLE)
+    nameLabel:SetForeColor(_G.Theme.TEXT)
+    nameLabel:SetText(_G.L("colorTheme"))
+    nameLabel:SetMouseVisible(false)
+
+    local MODES  = { "moria", "lorien", "mordor", "rivendell", "rohan", "wulf", "misty" }
+    local LABELS = { _G.L("themeMoria"), _G.L("themeLorien"), _G.L("themeMordor"), _G.L("themeRivendell"), _G.L("themeRohan"), _G.L("themeWulf"), _G.L("themeMisty") }
+    local BTN_W  = 70
+    local BTN_H  = 22
+    local buttons = {}
+
+    local function RefreshButtons()
+        for i, mode in ipairs(MODES) do
+            local c = buttons[i].c
+            if _G.Settings.colorTheme == mode then
+                buttons[i].frame:SetBackColor(c.HOVER)
+                buttons[i].bg:SetBackColor(c.HOVER)
+                buttons[i].label:SetForeColor(c.BG)
+                buttons[i].label:SetFontStyle(Turbine.UI.FontStyle.None)
+            else
+                buttons[i].frame:SetBackColor(c.FRAME)
+                buttons[i].bg:SetBackColor(c.BG)
+                buttons[i].label:SetForeColor(c.TEXT)
+                buttons[i].label:SetFontStyle(Turbine.UI.FontStyle.None)
+            end
+        end
+    end
+
+    for i, mode in ipairs(MODES) do
+        local td = _G.Themes[mode]
+        local c = {
+            FRAME  = Turbine.UI.Color(td.FRAME[1],  td.FRAME[2],  td.FRAME[3]),
+            BG     = Turbine.UI.Color(td.BG[1],     td.BG[2],     td.BG[3]),
+            HOVER  = Turbine.UI.Color(td.HOVER[1],  td.HOVER[2],  td.HOVER[3]),
+            PRESS  = Turbine.UI.Color(td.PRESS[1],  td.PRESS[2],  td.PRESS[3]),
+            TEXT   = Turbine.UI.Color(td.TEXT[1],   td.TEXT[2],   td.TEXT[3]),
+            ACCENT = Turbine.UI.Color(td.ACCENT[1], td.ACCENT[2], td.ACCENT[3]),
+        }
+
+        local frame = Turbine.UI.Control()
+        frame:SetParent(row)
+        frame:SetSize(BTN_W + 2, BTN_H + 2)
+        frame:SetBackColor(c.FRAME)
+
+        local bg = Turbine.UI.Control()
+        bg:SetParent(frame)
+        bg:SetPosition(1, 1)
+        bg:SetSize(BTN_W, BTN_H)
+        bg:SetBackColor(c.BG)
+
+        local lbl = Turbine.UI.Label()
+        lbl:SetParent(bg)
+        lbl:SetSize(BTN_W, BTN_H)
+        lbl:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
+        lbl:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+        lbl:SetFontStyle(_G.Theme.FONT_STYLE)
+        lbl:SetForeColor(c.TEXT)
+        lbl:SetText(LABELS[i])
+        lbl:SetMouseVisible(false)
+
+        buttons[i] = { frame = frame, bg = bg, label = lbl, c = c }
+
+        local hover = false
+        bg.MouseEnter = function()
+            hover = true
+            frame:SetBackColor(c.HOVER)
+            lbl:SetForeColor(c.ACCENT)
+        end
+        bg.MouseLeave = function()
+            hover = false
+            RefreshButtons()
+        end
+        bg.MouseDown = function()
+            bg:SetBackColor(c.PRESS)
+        end
+        bg.MouseUp = function()
+            if hover and _G.Settings.colorTheme ~= mode then
+                _G.Settings.colorTheme = mode
+                _G.SaveSettings()
+                _G.ApplyTheme(mode)
+                local old = _G.Window
+                _G.Window = nil
+                if old then old:SetVisible(false) end
+                local reloader = Turbine.UI.Control()
+                reloader.Update = function()
+                    reloader:SetWantsUpdates(false)
+                    _G.Window = _G.LLWindow()
+                    _G.Window:SetVisible(true)
+                end
+                reloader:SetWantsUpdates(true)
+            else
+                RefreshButtons()
+            end
+        end
+    end
+
+    RefreshButtons()
+
+    row.SizeChanged = function()
+        local w     = row:GetWidth()
+        local top   = math.floor((34 - BTN_H - 2) / 2)
+        local right = w - 10
+        for i = #MODES, 1, -1 do
             buttons[i].frame:SetLeft(right - (BTN_W + 2))
             buttons[i].frame:SetTop(top)
             right = right - (BTN_W + 2) - 4
@@ -584,6 +701,9 @@ function Settings:BuildRows()
     addRow(self:MakeTimezoneRow())
     addRow(self:MakeTimeDisplayRow())
     addRow(self:MakeLanguageRow())
+
+    addRow(self:MakeSectionHeader(_G.L("sectionAppearance")))
+    addRow(self:MakeColorThemeRow())
 
     addRow(self:MakeSectionHeader(_G.L("sectionServer")))
     for _, serverName in ipairs(_G.Servers) do
@@ -652,23 +772,23 @@ end
 
 function Settings:Build()
 
-    self:SetBackColor(COL_OUTER)
+    self:SetBackColor(_G.Theme.OUTER)
 
     self.background1 = Turbine.UI.Control()
     self.background1:SetParent(self)
-    self.background1:SetBackColor(COL_BG)
+    self.background1:SetBackColor(_G.Theme.BG)
     self.background1:SetPosition(5, 5)
 
     self.frame1 = Turbine.UI.Control()
     self.frame1:SetParent(self.background1)
-    self.frame1:SetBackColor(COL_FRAME)
+    self.frame1:SetBackColor(_G.Theme.FRAME)
     self.frame1:SetPosition(5, 5)
 
     self.header = Turbine.UI.Control()
     self.header:SetParent(self.frame1)
     self.header:SetPosition(1, 1)
     self.header:SetHeight(32)
-    self.header:SetBackColor(COL_HEADER)
+    self.header:SetBackColor(_G.Theme.HEADER)
 
     self.headerName = Turbine.UI.Label()
     self.headerName:SetParent(self.header)
@@ -676,8 +796,8 @@ function Settings:Build()
     self.headerName:SetHeight(32)
     self.headerName:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     self.headerName:SetFont(Turbine.UI.Lotro.Font.Verdana16)
-    self.headerName:SetFontStyle(Turbine.UI.FontStyle.Outline)
-    self.headerName:SetForeColor(COL_ACCENT)
+    self.headerName:SetFontStyle(_G.Theme.FONT_STYLE)
+    self.headerName:SetForeColor(_G.Theme.ACCENT)
     self.headerName:SetText(_G.L("settingsTitle"))
     self.headerName:SetMouseVisible(false)
 
@@ -688,40 +808,40 @@ function Settings:Build()
     self.closeBtn:SetParent(self.header)
     self.closeBtn:SetSize(CLOSE_SIZE + 2, CLOSE_SIZE + 2)
     self.closeBtn:SetTop(math.floor((32 - CLOSE_SIZE - 2) / 2))
-    self.closeBtn:SetBackColor(COL_FRAME)
+    self.closeBtn:SetBackColor(_G.Theme.FRAME)
 
     local closeBg = Turbine.UI.Control()
     closeBg:SetParent(self.closeBtn)
     closeBg:SetPosition(1, 1)
     closeBg:SetSize(CLOSE_SIZE, CLOSE_SIZE)
-    closeBg:SetBackColor(COL_BG)
+    closeBg:SetBackColor(_G.Theme.BG)
 
     local closeLabel = Turbine.UI.Label()
     closeLabel:SetParent(closeBg)
     closeLabel:SetSize(CLOSE_SIZE, CLOSE_SIZE)
     closeLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
     closeLabel:SetFont(Turbine.UI.Lotro.Font.Verdana14)
-    closeLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
-    closeLabel:SetForeColor(COL_DIM)
+    closeLabel:SetFontStyle(_G.Theme.FONT_STYLE)
+    closeLabel:SetForeColor(_G.Theme.DIM)
     closeLabel:SetText("x")
     closeLabel:SetMouseVisible(false)
 
     local closeHover = false
     closeBg.MouseEnter = function()
         closeHover = true
-        self.closeBtn:SetBackColor(COL_HOVER)
-        closeLabel:SetForeColor(COL_ACCENT)
+        self.closeBtn:SetBackColor(_G.Theme.HOVER)
+        closeLabel:SetForeColor(_G.Theme.ACCENT)
     end
     closeBg.MouseLeave = function()
         closeHover = false
-        self.closeBtn:SetBackColor(COL_FRAME)
-        closeLabel:SetForeColor(COL_DIM)
+        self.closeBtn:SetBackColor(_G.Theme.FRAME)
+        closeLabel:SetForeColor(_G.Theme.DIM)
     end
     closeBg.MouseDown = function()
-        closeBg:SetBackColor(COL_PRESS)
+        closeBg:SetBackColor(_G.Theme.PRESS)
     end
     closeBg.MouseUp = function()
-        closeBg:SetBackColor(COL_BG)
+        closeBg:SetBackColor(_G.Theme.BG)
         if closeHover then
             self:GetParent():ToggleSettings()
         end
@@ -731,16 +851,16 @@ function Settings:Build()
     self.separator:SetParent(self.frame1)
     self.separator:SetPosition(1, 33)
     self.separator:SetHeight(1)
-    self.separator:SetBackColor(COL_FRAME)
+    self.separator:SetBackColor(_G.Theme.FRAME)
 
     self.background2 = Turbine.UI.Control()
     self.background2:SetParent(self.frame1)
-    self.background2:SetBackColor(COL_PANEL)
+    self.background2:SetBackColor(_G.Theme.PANEL)
     self.background2:SetPosition(1, 34)
 
     self.listbox = Turbine.UI.ListBox()
     self.listbox:SetParent(self.background2)
-    self.listbox:SetBackColor(COL_PANEL)
+    self.listbox:SetBackColor(_G.Theme.PANEL)
 
     self.scrollbar = Turbine.UI.Lotro.ScrollBar()
     self.scrollbar:SetOrientation(Turbine.UI.Orientation.Vertical)
