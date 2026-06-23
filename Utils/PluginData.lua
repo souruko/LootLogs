@@ -208,14 +208,19 @@ for id, character in pairs(_G.Logs) do
     for _, index in ipairs(toDelete) do
         local event    = _G.Events[index]
         local instance = _G.Instances[event.instance]
-        _G.PrintAlert(
-            _G.CM("HOVER") .. "[" .. (instance and instance.name or "?") .. "]" .. _G.CMR ..
-            " " .. event.name ..
-            " " .. _G.CM("DIM") .. "(" .. event.tier .. ")" .. _G.CMR ..
-            " reset for " .. _G.CM("ACCENT") .. character.name .. _G.CMR
-        )
-        character.logs[index] = nil
-        logHasChanged = true
+        if event.onlyResetIfDone then
+            character.logs[index].timeOfDeath = CalculateDeath(event)
+            logHasChanged = true
+        else
+            _G.PrintAlert(
+                _G.CM("HOVER") .. "[" .. (instance and instance.name or "?") .. "]" .. _G.CMR ..
+                " " .. event.name ..
+                " " .. _G.CM("DIM") .. "(" .. event.tier .. ")" .. _G.CMR ..
+                " reset for " .. _G.CM("ACCENT") .. character.name .. _G.CMR
+            )
+            character.logs[index] = nil
+            logHasChanged = true
+        end
     end
 end
 
