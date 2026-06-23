@@ -874,7 +874,7 @@ function ContentView:MakeBossTierRow(t)
     local TIME_W = (_G.Settings.timeDisplay == "timestamp" and 140)
                or  (_G.Settings.timeDisplay == "both" and 95)
                or  68
-    local TIER_W  = 40
+    local TIER_W  = 55
     local VALUE_W = 44
     local GAP     = 5
     local LEFT    = 36
