@@ -82,11 +82,11 @@ end
 function ServerItem:ApplyCollapsed(value)
     if value then
         self:SetHeight(38)
-        self.arrowIcon:SetBackground("LootLogs2/Ressources/arrow_right.tga")
+        self.arrowIcon:SetBackground("LootLogsBeta/Ressources/arrow_right.tga")
     else
         local childCount = self:GetItemCount() - 1
         self:SetHeight(38 + 44 * childCount)
-        self.arrowIcon:SetBackground("LootLogs2/Ressources/arrow_down.tga")
+        self.arrowIcon:SetBackground("LootLogsBeta/Ressources/arrow_down.tga")
     end
 end
 
@@ -160,7 +160,7 @@ function ServerItem:Build()
     self.arrowIcon = Turbine.UI.Control()
     self.arrowIcon:SetParent(self.arrowBtn)
     self.arrowIcon:SetSize(20, 20)
-    self.arrowIcon:SetBackground("LootLogs2/Ressources/arrow_down.tga")
+    self.arrowIcon:SetBackground("LootLogsBeta/Ressources/arrow_down.tga")
     self.arrowIcon:SetBlendMode(Turbine.UI.BlendMode.Overlay)
     self.arrowIcon:SetMouseVisible(false)
 

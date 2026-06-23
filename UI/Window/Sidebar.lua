@@ -1,9 +1,9 @@
 
-import "LootLogs2.UI.Window.SidebarItems.CharacterItem"
-import "LootLogs2.UI.Window.SidebarItems.InstanceItem"
+import "LootLogsBeta.UI.Window.SidebarItems.CharacterItem"
+import "LootLogsBeta.UI.Window.SidebarItems.InstanceItem"
 
-import "LootLogs2.UI.Window.SidebarItems.ContentItem"
-import "LootLogs2.UI.Window.SidebarItems.ServerItem"
+import "LootLogsBeta.UI.Window.SidebarItems.ContentItem"
+import "LootLogsBeta.UI.Window.SidebarItems.ServerItem"
 
 Sidebar = class(Turbine.UI.Control)
 -- window constructor --------------------------------------------------------------------------
@@ -784,7 +784,7 @@ function Sidebar:Build()
     self.background3 = Turbine.UI.Control()
     self.background3:SetParent(self.frame1)
     self.background3:SetBackColor(Turbine.UI.Color(0.05, 0.04, 0.03))
-    self.background3:SetBackground("LootLogs2/Ressources/collaps.tga")
+    self.background3:SetBackground("LootLogsBeta/Ressources/collaps.tga")
     self.background3:SetBlendMode(Turbine.UI.BlendMode.Multiplys)
     self.background3:SetSize(20, 20)
     self.background3.MouseEnter = function ()
@@ -807,7 +807,7 @@ function Sidebar:Build()
 
     self.collapsIcon = Turbine.UI.Control()
     self.collapsIcon:SetParent(self.background3)
-    self.collapsIcon:SetBackground("LootLogs2/Ressources/collaps.tga")
+    self.collapsIcon:SetBackground("LootLogsBeta/Ressources/collaps.tga")
     self.collapsIcon:SetBlendMode(Turbine.UI.BlendMode.Overlay)
     self.collapsIcon:SetPosition(-2, -2)
     self.collapsIcon:SetSize(20, 20)

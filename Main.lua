@@ -12,32 +12,32 @@ import "Turbine.UI"
 import "Turbine.UI.Lotro"
 
 -- classes and types -------------------------------------------------------------------------------
-import "LootLogs2.Utils.Class"
-import "LootLogs2.Utils.Type"
+import "LootLogsBeta.Utils.Class"
+import "LootLogsBeta.Utils.Type"
 
 -- static imports ----------------------------------------------------------------------------------
-import "LootLogs2.Utils.Constants"
-import "LootLogs2.Utils.Functions"
-import "LootLogs2.Utils.Locale"
+import "LootLogsBeta.Utils.Constants"
+import "LootLogsBeta.Utils.Functions"
+import "LootLogsBeta.Utils.Locale"
 
 if Turbine.Shell.IsCommand("hilfe") then
-    import "LootLogs2.Logs.German"
+    import "LootLogsBeta.Logs.German"
 elseif Turbine.Shell.IsCommand("aide") then
-    import "LootLogs2.Logs.French"
+    import "LootLogsBeta.Logs.French"
 else
-    import "LootLogs2.Logs.English"
+    import "LootLogsBeta.Logs.English"
 end
 
 -- load plugin data --------------------------------------------------------------------------------
-import "LootLogs2.Utils.PluginData"
+import "LootLogsBeta.Utils.PluginData"
 
 -- functions ---------------------------------------------------------------------------------------
-import "LootLogs2.ProcessMatch"
-import "LootLogs2.ChatParsing"
+import "LootLogsBeta.ProcessMatch"
+import "LootLogsBeta.ChatParsing"
 
 -- ui ----------------------------------------------------------------------------------------------
-import "LootLogs2.UI.Window.Base"
-import "LootLogs2.UI.QuickLaunch"
+import "LootLogsBeta.UI.Window.Base"
+import "LootLogsBeta.UI.QuickLaunch"
 
 _G.Window = _G.LLWindow()
 _G.QuickLaunchBtn = _G.QuickLaunch()

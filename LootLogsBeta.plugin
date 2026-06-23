@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<Plugin> 
+	<Information>
+		<Name>LootLogsBeta</Name>
+		<Author>Souru</Author>
+		<Version>3.0.0</Version>
+		<Description>...</Description>
+		<Image>LootLogsBeta/Ressources/lootlogs_icon.tga</Image>
+	</Information>
+	<Package>LootLogsBeta.Main</Package>
+	<Configuration Apartment="LootLogsBeta" />
+</Plugin>

@@ -5,7 +5,7 @@ function _G.QuickLaunch:Constructor()
     Turbine.UI.Window.Constructor(self)
 
     self:SetSize(50, 50)
-    self:SetBackground("LootLogs2/Ressources/lootlogs_icon.tga")
+    self:SetBackground("LootLogsBeta/Ressources/lootlogs_icon.tga")
 
     local s = _G.Settings.quickLaunch
     self:SetPosition(s.left, s.top)
@@ -19,7 +19,7 @@ function _G.QuickLaunch:Constructor()
     self.badge:SetParent(self)
     self.badge:SetSize(20, 20)
     self.badge:SetPosition(30, 0)
-    self.badge:SetBackground("LootLogs2/Ressources/badge_dot.tga")
+    self.badge:SetBackground("LootLogsBeta/Ressources/badge_dot.tga")
     -- self.badge:SetBlendMode(Turbine.UI.BlendMode.Overlay)
     self.badge:SetVisible(false)
     self.badge:SetMouseVisible(false)
