@@ -69,8 +69,7 @@ function ProcessMatch(message, log, logIndex)
         local instance  = _G.Instances[event.instance]
         local remaining = newEntry.timeOfDeath - Turbine.Engine.GetLocalTime()
         _G.PrintAlert(
-            _G.CM("ACCENT") .. "LL:" .. _G.CMR ..
-            "  " .. _G.CM("HOVER") .. "[" .. (instance and instance.name or "?") .. "]" .. _G.CMR ..
+            _G.CM("HOVER") .. "[" .. (instance and instance.name or "?") .. "]" .. _G.CMR ..
             " " .. event.name ..
             " " .. _G.CM("DIM") .. "(" .. event.tier .. ")" .. _G.CMR ..
             "  " .. newEntry.value ..

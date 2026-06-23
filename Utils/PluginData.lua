@@ -209,8 +209,7 @@ for id, character in pairs(_G.Logs) do
         local event    = _G.Events[index]
         local instance = _G.Instances[event.instance]
         _G.PrintAlert(
-            _G.CM("ACCENT") .. "LL:" .. _G.CMR ..
-            "  " .. _G.CM("HOVER") .. "[" .. (instance and instance.name or "?") .. "]" .. _G.CMR ..
+            _G.CM("HOVER") .. "[" .. (instance and instance.name or "?") .. "]" .. _G.CMR ..
             " " .. event.name ..
             " " .. _G.CM("DIM") .. "(" .. event.tier .. ")" .. _G.CMR ..
             " reset for " .. _G.CM("ACCENT") .. character.name .. _G.CMR
@@ -227,7 +226,7 @@ end
 -- write current characters logs into chat
 if _G.Settings.printWelcome then
 
-    Turbine.Shell.WriteLine(_G.CM("ACCENT") .. "LL: LootLogs" .. _G.CMR .. _G.CM("DIM") .. "  — " .. _G.name .. _G.CMR)
+    Turbine.Shell.WriteLine(_G.CM("ACCENT") .. "LootLogs" .. _G.CMR .. _G.CM("DIM") .. "  — " .. _G.name .. _G.CMR)
     local activeLogs = _G.Logs[_G.characterId].logs
     if next(activeLogs) ~= nil then
         local sorted = {}

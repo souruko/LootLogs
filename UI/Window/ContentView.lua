@@ -744,7 +744,7 @@ function ContentView:MakeInstanceBossRow(bossName, completedChars, timeText, val
     local row = Turbine.UI.Control()
     row:SetHeight(26)
     row:SetBackColor(_G.Theme.PANEL)
-    row.MouseEnter = function() row:SetBackColor(_G.Theme.PANEL) end
+    row.MouseEnter = function() row:SetBackColor(_G.Theme.HEADER) end
     row.MouseLeave = function() row:SetBackColor(_G.Theme.PANEL) end
 
     local accent = Turbine.UI.Control()
