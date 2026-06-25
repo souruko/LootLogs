@@ -77,3 +77,42 @@ function _G.GetServerList()
     return serverList
 
 end
+
+
+-- calculate death --------------------------------------------------------------------------------
+function _G.CalculateDeath(log)
+
+    local currentTime    = Turbine.Engine.GetLocalTime()
+    local current        = Turbine.Engine.GetDate()
+    local resetTimeOfDay = log.reset.time + Settings.timezone
+    local currentHours   = current.Hour
+
+    local daysUntilReset = 0
+    local dayOfWeek      = current.DayOfWeek
+
+    while true do
+
+        if _G.TableContains(log.reset.days, dayOfWeek) then
+            -- Use this day if it's in the future, or if it's today and the reset hasn't passed yet.
+            if daysUntilReset > 0 or resetTimeOfDay > currentHours then
+                break
+            end
+        end
+
+        daysUntilReset = daysUntilReset + 1
+        if daysUntilReset > 8 then
+            _G.PrintAlert("LL: Error: log has no reset day: " .. log.name)
+            return
+        end
+        dayOfWeek = dayOfWeek % 7 + 1
+
+    end
+
+    local timeUntilDeath = daysUntilReset * 24 * 3600
+                         + (resetTimeOfDay - currentHours) * 3600
+                         - current.Minute * 60
+                         - current.Second
+
+    return currentTime + timeUntilDeath
+
+end
