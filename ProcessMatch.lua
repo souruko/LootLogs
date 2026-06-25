@@ -14,7 +14,7 @@ function ProcessMatch(message, log, logIndex)
 
     -- mark as done
     if log.type == _G.EventTypes.Done then
-        local tod = CalculateDeath(log)
+        local tod = _G.CalculateDeath(log)
         if tod == nil then return end
         newEntry = { value = "Done", timeOfDeath = tod }
 
@@ -31,7 +31,7 @@ function ProcessMatch(message, log, logIndex)
         end
         -- don't overwrite a "Done" entry with partial progress
         if logs[logIndex] == nil or logs[logIndex].value ~= "Done" or value == "Done" then
-            local tod = CalculateDeath(log)
+            local tod = _G.CalculateDeath(log)
             if tod == nil then return end
             newEntry = { value = value, timeOfDeath = tod }
         end
@@ -52,7 +52,7 @@ function ProcessMatch(message, log, logIndex)
         end
 
         if value then
-            local tod = CalculateDeath(log)
+            local tod = _G.CalculateDeath(log)
             if tod == nil then return end
             newEntry = { value = value, timeOfDeath = tod }
         end
@@ -90,7 +90,7 @@ end
 
 
 -- calculate death --------------------------------------------------------------------------------
-function CalculateDeath(log)
+function _G.CalculateDeath(log)
 
     local currentTime    = Turbine.Engine.GetLocalTime()
     local current        = Turbine.Engine.GetDate()
