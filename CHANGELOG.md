@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.2] - 2026-06-25
+
+### Changed
+- Reset alerts on login are now sorted by content view order (instance descending, tier descending, boss order ascending, character name ascending) instead of random iteration order
+- Reset alerts now print under a `LootLogs — resets` header to visually separate them from the active-lockouts welcome message
+- Character names in reset alerts and the "resets" header label are now shown in red to distinguish them from the welcome section
+
 ## [3.0.1] - 2026-06-23
 
 ### Added

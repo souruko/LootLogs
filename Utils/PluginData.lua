@@ -81,7 +81,7 @@ _G.Settings = Turbine.PluginData.Load(Turbine.DataScope.Account, "LootSettings",
 if _G.Settings == nil then
     _G.Settings = {}
     _G.Settings.timezone = 1
-    _G.Settings._G.PrintAlerts = true
+    _G.Settings.PrintAlerts = true
     _G.Settings.printWelcome = true
     _G.Settings.showCustomList = true
     _G.Settings.showServers = true
@@ -196,32 +196,58 @@ end
 local currentTime = Turbine.Engine.GetLocalTime()
 local logHasChanged = false
 
--- iterate all characters
+local function _tierOrder(tier)
+    return (_G.TierOrder and _G.TierOrder[tostring(tier)]) or 99
+end
+
+local allToDelete = {}
+
 for id, character in pairs(_G.Logs) do
-    -- collect expired indices first to avoid mutating while iterating
-    local toDelete = {}
     for index, log in pairs(character.logs) do
         if log.timeOfDeath <= currentTime then
-            table.insert(toDelete, index)
+            local event = _G.Events[index]
+            if event.onlyResetIfDone and character.logs[index].value ~= "Done" then
+                character.logs[index].timeOfDeath = _G.CalculateDeath(event)
+                logHasChanged = true
+            else
+                allToDelete[#allToDelete + 1] = { character = character, index = index }
+            end
         end
     end
-    for _, index in ipairs(toDelete) do
-        local event    = _G.Events[index]
-        local instance = _G.Instances[event.instance]
-        if event.onlyResetIfDone and character.logs[index].value ~= "Done" then
-            character.logs[index].timeOfDeath = _G.CalculateDeath(event)
-            logHasChanged = true
-        else
-            _G.PrintAlert(
-                _G.CM("HOVER") .. "[" .. (instance and instance.name or "?") .. "]" .. _G.CMR ..
-                " " .. event.name ..
-                " " .. _G.CM("DIM") .. "(" .. event.tier .. ")" .. _G.CMR ..
-                " reset for " .. _G.CM("ACCENT") .. character.name .. _G.CMR
-            )
-            character.logs[index] = nil
-            logHasChanged = true
-        end
-    end
+end
+
+table.sort(allToDelete, function(a, b)
+    local ea = _G.Events[a.index]
+    local eb = _G.Events[b.index]
+    if ea.instance ~= eb.instance then return ea.instance > eb.instance end
+    local ta = _tierOrder(ea.tier)
+    local tb = _tierOrder(eb.tier)
+    if ta ~= tb then return ta > tb end
+    local oa = ea.order or 99
+    local ob = eb.order or 99
+    if oa ~= ob then return oa < ob end
+    return a.character.name < b.character.name
+end)
+
+local RED = "<rgb=#CC4444>"
+
+if #allToDelete > 0 then
+    _G.PrintAlert(_G.CM("ACCENT") .. "LootLogs" .. _G.CMR .. _G.CM("DIM") .. "  — " .. _G.CMR .. RED .. "resets" .. _G.CMR)
+end
+
+for _, entry in ipairs(allToDelete) do
+    local character = entry.character
+    local index     = entry.index
+    local event     = _G.Events[index]
+    local instance  = _G.Instances[event.instance]
+    _G.PrintAlert(
+        _G.CM("HOVER") .. "[" .. (instance and instance.name or "?") .. "]" .. _G.CMR ..
+        " " .. event.name ..
+        " " .. _G.CM("DIM") .. "(" .. event.tier .. ")" .. _G.CMR ..
+        " reset for " .. RED .. character.name .. _G.CMR
+    )
+    character.logs[index] = nil
+    logHasChanged = true
 end
 
 if logHasChanged then
