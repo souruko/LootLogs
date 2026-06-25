@@ -209,7 +209,7 @@ for id, character in pairs(_G.Logs) do
         local event    = _G.Events[index]
         local instance = _G.Instances[event.instance]
         if event.onlyResetIfDone then
-            character.logs[index].timeOfDeath = CalculateDeath(event)
+            character.logs[index].timeOfDeath = _G.CalculateDeath(event)
             logHasChanged = true
         else
             _G.PrintAlert(
