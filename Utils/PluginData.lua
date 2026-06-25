@@ -208,7 +208,7 @@ for id, character in pairs(_G.Logs) do
     for _, index in ipairs(toDelete) do
         local event    = _G.Events[index]
         local instance = _G.Instances[event.instance]
-        if event.onlyResetIfDone then
+        if event.onlyResetIfDone and character.logs[index].value ~= "Done" then
             character.logs[index].timeOfDeath = _G.CalculateDeath(event)
             logHasChanged = true
         else
