@@ -1,9 +1,26 @@
 # LootLogs
 
-A Lord of the Rings Online plugin that tracks per-character loot lockouts across instances. When you open a loot chest, LootLogs automatically records the lockout and shows a countdown to the next reset.
+**Version:** 3.0.2 | **Author:** Souru
 
-**Version:** 3.0.0  
-**Author:** Souru
+LootLogs is a Lord of the Rings Online plugin that automatically tracks your loot lockouts across instances and characters. When you open a chest in a raid or instance, LootLogs detects the chat message and records the lockout — no manual input needed. A countdown shows exactly when each lockout resets.
+
+### Getting started
+
+After loading the plugin, a small **QuickLaunch icon** appears on screen. Right-click it to open the main window. You can drag the icon anywhere on screen.
+
+The main window has two panels:
+- **Sidebar (left)** — browse lockouts by Content, Instance, or Character. Use the search box to filter.
+- **Content view (right)** — shows each boss/event with its tier, lockout status, and time until reset.
+
+To open the window from a quickslot, add `/raid locks` (EN), `/schlachtzug sperren` (DE), or `/raid verrouillé` (FR) as an in-game command.
+
+### Important: set your timezone
+
+Reset times are calculated from **UTC+0**. Go to **Settings** (gear icon in the window header) and set your **Timezone (UTC offset)** to your local UTC offset — otherwise countdown times will be off. The default is UTC+1.
+
+### What gets tracked
+
+Lockouts are recorded per character and stored account-wide, so you can see all your alts in one place. Use the **Characters** tab in the sidebar to switch between them. The **Custom List** lets you pin specific events across all characters for a quick overview.
 
 ---
 
@@ -42,11 +59,6 @@ Tiers tracked per instance vary — Solo, T1, T2, T3, and T4 where applicable.
    ```
    /plugins load LootLogs
    ```
-3. To unload after an update:
-   ```
-   /plugins unload LootLogs
-   ```
-
 ---
 
 ## Usage
