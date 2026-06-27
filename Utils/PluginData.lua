@@ -272,11 +272,12 @@ if _G.Settings.printWelcome then
             local instance = _G.Instances[event.instance]
             local remaining = entry.log.timeOfDeath - currentTime
             Turbine.Shell.WriteLine(
-                _G.CM("DIM") .. " · " .. _G.CMR ..
+                _G.CM("DIM") .. "· " .. _G.CMR ..
                 _G.CM("HOVER") .. "[" .. (instance and instance.name or "?") .. "]" .. _G.CMR ..
                 " " .. event.name ..
                 " " .. _G.CM("DIM") .. "(" .. event.tier .. ")" .. _G.CMR ..
-                "  " .. _G.CM("ACCENT") .. _G.FormatTimeSpan(remaining) .. _G.CMR
+                " " .. entry.log.value ..
+                " " .. _G.CM("ACCENT") .. _G.FormatTimeSpan(remaining) .. _G.CMR
             )
         end
     else

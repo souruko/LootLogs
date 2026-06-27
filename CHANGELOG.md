@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.0.3] - 2026-06-27
+
+### Changed
+- Welcome message now includes the loot value alongside each active lockout entry
+- Welcome message spacing streamlined for consistency
+
 ## [3.0.2] - 2026-06-25
 
 ### Changed
