@@ -468,11 +468,16 @@ end
 
 function Sidebar:CollapseAll()
 
-    if self.characterSelected then
+    local showingCharacters = self.characterSelected or
+                              (self.customListSelected and _G.Settings.selected.tab == _G.Tab.Characters)
+    local showingContent    = self.contentSelected or
+                              (self.customListSelected and _G.Settings.selected.tab == _G.Tab.Content)
+
+    if showingCharacters then
         for index, item in ipairs(self.serverItems) do
             item:SetCollapsed(true)
         end
-    elseif self.contentSelected then
+    elseif showingContent then
         for index, item in ipairs(self.contenItems) do
             item:SetCollapsed(true)
         end

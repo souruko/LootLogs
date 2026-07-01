@@ -2,6 +2,9 @@
 
 ## [3.0.4] - 2026-07-01
 
+### Fixed
+- Collapse all button now works when the custom list tab is active; it collapses based on whichever tab (Characters or Content) was last selected
+
 ### Changed
 - Custom list is now saved per server (`DataScope.Server`) instead of per account, so each server maintains its own independent custom list
 
