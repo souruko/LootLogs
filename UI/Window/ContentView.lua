@@ -346,7 +346,7 @@ function ContentView:ShowCustomListView()
         local contentInstanceIds = {}
         for instanceId, instance in pairs(_G.Instances) do
             if instance.content == contentIndex then
-                local todoTiers = _G.Settings.customList[instanceId]
+                local todoTiers = _G.CustomList[instanceId]
                 if todoTiers ~= nil then
                     for _, selected in pairs(todoTiers) do
                         if selected then
@@ -363,7 +363,7 @@ function ContentView:ShowCustomListView()
             hadContent = true
             for _, instanceId in ipairs(contentInstanceIds) do
                 addRow(self:MakeInstanceRow(_G.Instances[instanceId]))
-                local todoTiers = _G.Settings.customList[instanceId]
+                local todoTiers = _G.CustomList[instanceId]
                 self:_AddInstanceTierRows(instanceId, chars, currentTime, listWidth, function(tierName)
                     return todoTiers ~= nil and todoTiers[tierName] == true
                 end)
@@ -674,7 +674,7 @@ function ContentView:MakeTierHeaderRow(instanceId, tierName)
     checkBg:SetMouseVisible(false)
 
     local function isChecked()
-        local t = _G.Settings.customList
+        local t = _G.CustomList
         return t[instanceId] ~= nil and t[instanceId][tierName] == true
     end
 
@@ -716,11 +716,11 @@ function ContentView:MakeTierHeaderRow(instanceId, tierName)
     end
     checkFrame.MouseUp = function()
         if checkHover then
-            if _G.Settings.customList[instanceId] == nil then
-                _G.Settings.customList[instanceId] = {}
+            if _G.CustomList[instanceId] == nil then
+                _G.CustomList[instanceId] = {}
             end
-            _G.Settings.customList[instanceId][tierName] = not isChecked()
-            _G.SaveSettings()
+            _G.CustomList[instanceId][tierName] = not isChecked()
+            _G.SaveCustomList()
             updateCheckVisual()
         end
     end

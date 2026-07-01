@@ -1,5 +1,10 @@
 # Changelog
 
+## [3.0.4] - 2026-07-01
+
+### Changed
+- Custom list is now saved per server (`DataScope.Server`) instead of per account, so each server maintains its own independent custom list
+
 ## [3.0.3] - 2026-06-27
 
 ### Changed

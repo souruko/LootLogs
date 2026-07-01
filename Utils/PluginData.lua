@@ -106,8 +106,6 @@ if _G.Settings == nil then
     _G.Settings.selected.content = nil
     _G.Settings.selected.instance = nil
 
-    _G.Settings.customList = {}
-
     _G.Settings.quickLaunch = {}
     _G.Settings.quickLaunch.left = 100
     _G.Settings.quickLaunch.top  = 100
@@ -116,10 +114,6 @@ end
 
 if _G.Settings.language == nil then
     _G.Settings.language = "en"
-end
-
-if _G.Settings.customList == nil then
-    _G.Settings.customList = {}
 end
 
 if _G.Settings.quickLaunch == nil then
@@ -138,6 +132,21 @@ end
 
 if _G.Settings.showBadge == nil then
     _G.Settings.showBadge = true
+end
+
+-- custom list --------------------------------------------------------------------------------------
+
+function SaveCustomListCompleteHandler()
+end
+
+function _G.SaveCustomList()
+    Turbine.PluginData.Save(Turbine.DataScope.Server, "LootCustomList", _G.CustomList, SaveCustomListCompleteHandler)
+end
+
+_G.CustomList = Turbine.PluginData.Load(Turbine.DataScope.Server, "LootCustomList")
+
+if _G.CustomList == nil then
+    _G.CustomList = {}
 end
 
 -- logs ---------------------------------------------------------------------------------------------
@@ -187,9 +196,14 @@ if _G.characterId == nil then
         ["logs"] = {},
         ["server"] = _G.Server
     }
+
+    _G.SaveLogs()
 else
-    _G.Logs[_G.characterId].server = _G.Server
-    _G.Logs[_G.characterId].level = _G.localPlayer:GetLevel()
+    if _G.Logs[_G.characterId].server ~= _G.Server or _G.Logs[_G.characterId].level ~= _G.localPlayer:GetLevel() then
+        _G.Logs[_G.characterId].server = _G.Server
+        _G.Logs[_G.characterId].level = _G.localPlayer:GetLevel()
+        _G.SaveLogs()
+    end
 end
 
 -- remove "dead" logs
