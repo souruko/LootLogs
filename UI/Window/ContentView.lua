@@ -765,8 +765,8 @@ function ContentView:MakeInstanceBossRow(bossName, completedChars, timeText, val
     bossLabel:SetText(bossName)
     bossLabel:SetMouseVisible(false)
 
+    local numRows = 1
     local charText
-    local tooltipText = nil
 
     if #completedChars == 0 then
         charText = "—"
@@ -777,17 +777,24 @@ function ContentView:MakeInstanceBossRow(bossName, completedChars, timeText, val
             local suffix = (v and v ~= "Done") and (" " .. v) or ""
             parts[#parts + 1] = char.name .. suffix
         end
-        if #completedChars <= 3 then
-            charText = table.concat(parts, ",  ")
-        else
-            charText = parts[1] .. ",  " .. parts[2] .. ",  " .. parts[3] .. "  ···"
-            tooltipText = table.concat(parts, "\n")
+        numRows = math.ceil(#parts / 3)
+        local lines = {}
+        for r = 1, numRows do
+            local slice = {}
+            for i = (r - 1) * 3 + 1, math.min(r * 3, #parts) do
+                slice[#slice + 1] = parts[i]
+            end
+            lines[#lines + 1] = table.concat(slice, ",  ")
         end
+        charText = table.concat(lines, "\n")
     end
+
+    local rowHeight = 26 + (numRows - 1) * 12
+    row:SetHeight(rowHeight)
 
     local charsLabel = Turbine.UI.Label()
     charsLabel:SetParent(row)
-    charsLabel:SetHeight(26)
+    charsLabel:SetHeight(rowHeight)
     charsLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     charsLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
     charsLabel:SetFontStyle(_G.Theme.FONT_STYLE)
@@ -801,7 +808,7 @@ function ContentView:MakeInstanceBossRow(bossName, completedChars, timeText, val
 
     local timeLabel = Turbine.UI.Label()
     timeLabel:SetParent(row)
-    timeLabel:SetHeight(26)
+    timeLabel:SetHeight(rowHeight)
     timeLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
     timeLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
     timeLabel:SetFontStyle(_G.Theme.FONT_STYLE)

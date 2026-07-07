@@ -4,6 +4,51 @@
 --= load and save plugin data
 --=================================================================================================
 
+local function IsEuroClient()
+    return Turbine.Shell.IsCommand("hilfe") or Turbine.Shell.IsCommand("aide")
+end
+
+local function ConvertToEuro(dataRaw)
+    if type(dataRaw) ~= "table" then
+        return type(dataRaw) == "number" and tostring(dataRaw) or dataRaw
+    end
+    local newData = {}
+    for i, myData in pairs(dataRaw) do
+        local tempIndex = type(i) == "number" and tostring(i) or i
+        local tempData
+        if type(myData) == "table" then
+            tempData = ConvertToEuro(myData)
+        elseif type(myData) == "number" then
+            tempData = tostring(myData)
+        else
+            tempData = myData
+        end
+        newData[tempIndex] = tempData
+    end
+    return newData
+end
+
+local function ConvertFromEuro(dataRaw)
+    if type(dataRaw) ~= "table" then
+        local n = tonumber(dataRaw)
+        return n ~= nil and n or dataRaw
+    end
+    local newData = {}
+    for i, myData in pairs(dataRaw) do
+        local tempIndex = tonumber(i)
+        if tempIndex == nil then tempIndex = i end
+        local tempData
+        if type(myData) == "table" then
+            tempData = ConvertFromEuro(myData)
+        else
+            tempData = tonumber(myData)
+            if tempData == nil then tempData = myData end
+        end
+        newData[tempIndex] = tempData
+    end
+    return newData
+end
+
 function FindCurrentCharacter()
     for id, character in pairs(_G.Logs) do
         if character.name == _G.name then
@@ -23,14 +68,23 @@ end
 
 function _G.SaveServer()
     Turbine.PluginData.Save(Turbine.DataScope.Server, "GetServer", _G.Server, SaveServerCompleteHandler)
-
+    Turbine.PluginData.Save(Turbine.DataScope.Server, "GetServer_Euro", ConvertToEuro(_G.Server), SaveServerCompleteHandler)
 end
 
 function LoadServerCompleteHandler()
 
 end
 
-_G.Server = Turbine.PluginData.Load(Turbine.DataScope.Server, "GetServer", LoadServerCompleteHandler)
+if IsEuroClient() then
+    local raw = Turbine.PluginData.Load(Turbine.DataScope.Server, "GetServer_Euro", LoadServerCompleteHandler)
+    if raw ~= nil then
+        _G.Server = ConvertFromEuro(raw)
+    else
+        _G.Server = Turbine.PluginData.Load(Turbine.DataScope.Server, "GetServer", LoadServerCompleteHandler)
+    end
+else
+    _G.Server = Turbine.PluginData.Load(Turbine.DataScope.Server, "GetServer", LoadServerCompleteHandler)
+end
 
 
 
@@ -67,7 +121,7 @@ end
 
 function _G.SaveSettings()
     Turbine.PluginData.Save(Turbine.DataScope.Account, "LootSettings", _G.Settings, SaveSettingsCompleteHandler)
-
+    Turbine.PluginData.Save(Turbine.DataScope.Account, "LootSettings_Euro", ConvertToEuro(_G.Settings), SaveSettingsCompleteHandler)
 end
 
 function LoadSettingsCompleteHandler()
@@ -75,7 +129,16 @@ function LoadSettingsCompleteHandler()
 
 end
 
-_G.Settings = Turbine.PluginData.Load(Turbine.DataScope.Account, "LootSettings", LoadSettingsCompleteHandler)
+if IsEuroClient() then
+    local raw = Turbine.PluginData.Load(Turbine.DataScope.Account, "LootSettings_Euro", LoadSettingsCompleteHandler)
+    if raw ~= nil then
+        _G.Settings = ConvertFromEuro(raw)
+    else
+        _G.Settings = Turbine.PluginData.Load(Turbine.DataScope.Account, "LootSettings", LoadSettingsCompleteHandler)
+    end
+else
+    _G.Settings = Turbine.PluginData.Load(Turbine.DataScope.Account, "LootSettings", LoadSettingsCompleteHandler)
+end
 
 -- set defaults
 if _G.Settings == nil then
@@ -141,9 +204,19 @@ end
 
 function _G.SaveCustomList()
     Turbine.PluginData.Save(Turbine.DataScope.Server, "LootCustomList", _G.CustomList, SaveCustomListCompleteHandler)
+    Turbine.PluginData.Save(Turbine.DataScope.Server, "LootCustomList_Euro", ConvertToEuro(_G.CustomList), SaveCustomListCompleteHandler)
 end
 
-_G.CustomList = Turbine.PluginData.Load(Turbine.DataScope.Server, "LootCustomList")
+if IsEuroClient() then
+    local raw = Turbine.PluginData.Load(Turbine.DataScope.Server, "LootCustomList_Euro")
+    if raw ~= nil then
+        _G.CustomList = ConvertFromEuro(raw)
+    else
+        _G.CustomList = Turbine.PluginData.Load(Turbine.DataScope.Server, "LootCustomList")
+    end
+else
+    _G.CustomList = Turbine.PluginData.Load(Turbine.DataScope.Server, "LootCustomList")
+end
 
 if _G.CustomList == nil then
     _G.CustomList = {}
@@ -169,14 +242,23 @@ end
 
 function _G.SaveLogs()
     Turbine.PluginData.Save(Turbine.DataScope.Account, "LootLogs", _G.Logs, SaveLogsCompleteHandler)
-
+    Turbine.PluginData.Save(Turbine.DataScope.Account, "LootLogs_Euro", ConvertToEuro(_G.Logs), SaveLogsCompleteHandler)
 end
 
 function LoadLogsCompleteHandler()
 
 end
 
-_G.Logs = Turbine.PluginData.Load(Turbine.DataScope.Account, "LootLogs", LoadLogsCompleteHandler)
+if IsEuroClient() then
+    local raw = Turbine.PluginData.Load(Turbine.DataScope.Account, "LootLogs_Euro", LoadLogsCompleteHandler)
+    if raw ~= nil then
+        _G.Logs = ConvertFromEuro(raw)
+    else
+        _G.Logs = Turbine.PluginData.Load(Turbine.DataScope.Account, "LootLogs", LoadLogsCompleteHandler)
+    end
+else
+    _G.Logs = Turbine.PluginData.Load(Turbine.DataScope.Account, "LootLogs", LoadLogsCompleteHandler)
+end
 
 -- set defaults
 if _G.Logs == nil then
@@ -279,7 +361,17 @@ if _G.Settings.printWelcome then
             table.insert(sorted, { index = index, log = log })
         end
         table.sort(sorted, function(a, b)
-            return a.log.timeOfDeath < b.log.timeOfDeath
+            if a.log.timeOfDeath ~= b.log.timeOfDeath then
+                return a.log.timeOfDeath < b.log.timeOfDeath
+            end
+            local aInst = _G.Instances[_G.Events[a.index].instance]
+            local bInst = _G.Instances[_G.Events[b.index].instance]
+            local aCont = aInst and aInst.content or 0
+            local bCont = bInst and bInst.content or 0
+            if aCont ~= bCont then
+                return aCont < bCont
+            end
+            return _G.Events[a.index].instance < _G.Events[b.index].instance
         end)
         for _, entry in ipairs(sorted) do
             local event    = _G.Events[entry.index]
