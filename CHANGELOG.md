@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.0.5] - 2026-07-07
+
+### Added
+- Euro-safe save/load for German and French clients: all save files are written twice (normal and `_Euro` variant where numeric keys and values are serialised as strings), and DE/FR clients load from the `_Euro` file to avoid locale-specific decimal-separator corruption
+
+### Changed
+- Boss rows in the content view now wrap characters across multiple lines (3 per line) instead of truncating at 3 with a `···` tooltip, so all locked-out characters are always visible
+
 ## [3.0.4] - 2026-07-01
 
 ### Fixed
