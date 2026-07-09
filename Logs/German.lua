@@ -209,21 +209,21 @@ _G.Events = {
     [525] = { name = "20 Aufgaben",    match = "erhaltener Anerkennungen aus Mûr Ghala .%d+/20.",                        instance = 49, tier = "Wöchentlich", order = 1, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
     [524] = { name = "30 Aufgaben",    match = "erhaltener Anerkennungen aus Mûr Ghala .%d+/30.",                        instance = 49, tier = "Wöchentlich", order = 2, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
     [523] = { name = "6 Instanzen",  match = "abgeschlossener Mûr.Ghala.Instanzen .%d+/6.",                   instance = 49, tier = "Wöchentlich", order = 3, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
-    [522] = { name = "T3 Instanzen", match = "Fortgeschrittene Herausforderungen von Mûr Ghala .Wöchentlich.",               instance = 49, tier = "Wöchentlich", order = 4, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
+    [522] = { name = "T3 Instanzen", match = "Abgeschlossen:.Fortgeschrittene Herausforderungen von Mûr Ghala .Wöchentlich.",               instance = 49, tier = "Wöchentlich", order = 4, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
     [521] = { name = "Raid",         match = "bgeschlossen:.Herausforderungen von Nagakhêdis Torheit .Wöchentlich.", instance = 49, tier = "Wöchentlich", order = 5, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
-    [520] = { name = "T3 Raid",      match = "Fortgeschrittene Herausforderungen von Nagakhêdis Torheit .Wöchentlich.",  instance = 49, tier = "Wöchentlich", order = 6, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
+    [520] = { name = "T3 Raid",      match = "Abgeschlossen:.Fortgeschrittene Herausforderungen von Nagakhêdis Torheit .Wöchentlich.",  instance = 49, tier = "Wöchentlich", order = 6, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
     -- UBs (weekly Thu)
-    [519] = { name = "UB Agáthar",    match = "Wöchentlich. Die Geißel von Adagím",         instance = 49, tier = "UBs", order = 1, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
-    [518] = { name = "UB Blutzahn", match = "Wöchentlich. Der Fluch des Kighâns",           instance = 49, tier = "UBs", order = 2, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
-    [517] = { name = "UB Daithor",    match = "Wöchentlich. Der Schrecken von An Shêru",        instance = 49, tier = "UBs", order = 3, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
-    [516] = { name = "UB Imtushâl",   match = "Wöchentlich. Die Niedertracht von Idagâl",     instance = 49, tier = "UBs", order = 4, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
+    [519] = { name = "UB Agáthar",    match = "Abgeschlossen:.Wöchentlich. Die Geißel von Adagím",         instance = 49, tier = "UBs", order = 1, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
+    [518] = { name = "UB Blutzahn", match = "Abgeschlossen:.Wöchentlich. Der Fluch des Kighâns",           instance = 49, tier = "UBs", order = 2, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
+    [517] = { name = "UB Daithor",    match = "Abgeschlossen:.Wöchentlich. Der Schrecken von An Shêru",        instance = 49, tier = "UBs", order = 3, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
+    [516] = { name = "UB Imtushâl",   match = "Abgeschlossen:.Wöchentlich. Die Niedertracht von Idagâl",     instance = 49, tier = "UBs", order = 4, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
     -- Dailies (daily)
-    [515] = { name = "12 Samples", match = "Completed:.Harvest of the Diseased",                  instance = 49, tier = "Täglich", order = 1, type = _G.EventTypes.Done, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
-    [514] = { name = "10 Weavers", match = "Completed:.Blight.weavers",                          instance = 49, tier = "Täglich", order = 2, type = _G.EventTypes.Done, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
-    [513] = { name = "8 Trolls",   match = "Completed:.Rot.touched Trolls",                      instance = 49, tier = "Täglich", order = 3, type = _G.EventTypes.Done, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
-    [512] = { name = "6 Huorns",   match = "Completed:.The Forest Turns Against Us",              instance = 49, tier = "Täglich", order = 4, type = _G.EventTypes.Done, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
-    [511] = { name = "Agáthar",    match = "Completed:.Roving Threat. Agáthar the Bereft",        instance = 49, tier = "Täglich", order = 5, type = _G.EventTypes.Done, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
-    [510] = { name = "Bloodtooth", match = "Completed:.Roving Threat. Bloodtooth Still Hungers",  instance = 49, tier = "Täglich", order = 6, type = _G.EventTypes.Done, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
+    [515] = { name = "12 Samples", match = "Abgeschlossen:.Ernte der Kranken",                  instance = 49, tier = "Täglich", order = 1, type = _G.EventTypes.Done, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
+    [514] = { name = "10 Weavers", match = "Abgeschlossen:.Seuchenweberinnen",                          instance = 49, tier = "Täglich", order = 2, type = _G.EventTypes.Done, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
+    [513] = { name = "8 Trolls",   match = "Abgeschlossen:.Von der Fäulnis verderbte Trolle",                      instance = 49, tier = "Täglich", order = 3, type = _G.EventTypes.Done, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
+    [512] = { name = "6 Huorns",   match = "Abgeschlossen:.Der Wald wendet sich gegen uns",              instance = 49, tier = "Täglich", order = 4, type = _G.EventTypes.Done, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
+    [511] = { name = "Agáthar",    match = "Abgeschlossen:.Umherziehende Bedrohung: Agáthar der Beraubte",        instance = 49, tier = "Täglich", order = 5, type = _G.EventTypes.Done, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
+    [510] = { name = "Bloodtooth", match = "Abgeschlossen:.Umherziehende Bedrohung: Blutzahns unstillbarer Hunger",  instance = 49, tier = "Täglich", order = 6, type = _G.EventTypes.Done, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
 
     -- Ashunûg, the Fane of the Accursed — Solo (daily) ----------------------------------------
     [509] = { name = "Eshêgur",          match = "Eshêgurs Truhe .Solo",          instance = 48, tier = "Solo", order = 1, type = _G.EventTypes.Completions, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
@@ -320,11 +320,11 @@ _G.Events = {
     [440] = { name = "Gârash, the Emptiness", match = "Azagath Meeresschatten .Stufe 3",          instance = 44, tier = "T3", order = 6, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
 
     -- Aufgaben: Legacy of Morgoth — Weeklies (weekly Thu) ----------------------------------------
-    [439] = { name = "12 Missions",       match = "Fortschritte im Ikorbân.Tal .Wöchentlich.",                 instance = 43, tier = "Wöchentlich", order = 1, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
-    [438] = { name = "6 Instanzen",       match = "Herausforderungen von Ikorbân.Tal .Wöchentlich.",                    instance = 43, tier = "Wöchentlich", order = 2, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
-    [437] = { name = "Raid T1+",          match = "Die Prüfungen von Umbar und Ikorbân .Wöchentlich.",                          instance = 43, tier = "Wöchentlich", order = 3, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
-    [436] = { name = "Raid T2+",          match = "Das Böse von Umbar und Ikorbân .Wöchentlich.", instance = 43, tier = "Wöchentlich", order = 4, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
-    [435] = { name = "Raid höhste Stufe", match = "Das große Böse von Umbar und Ikorbân .Wöchentlich.", instance = 43, tier = "Wöchentlich", order = 5, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
+    [439] = { name = "12 Missions",       match = "Abgeschlossen:.Fortschritte im Ikorbân.Tal .Wöchentlich.",                 instance = 43, tier = "Wöchentlich", order = 1, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
+    [438] = { name = "6 Instanzen",       match = "Abgeschlossen:.Herausforderungen von Ikorbân.Tal .Wöchentlich.",                    instance = 43, tier = "Wöchentlich", order = 2, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
+    [437] = { name = "Raid T1+",          match = "Abgeschlossen:.Die Prüfungen von Umbar und Ikorbân .Wöchentlich.",                          instance = 43, tier = "Wöchentlich", order = 3, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
+    [436] = { name = "Raid T2+",          match = "Abgeschlossen:.Das Böse von Umbar und Ikorbân .Wöchentlich.", instance = 43, tier = "Wöchentlich", order = 4, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
+    [435] = { name = "Raid höhste Stufe", match = "Abgeschlossen:.Das große Böse von Umbar und Ikorbân .Wöchentlich.", instance = 43, tier = "Wöchentlich", order = 5, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
 
     -- The Isle of Storms — Solo (daily) --------------------------------------------------------
     [434] = { name = "Krizhmûl",  match = "Krizhmûls Truhe .Solo.",   instance = 42, tier = "Solo", order = 1, type = _G.EventTypes.Completions, reset = { days = Daily,  time = 8 }, onlyResetIfDone = false },
@@ -409,9 +409,9 @@ _G.Events = {
     [368] = { name = "Umshûhra", match = "Vergessene Schmugglertruhe .Stufe 5.", instance = 38, tier = "T5", order = 3, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
 
     -- Aufgaben: Umbar — Weeklies (weekly Thu) ---------------------------------------------------
-    [367] = { name = "16 Aufgaben",  match = "Anzahl abgeschlossener täglicher 'Das Wohlergehen von Umbar Baharbêl'.Aufgaben .%d+/16.", instance = 37, tier = "Wöchentlich", order = 1, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
-    [366] = { name = "6 Instanzen", match = "Herausforderungen von Umbar .Wöchentlich.",               instance = 37, tier = "Wöchentlich", order = 2, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
-    [365] = { name = "20 Aufgaben",  match = "Anzahl abgeschlossener .Verteidigung von Umbar.môkh.*Aufgaben .%d+/20.", instance = 37, tier = "Wöchentlich", order = 3, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
+    [367] = { name = "16 Aufgaben",  match = "Abgeschlossen:.Anzahl abgeschlossener täglicher 'Das Wohlergehen von Umbar Baharbêl'.Aufgaben .%d+/16.", instance = 37, tier = "Wöchentlich", order = 1, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
+    [366] = { name = "6 Instanzen", match = "Abgeschlossen:.Herausforderungen von Umbar .Wöchentlich.",               instance = 37, tier = "Wöchentlich", order = 2, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
+    [365] = { name = "20 Aufgaben",  match = "Abgeschlossen:.Anzahl abgeschlossener .Verteidigung von Umbar.môkh.*Aufgaben .%d+/20.", instance = 37, tier = "Wöchentlich", order = 3, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
     -- Proto Island (daily)
     [364] = { name = "Huorn",      match = "Abgeschlossen.*Kopfgeld. Protohuorn",      instance = 37, tier = "Täglich", order = 1, type = _G.EventTypes.Done, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
     [363] = { name = "Salamander", match = "Abgeschlossen.*Kopfgeld. Protosalamander", instance = 37, tier = "Täglich", order = 2, type = _G.EventTypes.Done, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
@@ -508,10 +508,10 @@ _G.Events = {
     [290] = { name = "Splitter",               match = "Relikte aus Gwathrenost .Stufe 5",        instance = 32, tier = "T5", order = 4, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
 
     -- Aufgaben: Carn Dûm — Weeklies (weekly Thu) ------------------------------------------------
-    [289] = { name = "4 Daylies", match = "Herausforderer der Eisernen Krone .Wöchentlich.", instance = 31, tier = "Wöchentlich", order = 1, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
-    [288] = { name = "Raid",      match = "Schlachtzug. Gwathrenost, die Zitadelle des Hexenkönigs .Wöchentlich", instance = 31, tier = "Wöchentlich", order = 2, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
+    [289] = { name = "4 Daylies", match = "Abgeschlossen:.Herausforderer der Eisernen Krone .Wöchentlich.", instance = 31, tier = "Wöchentlich", order = 1, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
+    [288] = { name = "Raid",      match = "Abgeschlossen:.Schlachtzug. Gwathrenost, die Zitadelle des Hexenkönigs .Wöchentlich", instance = 31, tier = "Wöchentlich", order = 2, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
     -- Daylies (daily)
-    [287] = { name = "CD Instanz", match = "Der Kampf um Carn Dûm .Täglich.[^']", instance = 31, tier = "Täglich", order = 1, type = _G.EventTypes.Done, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
+    [287] = { name = "CD Instanz", match = "Abgeschlossen:.Der Kampf um Carn Dûm .Täglich.[^']", instance = 31, tier = "Täglich", order = 1, type = _G.EventTypes.Done, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
 
     -- Assault on Dhúrstrok — Solo (daily) -------------------------------------------------------
     [286] = { name = "Gâdh-and-Shum", match = "Gâdh.and. Shums Truhe .Solo",   instance = 30, tier = "Solo", order = 1, type = _G.EventTypes.Completions, reset = { days = Daily,  time = 8 }, onlyResetIfDone = false },
@@ -582,12 +582,12 @@ _G.Events = {
     [230] = { name = "Hrímil",              match = "Hrímil Frostherz' Hort .Stufe 5.", instance = 27, tier = "T5", order = 3, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
 
     -- Aufgaben: Gundabad — Weeklies (weekly Thu) --------------------------------------------------
-    [229] = { name = "20 Aufgaben",  match = "Rückeroberung der Bergfestung .Wöchentlich.", instance = 26, tier = "Wöchentlich", order = 1, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
-    [228] = { name = "6 Instanzen", match = "Herausforderungen des Gundabad .Wöchentlich.",        instance = 26, tier = "Wöchentlich", order = 2, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
-    [227] = { name = "Raid",       match = "Schlachtzug. Abnankâra, der Heimlichhort .Wöchentlich.",  instance = 26, tier = "Wöchentlich", order = 3, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
+    [229] = { name = "20 Aufgaben",  match = "Abgeschlossen:.Rückeroberung der Bergfestung .Wöchentlich.", instance = 26, tier = "Wöchentlich", order = 1, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
+    [228] = { name = "6 Instanzen", match = "Abgeschlossen:.Herausforderungen des Gundabad .Wöchentlich.",        instance = 26, tier = "Wöchentlich", order = 2, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
+    [227] = { name = "Raid",       match = "Abgeschlossen:.Schlachtzug. Abnankâra, der Heimlichhort .Wöchentlich.",  instance = 26, tier = "Wöchentlich", order = 3, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
     -- Daylies (daily)
-    [226] = { name = "Schmiede", match = "Die Schlacht bei der Schmiede[^:]", instance = 26, tier = "Täglich", order = 1, type = _G.EventTypes.Done, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
-    [225] = { name = "Speichern", match = "Die Schlacht bei den Speichern[^:]", instance = 26, tier = "Täglich", order = 2, type = _G.EventTypes.Done, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
+    [226] = { name = "Schmiede", match = "Abgeschlossen:.Die Schlacht bei der Schmiede[^:]", instance = 26, tier = "Täglich", order = 1, type = _G.EventTypes.Done, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
+    [225] = { name = "Speichern", match = "Abgeschlossen:.Die Schlacht bei den Speichern[^:]", instance = 26, tier = "Täglich", order = 2, type = _G.EventTypes.Done, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
 
     -- Shakalush, the Stair Battle — Solo (daily) -----------------------------------------------
     [224] = { name = "Azbauz & Maurgrush", match = "Azbauz & Maurgrushs Truhe .Solo/Duo", instance = 25, tier = "Solo", order = 1, type = _G.EventTypes.Completions, reset = { days = Daily,  time = 8 }, onlyResetIfDone = false },
@@ -701,30 +701,30 @@ _G.Events = {
     [150] = { name = "Agath-kali", match = "Agath.kalis Mithriltruhe", instance = 18, tier = "T3+",  order = 4, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
 
     -- Ghashan-Kútot, the Halls of Black Lore — Solo (daily) ------------------------------------
-    [149] = { name = "Past Adventures", match = "Truhe of Past Adventures",        instance = 17, tier = "Solo", order = 1, type = _G.EventTypes.Completions, reset = { days = Daily,  time = 8 }, onlyResetIfDone = false },
-    [148] = { name = "Fallen Foe",      match = "Truhe of the Fallen Foe",         instance = 17, tier = "Solo", order = 2, type = _G.EventTypes.Completions, reset = { days = Daily,  time = 8 }, onlyResetIfDone = false },
+    [149] = { name = "Past Adventures", match = "Truhe vergangener Abenteuer",        instance = 17, tier = "Solo", order = 1, type = _G.EventTypes.Completions, reset = { days = Daily,  time = 8 }, onlyResetIfDone = false },
+    [148] = { name = "Fallen Foe",      match = "Truhe des gefallenen Feindes",         instance = 17, tier = "Solo", order = 2, type = _G.EventTypes.Completions, reset = { days = Daily,  time = 8 }, onlyResetIfDone = false },
     [147] = { name = "Dolguzigir",      match = "Dolguzigirs Truhe",              instance = 17, tier = "Solo", order = 3, type = _G.EventTypes.Completions, reset = { days = Daily,  time = 8 }, onlyResetIfDone = false },
     -- T1 (daily)
-    [146] = { name = "Past Adventures", match = "Silbertruhe Truhe of Past Adventures", instance = 17, tier = "T1",   order = 1, type = _G.EventTypes.Completions, reset = { days = Daily,  time = 8 }, onlyResetIfDone = false },
-    [145] = { name = "Fallen Foe",      match = "Silbertruhe Truhe of the Fallen Foe",  instance = 17, tier = "T1",   order = 2, type = _G.EventTypes.Completions, reset = { days = Daily,  time = 8 }, onlyResetIfDone = false },
+    [146] = { name = "Past Adventures", match = "Silbertruhe vergangener Abenteuer", instance = 17, tier = "T1",   order = 1, type = _G.EventTypes.Completions, reset = { days = Daily,  time = 8 }, onlyResetIfDone = false },
+    [145] = { name = "Fallen Foe",      match = "Silbertruhe des gefallenen Feindes",  instance = 17, tier = "T1",   order = 2, type = _G.EventTypes.Completions, reset = { days = Daily,  time = 8 }, onlyResetIfDone = false },
     [144] = { name = "Dolguzigir",      match = "Dolguzigirs Silbertruhe",       instance = 17, tier = "T1",   order = 3, type = _G.EventTypes.Completions, reset = { days = Daily,  time = 8 }, onlyResetIfDone = false },
     -- T2 (weekly Thu)
-    [143] = { name = "Past Adventures", match = "Goldtruhen Truhe of Past Adventures", instance = 17, tier = "T2",   order = 1, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
-    [142] = { name = "Fallen Foe",      match = "Goldtruhen Truhe of the Fallen Foe",  instance = 17, tier = "T2",   order = 2, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
+    [143] = { name = "Past Adventures", match = "Goldtruhe vergangener Abenteuer", instance = 17, tier = "T2",   order = 1, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
+    [142] = { name = "Fallen Foe",      match = "Goldtruhen des gefallenen Feindes",  instance = 17, tier = "T2",   order = 2, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
     [141] = { name = "Dolguzigir",      match = "Dolguzigirs Goldtruhen",       instance = 17, tier = "T2",   order = 3, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
     -- T3+ (weekly Thu)
-    [140] = { name = "Past Adventures", match = "Mithriltruhe Truhe of Past Adventures", instance = 17, tier = "T3+",  order = 1, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
-    [139] = { name = "Fallen Foe",      match = "Mithriltruhe Truhe of the Fallen Foe",  instance = 17, tier = "T3+",  order = 2, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
+    [140] = { name = "Past Adventures", match = "Mithriltruhe vergangener Abenteuer", instance = 17, tier = "T3+",  order = 1, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
+    [139] = { name = "Fallen Foe",      match = "Mithriltruhe des gefallenen Feindes",  instance = 17, tier = "T3+",  order = 2, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
     [138] = { name = "Dolguzigir",      match = "Dolguzigirs Mithriltruhe",        instance = 17, tier = "T3+",  order = 3, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
 
     -- The Fallen Kings — Solo (daily) ----------------------------------------------------------
-    [137] = { name = "The Witch King", match = "The Witch Kings Truhe",        instance = 16, tier = "Solo", order = 1, type = _G.EventTypes.Completions, reset = { days = Daily,  time = 8 }, onlyResetIfDone = false },
+    [137] = { name = "The Witch King", match = "Die Truhe des Hexenkönigs",        instance = 16, tier = "Solo", order = 1, type = _G.EventTypes.Completions, reset = { days = Daily,  time = 8 }, onlyResetIfDone = false },
     -- T1 (daily)
-    [136] = { name = "The Witch King", match = "The Witch Kings Silbertruhe Truhe", instance = 16, tier = "T1",   order = 1, type = _G.EventTypes.Completions, reset = { days = Daily,  time = 8 }, onlyResetIfDone = false },
+    [136] = { name = "The Witch King", match = "Die Silbertruhe des Hexenkönigs", instance = 16, tier = "T1",   order = 1, type = _G.EventTypes.Completions, reset = { days = Daily,  time = 8 }, onlyResetIfDone = false },
     -- T2 (weekly Thu)
-    [135] = { name = "The Witch King", match = "The Witch Kings Goldtruhen Truhe", instance = 16, tier = "T2",   order = 1, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
+    [135] = { name = "The Witch King", match = "Die Goldtruhen des Hexenkönigs", instance = 16, tier = "T2",   order = 1, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
     -- T3+ (weekly Thu)
-    [134] = { name = "The Witch King", match = "The Witch Kings Mithriltruhe Truhe", instance = 16, tier = "T3+",  order = 1, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
+    [134] = { name = "The Witch King", match = "Die Mithriltruhe des Hexenkönigs", instance = 16, tier = "T3+",  order = 1, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
 
     -- Remmorchant, the Net of Darkness — T1 (Mon/Thu/Sat) -------------------------------------
     [133] = { name = "Gragarag",       match = "Gragarags Truhe .Stufe 1.",       instance = 15, tier = "T1", order = 1, type = _G.EventTypes.Completions, reset = { days = TriWeek, time = 8 }, onlyResetIfDone = false },
@@ -768,7 +768,7 @@ _G.Events = {
     [98] = { name = "UBs Mordor", match = "Imlad Morgul: Weitere Gefahren",   instance = 14, tier = "Wöchentlich", order = 1, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
     [97] = { name = "10 Aufgaben",         match = "Imlad Morgul: Die Rückeroberung",      instance = 14, tier = "Wöchentlich", order = 2, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
     [96] = { name = "4 Instanzen",       match = "Imlad Morgul: Schleier der Hexerei",      instance = 14, tier = "Wöchentlich", order = 3, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
-    [95] = { name = "Limlók",            match = "Completed:\nProtectors of Wilderlund: Bounties", instance = 14, tier = "Wöchentlich", order = 4, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
+    [95] = { name = "Limlók",            match = "Beschützer des Wilderlands: Kopfgelder", instance = 14, tier = "Wöchentlich", order = 4, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
 
     -- The Anvil of Winterstith — T1 (Mon/Thu/Sat) ---------------------------------------------
     [94] = { name = "Isvítha",   match = "Isvíthas Silbertruhe",    instance = 13, tier = "T1", order = 1, type = _G.EventTypes.Completions, reset = { days = TriWeek, time = 8 }, onlyResetIfDone = false },
@@ -795,8 +795,8 @@ _G.Events = {
     [77] = { name =
 
     -- Featured Instance — Daylies (daily) ------------------------------------------------------
-    [76] = { name = "Low level", match = "Wöchentliche Instanz.+",            instance = 12, tier = "Täglich", order = 1, type = _G.EventTypes.Done, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
-    [75] = { name = "Cap level", match = "Wöchentliche Instanz.+.max. Stufe.", instance = 12, tier = "Täglich", order = 2, type = _G.EventTypes.Done, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
+    [76] = { name = "Low level", match = "Abgeschlossen:.Wöchentliche Instanz.+",            instance = 12, tier = "Täglich", order = 1, type = _G.EventTypes.Done, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
+    [75] = { name = "Cap level", match = "Abgeschlossen:.Wöchentliche Instanz.+.max. Stufe.", instance = 12, tier = "Täglich", order = 2, type = _G.EventTypes.Done, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
 
     -- Agoroth, the Narrowdelve — Solo (daily) --------------------------------------------------
     [74] = { name = "Rúcrog Raubalg", match = "Truhe des Raubalgs .Solo.",   instance = 11, tier = "Solo", order = 1, type = _G.EventTypes.Completions, reset = { days = Daily,  time = 8 }, onlyResetIfDone = false },
@@ -863,27 +863,27 @@ _G.Events = {
     [31] = { name = "12-man", match = "Grand Gift of the Mírdain .Stufe3",   instance = 7, tier = "T3", order = 2, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
 
     -- Missions/Delvings — Weeklies (weekly Thu) ------------------------------------------------
-    [30] = { name = "15 Missonen",      match = "Anzahl erfüllter Missionen .%d+/15",                          instance = 6, tier = "Wöchentlich", order = 1, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
-    [29] = { name = "45 Missonen",      match = "Anzahl erfüllter Missionen .%d+/45",                          instance = 6, tier = "Wöchentlich", order = 2, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
-    [28] = { name = "15 Erkundungen",      match = "Wagt Euch tiefer .Wöchentlich.",                                instance = 6, tier = "Wöchentlich", order = 3, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
-    [27] = { name = "10 T6+ Erkundungen",  match = "Anzahl abgeschlossener hochstufiger Erkundungen .Stufe 6 oder höher. .%d+.10.", instance = 6, tier = "Wöchentlich", order = 4, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
-    [26] = { name = "Ini Erkundungen",     match = "Wagt Euch in die tiefste Tiefen .Wöchentlich.",                               instance = 6, tier = "Wöchentlich", order = 5, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
+    [30] = { name = "15 Missonen",      match = "Abgeschlossen:.Anzahl erfüllter Missionen .%d+/15",                          instance = 6, tier = "Wöchentlich", order = 1, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
+    [29] = { name = "45 Missonen",      match = "Abgeschlossen:.Anzahl erfüllter Missionen .%d+/45",                          instance = 6, tier = "Wöchentlich", order = 2, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
+    [28] = { name = "15 Erkundungen",      match = "Abgeschlossen:.Wagt Euch tiefer .Wöchentlich.",                                instance = 6, tier = "Wöchentlich", order = 3, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
+    [27] = { name = "10 T6+ Erkundungen",  match = "Abgeschlossen:.Anzahl abgeschlossener hochstufiger Erkundungen .Stufe 6 oder höher. .%d+.10.", instance = 6, tier = "Wöchentlich", order = 4, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
+    [26] = { name = "Ini Erkundungen",     match = "Abgeschlossen:.Wagt Euch in die tiefste Tiefen .Wöchentlich.",                               instance = 6, tier = "Wöchentlich", order = 5, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
 
     -- Tasks — Weeklies (weekly Thu) ------------------------------------------------------------
-    [25] = { name = "10 Aufträge",                   match = "Anstehende Aufträge",               instance = 5, tier = "Wöchentlich", order = 1, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
-    [24] = { name = "Marken des Heldentums",          match = "Auftrag. Marken des Heldentums[^ ]",            instance = 5, tier = "Wöchentlich", order = 2, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
-    [23] = { name = "Marken des Heldentums (Stufe 2)", match = "Auftrag. Marken des Heldentums .Stufe 2.",       instance = 5, tier = "Wöchentlich", order = 3, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
-    [22] = { name = "Marken des Heldentums (Stufe 3)", match = "Auftrag. Marken des Heldentums .Stufe 3.",       instance = 5, tier = "Wöchentlich", order = 4, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
+    [25] = { name = "10 Aufträge",                   match = "Abgeschlossen:.Anstehende Aufträge",               instance = 5, tier = "Wöchentlich", order = 1, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
+    [24] = { name = "Marken des Heldentums",          match = "Abgeschlossen:.Marken des Heldentums[^ ]",            instance = 5, tier = "Wöchentlich", order = 2, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
+    [23] = { name = "Marken des Heldentums (Stufe 2)", match = "Abgeschlossen:.Marken des Heldentums .Stufe 2.",       instance = 5, tier = "Wöchentlich", order = 3, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
+    [22] = { name = "Marken des Heldentums (Stufe 3)", match = "Abgeschlossen:.Marken des Heldentums .Stufe 3.",       instance = 5, tier = "Wöchentlich", order = 4, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
 
     -- Embers (Sunday reset) ---------------------------------------------
-    [21] = { name = "Umbari Tâm for Embers",        match = "Umbari Tâm for Embers",              instance = 4, tier = "Funken", order = 1, type = _G.EventTypes.Done, reset = { days = {Sunday}, time = 8 }, onlyResetIfDone = false },
-    [20] = { name = "Handwerk gegen Funken",    match = "Handwerk gegen Funken",                   instance = 4, tier = "Funken", order = 2, type = _G.EventTypes.Done, reset = { days = {Sunday}, time = 8 }, onlyResetIfDone = false },
+    [21] = { name = "Umbari Tâm for Embers",        match = "Abgeschlossen:.Umbar.Tâm gegen Funken",              instance = 4, tier = "Funken", order = 1, type = _G.EventTypes.Done, reset = { days = {Sunday}, time = 8 }, onlyResetIfDone = false },
+    [20] = { name = "Handwerk gegen Funken",    match = "Abgeschlossen:.Handwerk gegen Funken",                   instance = 4, tier = "Funken", order = 2, type = _G.EventTypes.Done, reset = { days = {Sunday}, time = 8 }, onlyResetIfDone = false },
     -- Motes (Sunday reset)
-    [19] = { name = "Vales of Anduin Motes",  match = "Gúlmarks for Motes",                     instance = 4, tier = "Motes", order = 1, type = _G.EventTypes.Done, reset = { days = {Sunday}, time = 8 }, onlyResetIfDone = false },
-    [18] = { name = "Ered Mithrin Motes",     match = "Longbeard Marks for Motes",               instance = 4, tier = "Motes", order = 2, type = _G.EventTypes.Done, reset = { days = {Sunday}, time = 8 }, onlyResetIfDone = false },
-    [17] = { name = "Siegel von Imlad Ithil", match = "Siegel von Imlad Ithil für Funken",         instance = 4, tier = "Motes", order = 3, type = _G.EventTypes.Done, reset = { days = {Sunday}, time = 8 }, onlyResetIfDone = false },
-    [16] = { name = "Elderslade Motes",       match = "Copper Coins of Gundabad for Motes",      instance = 4, tier = "Motes", order = 4, type = _G.EventTypes.Done, reset = { days = {Sunday}, time = 8 }, onlyResetIfDone = false },
-    [15] = { name = "Gundabad Asche Aufgabe", match = "Abgeschlossen:.Silbermünzen von Gundabad gegen Funken",      instance = 4, tier = "Motes", order = 5, type = _G.EventTypes.Done, reset = { days = {Sunday}, time = 8 }, onlyResetIfDone = false },
+    [19] = { name = "Vales of Anduin Motes",  match = "Abgeschlossen:.Gúlmark gegen Staub",                     instance = 4, tier = "Motes", order = 1, type = _G.EventTypes.Done, reset = { days = {Sunday}, time = 8 }, onlyResetIfDone = false },
+    [18] = { name = "Ered Mithrin Motes",     match = "Abgeschlossen:.Marken der Langbärte gegen Staub",               instance = 4, tier = "Motes", order = 2, type = _G.EventTypes.Done, reset = { days = {Sunday}, time = 8 }, onlyResetIfDone = false },
+    [17] = { name = "Siegel von Imlad Ithil", match = "Abgeschlossen:.Siegel von Imlad Ithil für Funken",         instance = 4, tier = "Motes", order = 3, type = _G.EventTypes.Done, reset = { days = {Sunday}, time = 8 }, onlyResetIfDone = false },
+    [16] = { name = "Elderslade Motes",       match = "Abgeschlossen:.Copper Coins of Gundabad for Motes",      instance = 4, tier = "Motes", order = 4, type = _G.EventTypes.Done, reset = { days = {Sunday}, time = 8 }, onlyResetIfDone = false },
+    [15] = { name = "Gundabad Asche Aufgabe", match = "Abgeschlossen:.Silbermünzen von Gundabad gegen Staub",      instance = 4, tier = "Motes", order = 5, type = _G.EventTypes.Done, reset = { days = {Sunday}, time = 8 }, onlyResetIfDone = false },
     -- Virtues (weekly Thu)
     [14] = { name = "I",       match = "From the Ashes Comes Virtue . I[^ ]",    instance = 4, tier = "Tugenden", order = 1, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
     [13] = { name = "II",      match = "From the Ashes Comes Virtue . II[^ ]",   instance = 4, tier = "Tugenden", order = 2, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
