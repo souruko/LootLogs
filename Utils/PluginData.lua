@@ -265,6 +265,12 @@ if _G.Logs == nil then
     _G.Logs = {}
 end
 
+for _, character in pairs(_G.Logs) do
+    if character.logs == nil then
+        character.logs = {}
+    end
+end
+
 -- upsert current character
 _G.characterId = FindCurrentCharacter()
 if _G.characterId == nil then
