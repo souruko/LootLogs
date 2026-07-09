@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.0.6] - 2026-07-09
+
+### Fixed
+- `FindCurrentCharacter()` now compares server as well as name, so same-named characters on different servers are no longer treated as the same character
+- Legacy character entries without a server field are matched by name only and have their server backfilled on first login
+
 ## [3.0.5] - 2026-07-07
 
 ### Added

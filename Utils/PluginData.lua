@@ -51,7 +51,7 @@ end
 
 function FindCurrentCharacter()
     for id, character in pairs(_G.Logs) do
-        if character.name == _G.name then
+        if character.name == _G.name and (character.server == _G.Server or character.server == nil) then
             return id
         end
     end
