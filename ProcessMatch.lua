@@ -76,10 +76,9 @@ function ProcessMatch(message, log, logIndex)
             "  " .. newEntry.value ..
             "  " .. _G.CM("ACCENT") .. _G.FormatTimeSpan(remaining) .. _G.CMR
         )
-    end
-
-    if _G.QuickLaunchBtn then
-        _G.QuickLaunchBtn:IncrementBadge()
+        if _G.QuickLaunchBtn then
+            _G.QuickLaunchBtn:IncrementBadge()
+        end
     end
 
     if _G.Window and _G.Window.contentView then
