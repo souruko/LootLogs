@@ -774,8 +774,12 @@ function ContentView:MakeInstanceBossRow(bossName, completedChars, timeText, val
         local parts = {}
         for i, char in ipairs(completedChars) do
             local v = values and values[i]
-            local suffix = (v and v ~= "Done") and (" " .. v) or ""
-            parts[#parts + 1] = char.name .. suffix
+            if v == "Done" then
+                parts[#parts + 1] = "<u>" .. char.name .. "</u>"
+            else
+                local suffix = v and (" " .. v) or ""
+                parts[#parts + 1] = char.name .. suffix
+            end
         end
         numRows = math.ceil(#parts / 3)
         local lines = {}
@@ -804,6 +808,7 @@ function ContentView:MakeInstanceBossRow(bossName, completedChars, timeText, val
         charsLabel:SetForeColor(_G.Theme.DIM2)
     end
     charsLabel:SetText(charText)
+    charsLabel:SetMarkupEnabled(true)
     charsLabel:SetMouseVisible(false)
 
     local timeLabel = Turbine.UI.Label()

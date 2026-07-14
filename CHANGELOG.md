@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.0.7] - 2026-07-14
+
+### Fixed
+- Character entries loaded from older save formats without a `logs` sub-table no longer crash on startup; missing `logs` fields are now initialized to `{}` immediately after load
+- German match strings for Doom of Caras Gelebren T3 corrected to translated German chest names (`Großes/Größeres Geschenk der Mírdain`)
+- German match strings for Umbar weeklies, Missions, and Delvings progress events had their `Abgeschlossen:.` prefix removed so they now match the actual in-game completion message format
+- Filter input box in the sidebar now has a 4 px left margin so it no longer overlaps the sidebar border
+
+### Changed
+- Characters who have completed a boss (value `"Done"`) are now shown with underline formatting in the boss row character list
+
 ## [3.0.6] - 2026-07-09
 
 ### Fixed

@@ -409,9 +409,9 @@ _G.Events = {
     [368] = { name = "Umshûhra", match = "Vergessene Schmugglertruhe .Stufe 5.", instance = 38, tier = "T5", order = 3, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
 
     -- Aufgaben: Umbar — Weeklies (weekly Thu) ---------------------------------------------------
-    [367] = { name = "16 Aufgaben",  match = "Abgeschlossen:.Anzahl abgeschlossener täglicher 'Das Wohlergehen von Umbar Baharbêl'.Aufgaben .%d+/16.", instance = 37, tier = "Wöchentlich", order = 1, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
+    [367] = { name = "16 Aufgaben",  match = "Anzahl abgeschlossener täglicher 'Das Wohlergehen von Umbar Baharbêl'.Aufgaben .%d+/16.", instance = 37, tier = "Wöchentlich", order = 1, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
     [366] = { name = "6 Instanzen", match = "Abgeschlossen:.Herausforderungen von Umbar .Wöchentlich.",               instance = 37, tier = "Wöchentlich", order = 2, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
-    [365] = { name = "20 Aufgaben",  match = "Abgeschlossen:.Anzahl abgeschlossener .Verteidigung von Umbar.môkh.*Aufgaben .%d+/20.", instance = 37, tier = "Wöchentlich", order = 3, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
+    [365] = { name = "20 Aufgaben",  match = "Anzahl abgeschlossener .Verteidigung von Umbar.môkh.*Aufgaben .%d+/20.", instance = 37, tier = "Wöchentlich", order = 3, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
     -- Proto Island (daily)
     [364] = { name = "Huorn",      match = "Abgeschlossen.*Kopfgeld. Protohuorn",      instance = 37, tier = "Täglich", order = 1, type = _G.EventTypes.Done, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
     [363] = { name = "Salamander", match = "Abgeschlossen.*Kopfgeld. Protosalamander", instance = 37, tier = "Täglich", order = 2, type = _G.EventTypes.Done, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
@@ -859,14 +859,14 @@ _G.Events = {
     [33] = { name = "Hithrengor",  match = "Hithrengors Truhe .Stufe 5.", instance = 8, tier = "T5",   order = 3, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
 
     -- Doom of Caras Gelebren — T3 (weekly Thu) ------------------------------------------------
-    [32] = { name = "6-man",  match = "Greater Gift of the Mírdain .Stufe3", instance = 7, tier = "T3", order = 1, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
-    [31] = { name = "12-man", match = "Grand Gift of the Mírdain .Stufe3",   instance = 7, tier = "T3", order = 2, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
+    [32] = { name = "6-man",  match = "Großes Geschenk der Mírdain .Stufe 3", instance = 7, tier = "T3", order = 1, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
+    [31] = { name = "12-man", match = "Größeres Geschenk der Mírdain .Stufe 3",   instance = 7, tier = "T3", order = 2, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
 
     -- Missions/Delvings — Weeklies (weekly Thu) ------------------------------------------------
-    [30] = { name = "15 Missonen",      match = "Abgeschlossen:.Anzahl erfüllter Missionen .%d+/15",                          instance = 6, tier = "Wöchentlich", order = 1, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
-    [29] = { name = "45 Missonen",      match = "Abgeschlossen:.Anzahl erfüllter Missionen .%d+/45",                          instance = 6, tier = "Wöchentlich", order = 2, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
+    [30] = { name = "15 Missonen",      match = "Anzahl erfüllter Missionen .%d+/15",                          instance = 6, tier = "Wöchentlich", order = 1, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
+    [29] = { name = "45 Missonen",      match = "Anzahl erfüllter Missionen .%d+/45",                          instance = 6, tier = "Wöchentlich", order = 2, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
     [28] = { name = "15 Erkundungen",      match = "Abgeschlossen:.Wagt Euch tiefer .Wöchentlich.",                                instance = 6, tier = "Wöchentlich", order = 3, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
-    [27] = { name = "10 T6+ Erkundungen",  match = "Abgeschlossen:.Anzahl abgeschlossener hochstufiger Erkundungen .Stufe 6 oder höher. .%d+.10.", instance = 6, tier = "Wöchentlich", order = 4, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
+    [27] = { name = "10 T6+ Erkundungen",  match = "Anzahl abgeschlossener hochstufiger Erkundungen .Stufe 6 oder höher. .%d+.10.", instance = 6, tier = "Wöchentlich", order = 4, type = _G.EventTypes.ExtractValue, reset = { days = Weekly, time = 8 }, onlyResetIfDone = true },
     [26] = { name = "Ini Erkundungen",     match = "Abgeschlossen:.Wagt Euch in die tiefste Tiefen .Wöchentlich.",                               instance = 6, tier = "Wöchentlich", order = 5, type = _G.EventTypes.Done, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
 
     -- Tasks — Weeklies (weekly Thu) ------------------------------------------------------------

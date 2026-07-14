@@ -509,7 +509,8 @@ function Sidebar:SizeChanged()
 
     -- filter
     self.background2:SetWidth(width - 64)
-    self.filter:SetWidth(width - 64)
+    self.filter:SetLeft(4)
+    self.filter:SetWidth(width - 68)
 
     -- clear button
     self.clearBg:SetLeft(width - 62)
