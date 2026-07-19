@@ -287,8 +287,7 @@ function ContentView:_AddInstanceTierRows(instanceId, chars, currentTime, listWi
             for _, o in ipairs(sortedBossOrders) do
                 local boss = tierData.bosses[o]
 
-                local completedChars  = {}
-                local completedValues = {}
+                local completed       = {}
                 local timeRemaining   = 0
                 local timeOfDeath     = 0
                 for _, character in ipairs(chars) do
@@ -296,11 +295,24 @@ function ContentView:_AddInstanceTierRows(instanceId, chars, currentTime, listWi
                         if character.logs and character.logs[ei] ~= nil then
                             timeOfDeath   = character.logs[ei].timeOfDeath
                             timeRemaining = math.max(0, timeOfDeath - currentTime)
-                            completedChars[#completedChars + 1]  = character
-                            completedValues[#completedValues + 1] = character.logs[ei].value
+                            completed[#completed + 1] = { character = character, value = character.logs[ei].value }
                             break
                         end
                     end
+                end
+
+                table.sort(completed, function(a, b)
+                    local aDone = a.value == "Done"
+                    local bDone = b.value == "Done"
+                    if aDone ~= bDone then return aDone end
+                    return a.character.name < b.character.name
+                end)
+
+                local completedChars  = {}
+                local completedValues = {}
+                for _, entry in ipairs(completed) do
+                    completedChars[#completedChars + 1]  = entry.character
+                    completedValues[#completedValues + 1] = entry.value
                 end
 
                 local timeText = #completedChars > 0 and FormatTimeRemaining(timeRemaining, timeOfDeath) or "—"

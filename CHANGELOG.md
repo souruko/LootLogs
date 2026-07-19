@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.0.9] - 2026-07-19
+
+### Changed
+- On plugin load, the selection is now fixed: if the custom list is enabled and has at least one instance/tier selected, the custom list view is selected; otherwise the current character is selected
+
+## [3.0.8] - 2026-07-19
+
+### Changed
+- Characters listed in a boss row are now sorted with completed (`"Done"`) characters first, followed by the remaining characters, each group alphabetically
+
 ## [3.0.7] - 2026-07-14
 
 ### Fixed

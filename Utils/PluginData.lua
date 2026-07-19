@@ -398,4 +398,30 @@ if _G.Settings.printWelcome then
 
 end
 
+-- fixed selection on load ---------------------------------------------------------------------------
+
+local function CustomListHasSelection()
+    for _, tiers in pairs(_G.CustomList) do
+        for _, selected in pairs(tiers) do
+            if selected then return true end
+        end
+    end
+    return false
+end
+
+if _G.Settings.showCustomList == true and CustomListHasSelection() then
+    _G.Settings.selected.customList = true
+    _G.Settings.selected.server     = nil
+    _G.Settings.selected.character  = nil
+    _G.Settings.selected.content    = nil
+    _G.Settings.selected.instance   = nil
+else
+    _G.Settings.selected.customList = false
+    _G.Settings.selected.tab        = _G.Tab.Characters
+    _G.Settings.selected.server     = nil
+    _G.Settings.selected.character  = _G.characterId
+    _G.Settings.selected.content    = nil
+    _G.Settings.selected.instance   = nil
+end
+
 _G.ApplyTheme(_G.Settings.colorTheme or "moria")
