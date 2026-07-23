@@ -296,7 +296,7 @@ function ContentView:_AddInstanceTierRows(instanceId, chars, currentTime, listWi
 
                 for _, o in ipairs(sortedBossOrders) do
                     local boss  = tierData.bosses[o]
-                    local value = nil
+                    local value = false
                     for _, ei in ipairs(boss.indices) do
                         if character.logs and character.logs[ei] ~= nil then
                             local entry = character.logs[ei]
@@ -793,12 +793,12 @@ function ContentView:MakeInstanceCharacterRow(character, bossValues, bossNames, 
         if value == "Done" then
             valueLabel:SetForeColor(_G.Theme.DIM2)
             valueLabel:SetText("<u>Done</u>")
-        elseif value ~= nil then
+        elseif value then
             valueLabel:SetForeColor(_G.Theme.DIM2)
             valueLabel:SetText(value)
         else
             valueLabel:SetForeColor(_G.Theme.DIM)
-            valueLabel:SetText("—")
+            valueLabel:SetText("-")
         end
 
         valueLabel.MouseEnter = function()
