@@ -778,23 +778,7 @@ function ContentView:MakeInstanceCharacterRow(character, bossValues, bossNames, 
     nameLabel:SetText(character.name)
     nameLabel:SetMouseVisible(false)
 
-    -- floating tooltip showing the boss name above the hovered value cell
-    local tooltipBg = Turbine.UI.Control()
-    tooltipBg:SetParent(row)
-    tooltipBg:SetHeight(18)
-    tooltipBg:SetBackColor(_G.Theme.SECTION)
-    tooltipBg:SetVisible(false)
-    tooltipBg:SetMouseVisible(false)
-
-    local tooltipLabel = Turbine.UI.Label()
-    tooltipLabel:SetParent(tooltipBg)
-    tooltipLabel:SetPosition(0, 0)
-    tooltipLabel:SetHeight(18)
-    tooltipLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
-    tooltipLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
-    tooltipLabel:SetFontStyle(_G.Theme.FONT_STYLE)
-    tooltipLabel:SetForeColor(_G.Theme.ACCENT)
-    tooltipLabel:SetMouseVisible(false)
+    local baseHeaderName = self.headerName:GetText()
 
     local valueLabels = {}
     for i, value in ipairs(bossValues) do
@@ -818,14 +802,10 @@ function ContentView:MakeInstanceCharacterRow(character, bossValues, bossNames, 
         end
 
         valueLabel.MouseEnter = function()
-            tooltipLabel:SetText(bossNames[i])
-            tooltipBg:SetWidth(valueLabel:GetWidth())
-            tooltipBg:SetLeft(valueLabel:GetLeft())
-            tooltipBg:SetTop(-18)
-            tooltipBg:SetVisible(true)
+            self.headerName:SetText(baseHeaderName .. _G.CM("DIM") .. " - " .. bossNames[i] .. _G.CMR)
         end
         valueLabel.MouseLeave = function()
-            tooltipBg:SetVisible(false)
+            self.headerName:SetText(baseHeaderName)
         end
 
         valueLabels[i] = valueLabel
@@ -1232,6 +1212,7 @@ function ContentView:Build()
     self.headerName:SetFontStyle(_G.Theme.FONT_STYLE)
     self.headerName:SetForeColor(_G.Theme.ACCENT)
     self.headerName:SetMouseVisible(false)
+    self.headerName:SetMarkupEnabled(true)
 
     self.headerType = Turbine.UI.Label()
     self.headerType:SetParent(self.header)
