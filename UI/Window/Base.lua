@@ -1,7 +1,7 @@
-import "LootLogsBeta.UI.Window.Settings"
-import "LootLogsBeta.UI.Window.Sidebar"
-import "LootLogsBeta.UI.Window.ContentView"
-import "LootLogsBeta.UI.Window.ServerSelect"
+import "LootLogs.UI.Window.Settings"
+import "LootLogs.UI.Window.Sidebar"
+import "LootLogs.UI.Window.ContentView"
+import "LootLogs.UI.Window.ServerSelect"
 
 local DAY_NAMES = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" }
 
@@ -54,7 +54,7 @@ function _G.LLWindow:Constructor()
     self.settingsIcon:SetParent(self.settingsBg)
     self.settingsIcon:SetSize(26, 26)
     self.settingsIcon:SetPosition(-1, -1)
-    self.settingsIcon:SetBackground("LootLogsBeta/Ressources/settings.tga")
+    self.settingsIcon:SetBackground("LootLogs/Ressources/settings.tga")
     self.settingsIcon:SetBlendMode(Turbine.UI.BlendMode.Overlay)
     self.settingsIcon:SetMouseVisible(false)
 
