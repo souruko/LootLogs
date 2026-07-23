@@ -7,7 +7,7 @@
   <InfoUrl>https://www.lotrointerface.com/downloads/info1076-LootLogs.html</InfoUrl>
   <DownloadUrl>https://www.lotrointerface.com/downloads/download1076-LootLogs</DownloadUrl>
   <Descriptors>
-    <descriptor>LootLogs.plugin</descriptor>
+    <descriptor>LootLogs\LootLogsBeta.plugin</descriptor>
   </Descriptors>
   <Dependencies />
 </PluginConfig>
