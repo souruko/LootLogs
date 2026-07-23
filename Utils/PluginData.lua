@@ -302,7 +302,14 @@ local function _tierOrder(tier)
     return (_G.TierOrder and _G.TierOrder[tostring(tier)]) or 99
 end
 
-local allToDelete = {}
+-- tiers whose bosses share a single reset schedule, so only one summary line is needed per tier
+local groupedResetTiers = {
+    ["Solo"] = true, ["T1"] = true, ["T2"] = true, ["T3"] = true,
+    ["T3+"]  = true, ["T4"] = true, ["T5"] = true,
+}
+
+local allToDelete      = {}
+local allRecalculated  = {}
 
 for id, character in pairs(_G.Logs) do
     for index, log in pairs(character.logs) do
@@ -310,6 +317,7 @@ for id, character in pairs(_G.Logs) do
             local event = _G.Events[index]
             if event.onlyResetIfDone and character.logs[index].value ~= "Done" then
                 character.logs[index].timeOfDeath = _G.CalculateDeath(event)
+                allRecalculated[#allRecalculated + 1] = { character = character, index = index, newTimeOfDeath = character.logs[index].timeOfDeath }
                 logHasChanged = true
             else
                 allToDelete[#allToDelete + 1] = { character = character, index = index }
@@ -318,38 +326,102 @@ for id, character in pairs(_G.Logs) do
     end
 end
 
-table.sort(allToDelete, function(a, b)
+-- sort by character, then content, then instance, then tier, then boss order
+local function _sortByCharacterContentInstance(a, b)
+    if a.character.name ~= b.character.name then return a.character.name < b.character.name end
     local ea = _G.Events[a.index]
     local eb = _G.Events[b.index]
-    if ea.instance ~= eb.instance then return ea.instance > eb.instance end
+    local aInst = _G.Instances[ea.instance]
+    local bInst = _G.Instances[eb.instance]
+    local aCont = aInst and aInst.content or 0
+    local bCont = bInst and bInst.content or 0
+    if aCont ~= bCont then return aCont < bCont end
+    if ea.instance ~= eb.instance then return ea.instance < eb.instance end
     local ta = _tierOrder(ea.tier)
     local tb = _tierOrder(eb.tier)
-    if ta ~= tb then return ta > tb end
-    local oa = ea.order or 99
-    local ob = eb.order or 99
-    if oa ~= ob then return oa < ob end
-    return a.character.name < b.character.name
-end)
+    if ta ~= tb then return ta < tb end
+    return (ea.order or 99) < (eb.order or 99)
+end
 
-local RED = "<rgb=#CC4444>"
+table.sort(allToDelete, _sortByCharacterContentInstance)
+table.sort(allRecalculated, _sortByCharacterContentInstance)
+
+-- collapse consecutive entries that share (character, instance, tier) into one group
+-- when that tier's bosses reset together; the sort above guarantees they're adjacent.
+local function _groupResetEntries(list)
+    local grouped = {}
+    local i = 1
+    while i <= #list do
+        local entry    = list[i]
+        local event    = _G.Events[entry.index]
+        local tierName = tostring(event.tier)
+        local group = { character = entry.character, instance = event.instance, tier = tierName, entries = { entry } }
+        if groupedResetTiers[tierName] then
+            local j = i + 1
+            while j <= #list do
+                local nextEntry = list[j]
+                local nextEvent = _G.Events[nextEntry.index]
+                if nextEntry.character == entry.character and nextEvent.instance == event.instance and tostring(nextEvent.tier) == tierName then
+                    table.insert(group.entries, nextEntry)
+                    j = j + 1
+                else
+                    break
+                end
+            end
+            i = j
+        else
+            i = i + 1
+        end
+        grouped[#grouped + 1] = group
+    end
+    return grouped
+end
+
+-- boss label for a group: the boss name if it's a single (non-merged) entry, blank otherwise
+local function _groupBossLabel(group)
+    if #group.entries == 1 then
+        return " " .. _G.Events[group.entries[1].index].name
+    end
+    return ""
+end
+
+local RED    = "<rgb=#CC4444>"
+local YELLOW = "<rgb=#CCAA44>"
 
 if #allToDelete > 0 then
     _G.PrintAlert(_G.CM("ACCENT") .. "LootLogs" .. _G.CMR .. _G.CM("DIM") .. "  — " .. _G.CMR .. RED .. "resets" .. _G.CMR)
+    for _, group in ipairs(_groupResetEntries(allToDelete)) do
+        local instance = _G.Instances[group.instance]
+        _G.PrintAlert(
+            _G.CM("HOVER") .. "[" .. (instance and instance.name or "?") .. "]" .. _G.CMR ..
+            _groupBossLabel(group) ..
+            " " .. _G.CM("DIM") .. "(" .. group.tier .. ")" .. _G.CMR ..
+            " reset for " .. RED .. group.character.name .. _G.CMR
+        )
+    end
 end
 
 for _, entry in ipairs(allToDelete) do
-    local character = entry.character
-    local index     = entry.index
-    local event     = _G.Events[index]
-    local instance  = _G.Instances[event.instance]
-    _G.PrintAlert(
-        _G.CM("HOVER") .. "[" .. (instance and instance.name or "?") .. "]" .. _G.CMR ..
-        " " .. event.name ..
-        " " .. _G.CM("DIM") .. "(" .. event.tier .. ")" .. _G.CMR ..
-        " reset for " .. RED .. character.name .. _G.CMR
-    )
-    character.logs[index] = nil
-    logHasChanged = true
+    entry.character.logs[entry.index] = nil
+end
+
+if #allRecalculated > 0 then
+    _G.PrintAlert(_G.CM("ACCENT") .. "LootLogs" .. _G.CMR .. _G.CM("DIM") .. "  — " .. _G.CMR .. YELLOW .. "extended" .. _G.CMR)
+    for _, group in ipairs(_groupResetEntries(allRecalculated)) do
+        local instance = _G.Instances[group.instance]
+        local minNew = nil
+        for _, e in ipairs(group.entries) do
+            if minNew == nil or e.newTimeOfDeath < minNew then minNew = e.newTimeOfDeath end
+        end
+        local remaining = math.max(0, minNew - currentTime)
+        _G.PrintAlert(
+            _G.CM("HOVER") .. "[" .. (instance and instance.name or "?") .. "]" .. _G.CMR ..
+            _groupBossLabel(group) ..
+            " " .. _G.CM("DIM") .. "(" .. group.tier .. ")" .. _G.CMR ..
+            " not done, reset pushed to " .. _G.CM("ACCENT") .. _G.FormatTimeSpan(remaining) .. _G.CMR ..
+            " for " .. YELLOW .. group.character.name .. _G.CMR
+        )
+    end
 end
 
 if logHasChanged then
@@ -359,38 +431,89 @@ end
 -- write current characters logs into chat
 if _G.Settings.printWelcome then
 
+    -- tiers whose bosses share a single reset schedule, so only one summary line is needed per tier
+    local groupedTiers = {
+        ["Solo"] = true, ["T1"] = true, ["T2"] = true, ["T3"] = true,
+        ["T3+"]  = true, ["T4"] = true, ["T5"] = true,
+    }
+
     Turbine.Shell.WriteLine(_G.CM("ACCENT") .. "LootLogs" .. _G.CMR .. _G.CM("DIM") .. "  — " .. _G.name .. _G.CMR)
     local activeLogs = _G.Logs[_G.characterId].logs
     if next(activeLogs) ~= nil then
-        local sorted = {}
+
+        -- group by instance, then by tier
+        local instanceGroups = {}
         for index, log in pairs(activeLogs) do
-            table.insert(sorted, { index = index, log = log })
+            local event      = _G.Events[index]
+            local instance   = _G.Instances[event.instance]
+            local contentIdx = instance and instance.content or 0
+
+            local instanceGroup = instanceGroups[event.instance]
+            if instanceGroup == nil then
+                instanceGroup = { contentIdx = contentIdx, tiers = {} }
+                instanceGroups[event.instance] = instanceGroup
+            end
+
+            local tierName  = tostring(event.tier)
+            local tierGroup = instanceGroup.tiers[tierName]
+            if tierGroup == nil then
+                tierGroup = { order = _tierOrder(event.tier), entries = {} }
+                instanceGroup.tiers[tierName] = tierGroup
+            end
+            table.insert(tierGroup.entries, { event = event, log = log })
         end
-        table.sort(sorted, function(a, b)
-            if a.log.timeOfDeath ~= b.log.timeOfDeath then
-                return a.log.timeOfDeath < b.log.timeOfDeath
-            end
-            local aInst = _G.Instances[_G.Events[a.index].instance]
-            local bInst = _G.Instances[_G.Events[b.index].instance]
-            local aCont = aInst and aInst.content or 0
-            local bCont = bInst and bInst.content or 0
-            if aCont ~= bCont then
-                return aCont < bCont
-            end
-            return _G.Events[a.index].instance < _G.Events[b.index].instance
+
+        local instanceIds = {}
+        for instanceId in pairs(instanceGroups) do table.insert(instanceIds, instanceId) end
+        table.sort(instanceIds, function(a, b)
+            local ga, gb = instanceGroups[a], instanceGroups[b]
+            if ga.contentIdx ~= gb.contentIdx then return ga.contentIdx < gb.contentIdx end
+            return a < b
         end)
-        for _, entry in ipairs(sorted) do
-            local event    = _G.Events[entry.index]
-            local instance = _G.Instances[event.instance]
-            local remaining = entry.log.timeOfDeath - currentTime
-            Turbine.Shell.WriteLine(
-                _G.CM("DIM") .. "· " .. _G.CMR ..
-                _G.CM("HOVER") .. "[" .. (instance and instance.name or "?") .. "]" .. _G.CMR ..
-                " " .. event.name ..
-                " " .. _G.CM("DIM") .. "(" .. event.tier .. ")" .. _G.CMR ..
-                " " .. entry.log.value ..
-                " " .. _G.CM("ACCENT") .. _G.FormatTimeSpan(remaining) .. _G.CMR
-            )
+
+        for _, instanceId in ipairs(instanceIds) do
+            local instance = _G.Instances[instanceId]
+            local tiers    = instanceGroups[instanceId].tiers
+
+            local tierNames = {}
+            for tierName in pairs(tiers) do table.insert(tierNames, tierName) end
+            table.sort(tierNames, function(a, b) return tiers[a].order < tiers[b].order end)
+
+            for _, tierName in ipairs(tierNames) do
+                local tierGroup = tiers[tierName]
+
+                if groupedTiers[tierName] then
+                    -- bosses in this tier reset together — collapse into a single summary line
+                    local minEntry = nil
+                    for _, e in ipairs(tierGroup.entries) do
+                        if minEntry == nil or e.log.timeOfDeath < minEntry.log.timeOfDeath then
+                            minEntry = e
+                        end
+                    end
+                    local remaining = minEntry.log.timeOfDeath - currentTime
+                    Turbine.Shell.WriteLine(
+                        _G.CM("DIM") .. "· " .. _G.CMR ..
+                        _G.CM("HOVER") .. "[" .. (instance and instance.name or "?") .. "]" .. _G.CMR ..
+                        " " .. _G.CM("DIM") .. "(" .. tierName .. ")" .. _G.CMR ..
+                        " " .. _G.CM("ACCENT") .. _G.FormatTimeSpan(remaining) .. _G.CMR
+                    )
+                else
+                    table.sort(tierGroup.entries, function(a, b)
+                        return (a.event.order or 99) < (b.event.order or 99)
+                    end)
+                    for _, e in ipairs(tierGroup.entries) do
+                        local remaining = e.log.timeOfDeath - currentTime
+                        Turbine.Shell.WriteLine(
+                            _G.CM("DIM") .. "· " .. _G.CMR ..
+                            _G.CM("HOVER") .. "[" .. (instance and instance.name or "?") .. "]" .. _G.CMR ..
+                            " " .. e.event.name ..
+                            " " .. _G.CM("DIM") .. "(" .. tierName .. ")" .. _G.CMR ..
+                            " " .. e.log.value ..
+                            " " .. _G.CM("ACCENT") .. _G.FormatTimeSpan(remaining) .. _G.CMR
+                        )
+                    end
+                end
+            end
         end
     else
         Turbine.Shell.WriteLine("  No active lockouts.")
