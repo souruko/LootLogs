@@ -14,6 +14,8 @@
 ### Fixed
 - Instance character rows no longer stop rendering boss value columns partway through the row when an earlier boss had no logged value (a `nil` placeholder was breaking `ipairs` iteration over the row's values)
 - `LootLogs.plugincompendium` descriptor updated to point at `LootLogs.plugin` instead of the removed `LootLogsBeta.plugin`
+- Fixed several syntax errors in `Logs/German.lua` (`==` used instead of `=`, and a handful of table entries truncated mid-line) that would crash the plugin on German clients
+- Remaining untranslated English instance names in the German log corrected (Hurum Kâna caves, Nagakhêdi, Abnankâra, Sarch Vorn, Caras Gelebren)
 
 ## [3.0.9] - 2026-07-19
 
