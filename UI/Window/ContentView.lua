@@ -284,39 +284,38 @@ function ContentView:_AddInstanceTierRows(instanceId, chars, currentTime, listWi
             for o in pairs(tierData.bosses) do sortedBossOrders[#sortedBossOrders + 1] = o end
             table.sort(sortedBossOrders)
 
+            local bossNames = {}
             for _, o in ipairs(sortedBossOrders) do
-                local boss = tierData.bosses[o]
+                bossNames[#bossNames + 1] = tierData.bosses[o].name
+            end
 
-                local completed       = {}
-                local timeRemaining   = 0
-                local timeOfDeath     = 0
-                for _, character in ipairs(chars) do
+            for _, character in ipairs(chars) do
+                local bossValues     = {}
+                local minTimeOfDeath = nil
+                local hasAny         = false
+
+                for _, o in ipairs(sortedBossOrders) do
+                    local boss  = tierData.bosses[o]
+                    local value = nil
                     for _, ei in ipairs(boss.indices) do
                         if character.logs and character.logs[ei] ~= nil then
-                            timeOfDeath   = character.logs[ei].timeOfDeath
-                            timeRemaining = math.max(0, timeOfDeath - currentTime)
-                            completed[#completed + 1] = { character = character, value = character.logs[ei].value }
+                            local entry = character.logs[ei]
+                            value = entry.value
+                            hasAny = true
+                            if minTimeOfDeath == nil or entry.timeOfDeath < minTimeOfDeath then
+                                minTimeOfDeath = entry.timeOfDeath
+                            end
                             break
                         end
                     end
+                    bossValues[#bossValues + 1] = value
                 end
 
-                table.sort(completed, function(a, b)
-                    local aDone = a.value == "Done"
-                    local bDone = b.value == "Done"
-                    if aDone ~= bDone then return aDone end
-                    return a.character.name < b.character.name
-                end)
-
-                local completedChars  = {}
-                local completedValues = {}
-                for _, entry in ipairs(completed) do
-                    completedChars[#completedChars + 1]  = entry.character
-                    completedValues[#completedValues + 1] = entry.value
+                if hasAny then
+                    local timeRemaining = math.max(0, minTimeOfDeath - currentTime)
+                    local timeText       = FormatTimeRemaining(timeRemaining, minTimeOfDeath)
+                    addRow(self:MakeInstanceCharacterRow(character, bossValues, bossNames, timeText))
                 end
-
-                local timeText = #completedChars > 0 and FormatTimeRemaining(timeRemaining, timeOfDeath) or "—"
-                addRow(self:MakeInstanceBossRow(boss.name, completedChars, timeText, completedValues))
             end
         end
     end
@@ -751,7 +750,9 @@ end
 
 -- ------------------------------------------------------------------------------------------------
 
-function ContentView:MakeInstanceBossRow(bossName, completedChars, timeText, values)
+function ContentView:MakeInstanceCharacterRow(character, bossValues, bossNames, timeText)
+
+    local NAME_W = 110
 
     local row = Turbine.UI.Control()
     row:SetHeight(26)
@@ -766,74 +767,77 @@ function ContentView:MakeInstanceBossRow(bossName, completedChars, timeText, val
     accent:SetBackColor(_G.Theme.FRAME)
     accent:SetMouseVisible(false)
 
-    local bossLabel = Turbine.UI.Label()
-    bossLabel:SetParent(row)
-    bossLabel:SetPosition(30, 0)
-    bossLabel:SetHeight(26)
-    bossLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    bossLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
-    bossLabel:SetFontStyle(_G.Theme.FONT_STYLE)
-    bossLabel:SetForeColor(_G.Theme.TEXT)
-    bossLabel:SetText(bossName)
-    bossLabel:SetMouseVisible(false)
+    local nameLabel = Turbine.UI.Label()
+    nameLabel:SetParent(row)
+    nameLabel:SetPosition(30, 0)
+    nameLabel:SetSize(NAME_W, 26)
+    nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+    nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    nameLabel:SetFontStyle(_G.Theme.FONT_STYLE)
+    nameLabel:SetForeColor(_G.Theme.TEXT)
+    nameLabel:SetText(character.name)
+    nameLabel:SetMouseVisible(false)
 
-    local numRows = 1
-    local charText
+    -- floating tooltip showing the boss name above the hovered value cell
+    local tooltipBg = Turbine.UI.Control()
+    tooltipBg:SetParent(row)
+    tooltipBg:SetHeight(18)
+    tooltipBg:SetBackColor(_G.Theme.SECTION)
+    tooltipBg:SetVisible(false)
+    tooltipBg:SetMouseVisible(false)
 
-    if #completedChars == 0 then
-        charText = "—"
-    else
-        local parts = {}
-        for i, char in ipairs(completedChars) do
-            local v = values and values[i]
-            if v == "Done" then
-                parts[#parts + 1] = "<u>" .. char.name .. "</u>"
-            else
-                local suffix = v and (" " .. v) or ""
-                parts[#parts + 1] = char.name .. suffix
-            end
+    local tooltipLabel = Turbine.UI.Label()
+    tooltipLabel:SetParent(tooltipBg)
+    tooltipLabel:SetPosition(0, 0)
+    tooltipLabel:SetHeight(18)
+    tooltipLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
+    tooltipLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    tooltipLabel:SetFontStyle(_G.Theme.FONT_STYLE)
+    tooltipLabel:SetForeColor(_G.Theme.ACCENT)
+    tooltipLabel:SetMouseVisible(false)
+
+    local valueLabels = {}
+    for i, value in ipairs(bossValues) do
+        local valueLabel = Turbine.UI.Label()
+        valueLabel:SetParent(row)
+        valueLabel:SetHeight(26)
+        valueLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
+        valueLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+        valueLabel:SetFontStyle(_G.Theme.FONT_STYLE)
+        valueLabel:SetMarkupEnabled(true)
+
+        if value == "Done" then
+            valueLabel:SetForeColor(_G.Theme.DIM2)
+            valueLabel:SetText("<u>Done</u>")
+        elseif value ~= nil then
+            valueLabel:SetForeColor(_G.Theme.DIM2)
+            valueLabel:SetText(value)
+        else
+            valueLabel:SetForeColor(_G.Theme.DIM)
+            valueLabel:SetText("—")
         end
-        numRows = math.ceil(#parts / 3)
-        local lines = {}
-        for r = 1, numRows do
-            local slice = {}
-            for i = (r - 1) * 3 + 1, math.min(r * 3, #parts) do
-                slice[#slice + 1] = parts[i]
-            end
-            lines[#lines + 1] = table.concat(slice, ",  ")
+
+        valueLabel.MouseEnter = function()
+            tooltipLabel:SetText(bossNames[i])
+            tooltipBg:SetWidth(valueLabel:GetWidth())
+            tooltipBg:SetLeft(valueLabel:GetLeft())
+            tooltipBg:SetTop(-18)
+            tooltipBg:SetVisible(true)
         end
-        charText = table.concat(lines, "\n")
-    end
+        valueLabel.MouseLeave = function()
+            tooltipBg:SetVisible(false)
+        end
 
-    local rowHeight = 26 + (numRows - 1) * 12
-    row:SetHeight(rowHeight)
-
-    local charsLabel = Turbine.UI.Label()
-    charsLabel:SetParent(row)
-    charsLabel:SetHeight(rowHeight)
-    charsLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    charsLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
-    charsLabel:SetFontStyle(_G.Theme.FONT_STYLE)
-    if #completedChars == 0 then
-        charsLabel:SetForeColor(_G.Theme.DIM)
-    else
-        charsLabel:SetForeColor(_G.Theme.DIM2)
+        valueLabels[i] = valueLabel
     end
-    charsLabel:SetText(charText)
-    charsLabel:SetMarkupEnabled(true)
-    charsLabel:SetMouseVisible(false)
 
     local timeLabel = Turbine.UI.Label()
     timeLabel:SetParent(row)
-    timeLabel:SetHeight(rowHeight)
+    timeLabel:SetHeight(26)
     timeLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
     timeLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
     timeLabel:SetFontStyle(_G.Theme.FONT_STYLE)
-    if #completedChars == 0 then
-        timeLabel:SetForeColor(_G.Theme.DIM)
-    else
-        timeLabel:SetForeColor(_G.Theme.ACCENT)
-    end
+    timeLabel:SetForeColor(_G.Theme.ACCENT)
     timeLabel:SetText(timeText .. "  ")
     timeLabel:SetMouseVisible(false)
 
@@ -842,11 +846,16 @@ function ContentView:MakeInstanceBossRow(bossName, completedChars, timeText, val
               or  68
 
     row.SizeChanged = function()
-        local w      = row:GetWidth()
-        local bossW  = math.floor(w * 0.34)
-        bossLabel:SetWidth(bossW)
-        charsLabel:SetLeft(30 + bossW)
-        charsLabel:SetWidth(w - 30 - bossW - TIME_W)
+        local w           = row:GetWidth()
+        local middleLeft  = 30 + NAME_W
+        local middleWidth = math.max(0, w - middleLeft - TIME_W)
+        local colWidth    = middleWidth / #valueLabels
+
+        for i, valueLabel in ipairs(valueLabels) do
+            valueLabel:SetLeft(math.floor(middleLeft + (i - 1) * colWidth))
+            valueLabel:SetWidth(math.floor(colWidth))
+        end
+
         timeLabel:SetLeft(w - TIME_W)
         timeLabel:SetWidth(TIME_W)
     end
