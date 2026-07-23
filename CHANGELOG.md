@@ -1,5 +1,20 @@
 # Changelog
 
+## [3.0.10] - 2026-07-23
+
+### Added
+- On login, lockouts that were extended instead of cleared (bosses with `onlyResetIfDone` that weren't completed) are now reported in a separate `extended` alert section showing the new time remaining
+
+### Changed
+- Plugin renamed from `LootLogsBeta` to `LootLogs` for release
+- Welcome message on login is now grouped by instance then by tier; tiers whose bosses share a single reset schedule (`Solo`, `T1`–`T5`, `T3+`) are collapsed into one summary line instead of one line per boss
+- Reset alerts on login are now grouped the same way (by character, instance, and tier) instead of printing one line per boss
+- Hovering a boss value in an instance's character row now shows the boss name in the content header instead of a floating tooltip
+
+### Fixed
+- Instance character rows no longer stop rendering boss value columns partway through the row when an earlier boss had no logged value (a `nil` placeholder was breaking `ipairs` iteration over the row's values)
+- `LootLogs.plugincompendium` descriptor updated to point at `LootLogs.plugin` instead of the removed `LootLogsBeta.plugin`
+
 ## [3.0.9] - 2026-07-19
 
 ### Changed
