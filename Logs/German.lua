@@ -52,11 +52,11 @@ _G.Content = {
 -- instances -----------------------------------------------------------------------------------
 _G.Instances = {
     -- Die Königreiche von Harad
-    [54]  = { name = "The Treasure Caves of Hurum Kâna",   content = 11 },
+    [54]  = { name = "Die Schatzhöhlen von Hurum Kâna",   content = 11 },
     [53] = { name = "Ekal-nêbi, der gefallene Palast",      content = 11 },
     [52] = { name = "Kôth Rau, die Klagefeste",             content = 11 },
     [51] = { name = "Pagru-kirít, der Leichengarten",       content = 11 },
-    [50] = { name = "The Folly of Nagakhêdi",               content = 11 },
+    [50] = { name = "Nagakhêdis Torheit",               content = 11 },
     [49] = { name = "Aufgaben: Die Königreiche von Harad",  content = 11 },
     -- Morgoths Vermächtnis
     [48] = { name = "Ashunûg, der Tempel der Verfluchten",  content = 10 },
@@ -83,7 +83,7 @@ _G.Instances = {
     [30] = { name = "Angriff auf Dhúrstrok",                content = 7 },
     [29] = { name = "Höhle von Pughlak",                    content = 7 },
     [28] = { name = "Adkhât-zahhar, die Häuser der Ruhe",   content = 7 },
-    [27] = { name = "The Hiddenhoard of Abnankâra",         content = 7 },
+    [27] = { name = "Abnankâra, der Heimlichhort",         content = 7 },
     [26] = { name = "Aufgaben: Gundabad",                   content = 7 },
     -- Krieg der Drei Gipfel
     [25] = { name = "Shakalush, die Stufenschlacht",        content = 6 },
@@ -106,8 +106,8 @@ _G.Instances = {
     [11] = { name = "Agoroth, die schmale Senke",                 content = 3 },
     [10] = { name = "Askâd-mazal, die Kammer der Schatten",       content = 3 },
     [9] = { name = "Klage der Weide",                             content = 3 },
-    [8] = { name = "Sarch Vorn, the Black Grave",                 content = 3 },
-    [7] = { name = "Doom of Caras Gelebren",                      content = 3 },
+    [8] = { name = "Sarch Vorn, das Schwarze Grab",                 content = 3 },
+    [7] = { name = "Der Untergang von Caras Gelebren",                      content = 3 },
     -- Sonstiges
     [6] = { name = "Missionen/Erkundungen",                       content = 2 },
     [5] = { name = "Aufträge",                                    content = 2 },
@@ -121,7 +121,7 @@ _G.Instances = {
 -- events --------------------------------------------------------------------------------------
 _G.Events = {
 
-    -- The Treasure Caves of Hurum Kâna — Solo (daily) ----------------------------------------
+    -- Die Schatzhöhlen von Hurum Kâna — Solo (daily) ----------------------------------------
     [585] = { name = "Pakhán-gebar",       match = "Pakhán.gebars Truhe .Solo",             instance = 54,  tier = "Solo", order = 1, type = _G.EventTypes.Completions, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
     [584] = { name = "Rat der Schatten", match = "Truhe des Rats der Schatten .Solo",    instance = 54,  tier = "Solo", order = 2, type = _G.EventTypes.Completions, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
     [583] = { name = "Bârlat",             match = "Truhe von Bârlat dem Kühnen .Solo",          instance = 54,  tier = "Solo", order = 3, type = _G.EventTypes.Completions, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
@@ -189,7 +189,7 @@ _G.Events = {
     [539] = { name = "Khardâmu", match = "Khardâmus Truhe .Stufe 3", instance = 51, tier = "T3",  order = 2, type = _G.EventTypes.Completions, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
     [538] = { name = "Sudûgul",  match = "Sudûguls Truhe .Stufe 3", instance = 51, tier = "T3",   order = 3, type = _G.EventTypes.Completions, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
 
-    -- The Folly of Nagakhêdi — T1 (weekly Thu) ------------------------------------------------
+    -- Nagakhêdis Torheit — T1 (weekly Thu) ------------------------------------------------
     [537]  = { name = "Badharál",                match = "Badharáls groteskes Ei .Stufe 1",  instance = 50, tier = "T1", order = 1, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
     [536]  = { name = "Maukhorn",                match = "Maukhorns Truhe .Stufe 1",          instance = 50, tier = "T1", order = 2, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
     [535]  = { name = "Die Legion",              match = "Truhe der Legion .Stufe 1",        instance = 50, tier = "T1", order = 3, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
@@ -445,12 +445,12 @@ _G.Events = {
     -- T2–T5 (weekly Thu)
     [341] = { name = "Tarkka-oka and Cráthair",    match = "Tarkka-okas und Cráthairs Truhe . Stufe 2",  instance = 35, tier = "T2",   order = 1, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
     [340] = { name = "Grand Cultivator Oganuin",   match = "Großzüchterin Oganuins Truhe . Stufe 2", instance = 35, tier = "T2",   order = 2, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
-    [339] = { name = "Tarkka-oka and Cráthair",    match = "Tarkka-okas und Cráthairs Truhe . Stufe 3",  instance = 35, tier = "T3",   order = 1, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone == false },
+    [339] = { name = "Tarkka-oka and Cráthair",    match = "Tarkka-okas und Cráthairs Truhe . Stufe 3",  instance = 35, tier = "T3",   order = 1, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
     [338] = { name = "Grand Cultivator Oganuin",   match = "Großzüchterin Oganuins Truhe . Stufe 3", instance = 35, tier = "T3",   order = 2, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
     [337] = { name = "Tarkka-oka and Cráthair",    match = "Tarkka-okas und Cráthairs Truhe . Stufe 4",  instance = 35, tier = "T4",   order = 1, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
     [336] = { name = "Grand Cultivator Oganuin",   match = "Großzüchterin Oganuins Truhe . Stufe 4", instance = 35, tier = "T4",   order = 2, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
     [335] = { name = "Tarkka-oka and Cráthair",    match = "Tarkka-okas und Cráthairs Truhe . Stufe 5",  instance = 35, tier = "T5",   order = 1, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
-    [334] = { name = "Grand Cultivator Oganuin",   match = "Großzüchterin Oganuins Truhe . Stufe 5", instance = 35, tier = "T5",   order == 2, type = _G.EventTypes.Completions, reset == { days == Weekly, time == 8 }, onlyResetIfDone =s= false },
+    [334] = { name = "Grand Cultivator Oganuin",   match = "Großzüchterin Oganuins Truhe . Stufe 5", instance = 35, tier = "T5",   order = 2, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
 
     -- Thaurisgar, the Vile Apothecary — Solo (daily) ------------------------------------------
     [333] = { name = "Puzzle Box",        match = "Aniocháns Rätselkiste .Solo",         instance = 34, tier = "Solo", order = 1, type = _G.EventTypes.Completions, reset = { days = Daily,  time = 8 }, onlyResetIfDone = false },
@@ -563,7 +563,7 @@ _G.Events = {
     [246] = { name = "Loknashra",   match = "Loknashras Truhe .Stufe 5.",  instance = 28, tier = "T5",   order = 2, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
     [245] = { name = "Vethug",      match = "Vethugs Truhe .Stufe 5.",     instance = 28, tier = "T5",   order = 3, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
 
-    -- The Hiddenhoard of Abnankâra — T1 (Mon/Thu/Sat) ------------------------------------------
+    -- Abnankâra, der Heimlichhort — T1 (Mon/Thu/Sat) ------------------------------------------
     [244] = { name = "Thyrstáth's Tribute", match = "Thyrstáths Tribut .Stufe 1.",        instance = 27, tier = "T1", order = 1, type = _G.EventTypes.Completions, reset = { days = TriWeek, time = 8 }, onlyResetIfDone = false },
     [243] = { name = "Dushtalbúk",          match = "Ausrüstung von Ibkêrmazal .Stufe 1.",    instance = 27, tier = "T1", order = 2, type = _G.EventTypes.Completions, reset = { days = TriWeek, time = 8 }, onlyResetIfDone = false },
     [242] = { name = "Hrímil",              match = "Hrímil Frostherz' Hort .Stufe 1.", instance = 27, tier = "T1", order = 3, type = _G.EventTypes.Completions, reset = { days = TriWeek, time = 8 }, onlyResetIfDone = false },
@@ -776,7 +776,7 @@ _G.Events = {
     [92] = { name = "Ice-Grim",  match = "Versteckter Silberschatz",        instance = 13, tier = "T1", order = 3, type = _G.EventTypes.Completions, reset = { days = TriWeek, time = 8 }, onlyResetIfDone = false },
     [91] = { name = "Icebeast",  match = "Eisbiest.Silberschatz",   instance = 13, tier = "T1", order = 4, type = _G.EventTypes.Completions, reset = { days = TriWeek, time = 8 }, onlyResetIfDone = false },
     [90] = { name = "Karazgar",  match = "Karazgars Silbertruhe",   instance = 13, tier = "T1", order = 5, type = _G.EventTypes.Completions, reset = { days = TriWeek, time = 8 }, onlyResetIfDone = false },
-    [89] = { name = "Hrímil",    match = "Hrímils Silbertruhe",     instance = 13, tier = "T1", order = 6, type = _G.EventTypes.Completions, reset = { days = TriWeek, time =
+    [89] = { name = "Hrímil",    match = "Hrímils Silbertruhe",     instance = 13, tier = "T1", order = 6, type = _G.EventTypes.Completions, reset = { days = TriWeek, time = 8 }, onlyResetIfDone = false },
 
     -- T2 (weekly Thu)
     [88] = { name = "Isvítha",   match = "Isvíthas Goldtruhe",    instance = 13, tier = "T2", order = 1, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
@@ -784,15 +784,15 @@ _G.Events = {
     [86] = { name = "Ice-Grim",  match = "Versteckter Goldschatz",          instance = 13, tier = "T2", order = 3, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
     [85] = { name = "Icebeast",  match = "Eisbiest.Goldschatz",   instance = 13, tier = "T2", order = 4, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
     [84] = { name = "Karazgar",  match = "Karazgars Goldtruhe",   instance = 13, tier = "T2", order = 5, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
-    [83] = { name = "Hrímil",    match = "Hrímils Goldtruhe",     instance = 13, tier = "T2", order =
+    [83] = { name = "Hrímil",    match = "Hrímils Goldtruhe",     instance = 13, tier = "T2", order = 6, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
 
     -- T3 (weekly Thu)
     [82] = { name = "Isvítha",   match = "Isvíthas Mithriltruhe",   instance = 13, tier = "T3", order = 1, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
     [81] = { name = "Ingór",     match = "Ingórs Mithriltruhe",     instance = 13, tier = "T3", order = 2, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
     [80] = { name = "Ice-Grim",  match = "Versteckter Mithrilschatz",       instance = 13, tier = "T3", order = 3, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
     [79] = { name = "Icebeast",  match = "Eisbiest.Mithrilschatz",  instance = 13, tier = "T3", order = 4, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
-    [78] = { name = "Karazgar",  match = "Karazgars Mithriltruhe",  instance = 13, tier = "T3", order =
-    [77] = { name =
+    [78] = { name = "Karazgar",  match = "Karazgars Mithriltruhe",  instance = 13, tier = "T3", order = 5, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
+    [77] = { name = "Hrímil",    match = "Hrímils Mithriltruhe",    instance = 13, tier = "T3", order = 6, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
 
     -- Featured Instance — Daylies (daily) ------------------------------------------------------
     [76] = { name = "Low level", match = "Abgeschlossen:.Wöchentliche Instanz.+",            instance = 12, tier = "Täglich", order = 1, type = _G.EventTypes.Done, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
@@ -837,7 +837,7 @@ _G.Events = {
     [52] = { name = "Dampmould", match = "Feuchtschimmels Truhe .Stufe 3%+", instance = 9, tier = "T3+",  order = 1, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
     [51] = { name = "Bombadil",  match = "Bombadils Gabe .Stufe 3%+",   instance = 9, tier = "T3+",  order = 2, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
 
-    -- Sarch Vorn, the Black Grave — Solo (daily) -----------------------------------------------
+    -- Sarch Vorn, das Schwarze Grab — Solo (daily) -----------------------------------------------
     [50] = { name = "Fladach",     match = "Fladachs Truhe .Solo.",   instance = 8, tier = "Solo", order = 1, type = _G.EventTypes.Completions, reset = { days = Daily,  time = 8 }, onlyResetIfDone = false },
     [49] = { name = "Luilloth",    match = "Luilloths Truhe .Solo.",  instance = 8, tier = "Solo", order = 2, type = _G.EventTypes.Completions, reset = { days = Daily,  time = 8 }, onlyResetIfDone = false },
     [48] = { name = "Hithrengor",  match = "Hithrengors Truhe .Solo.", instance = 8, tier = "Solo", order = 3, type = _G.EventTypes.Completions, reset = { days = Daily,  time = 8 }, onlyResetIfDone = false },
@@ -858,7 +858,7 @@ _G.Events = {
     [34] = { name = "Luilloth",    match = "Luilloths Truhe .Stufe 5.",  instance = 8, tier = "T5",   order = 2, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
     [33] = { name = "Hithrengor",  match = "Hithrengors Truhe .Stufe 5.", instance = 8, tier = "T5",   order = 3, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
 
-    -- Doom of Caras Gelebren — T3 (weekly Thu) ------------------------------------------------
+    -- Der Untergang von Caras Gelebren — T3 (weekly Thu) ------------------------------------------------
     [32] = { name = "6-man",  match = "Großes Geschenk der Mírdain .Stufe 3", instance = 7, tier = "T3", order = 1, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
     [31] = { name = "12-man", match = "Größeres Geschenk der Mírdain .Stufe 3",   instance = 7, tier = "T3", order = 2, type = _G.EventTypes.Completions, reset = { days = Weekly, time = 8 }, onlyResetIfDone = false },
 
