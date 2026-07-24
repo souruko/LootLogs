@@ -172,6 +172,7 @@ if _G.Settings == nil then
     _G.Settings.quickLaunch = {}
     _G.Settings.quickLaunch.left = 100
     _G.Settings.quickLaunch.top  = 100
+    _G.Settings.quickLaunchSize  = 50
 
 end
 
@@ -183,6 +184,10 @@ if _G.Settings.quickLaunch == nil then
     _G.Settings.quickLaunch = {}
     _G.Settings.quickLaunch.left = 100
     _G.Settings.quickLaunch.top  = 100
+end
+
+if _G.Settings.quickLaunchSize == nil then
+    _G.Settings.quickLaunchSize = 50
 end
 
 if _G.Settings.timeDisplay == nil then

@@ -259,6 +259,129 @@ end
 
 -- ------------------------------------------------------------------------------------------------
 
+function Settings:MakeQuickLaunchSizeRow()
+
+    local row = Turbine.UI.Control()
+    row:SetHeight(34)
+    row:SetBackColor(_G.Theme.PANEL)
+    row:SetMouseVisible(false)
+
+    local nameLabel = Turbine.UI.Label()
+    nameLabel:SetParent(row)
+    nameLabel:SetPosition(12, 0)
+    nameLabel:SetHeight(34)
+    nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+    nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana14)
+    nameLabel:SetFontStyle(_G.Theme.FONT_STYLE)
+    nameLabel:SetForeColor(_G.Theme.TEXT)
+    nameLabel:SetText(_G.L("quickLaunchSize"))
+    nameLabel:SetMouseVisible(false)
+
+    local BTN_W = 24
+    local BTN_H = 22
+    local VAL_W = 46
+    local MIN_SIZE, MAX_SIZE, STEP = 30, 80, 5
+
+    local valBg = Turbine.UI.Control()
+    valBg:SetParent(row)
+    valBg:SetSize(VAL_W, BTN_H)
+    valBg:SetBackColor(_G.Theme.BG)
+    valBg:SetMouseVisible(false)
+
+    local valLabel = Turbine.UI.Label()
+    valLabel:SetParent(valBg)
+    valLabel:SetSize(VAL_W, BTN_H)
+    valLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
+    valLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    valLabel:SetFontStyle(_G.Theme.FONT_STYLE)
+    valLabel:SetForeColor(_G.Theme.ACCENT)
+    valLabel:SetMouseVisible(false)
+
+    local function RefreshVal()
+        valLabel:SetText(tostring(_G.Settings.quickLaunchSize or 50) .. "px")
+    end
+    RefreshVal()
+
+    local function MakeStepBtn(sign, delta)
+        local frame = Turbine.UI.Control()
+        frame:SetParent(row)
+        frame:SetSize(BTN_W + 2, BTN_H + 2)
+        frame:SetBackColor(_G.Theme.FRAME)
+
+        local bg = Turbine.UI.Control()
+        bg:SetParent(frame)
+        bg:SetPosition(1, 1)
+        bg:SetSize(BTN_W, BTN_H)
+        bg:SetBackColor(_G.Theme.BG)
+
+        local lbl = Turbine.UI.Label()
+        lbl:SetParent(bg)
+        lbl:SetSize(BTN_W, BTN_H)
+        lbl:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
+        lbl:SetFont(Turbine.UI.Lotro.Font.Verdana14)
+        lbl:SetFontStyle(_G.Theme.FONT_STYLE)
+        lbl:SetForeColor(_G.Theme.TEXT)
+        lbl:SetText(sign)
+        lbl:SetMouseVisible(false)
+
+        local hover = false
+        bg.MouseEnter = function()
+            hover = true
+            frame:SetBackColor(_G.Theme.HOVER)
+        end
+        bg.MouseLeave = function()
+            hover = false
+            frame:SetBackColor(_G.Theme.FRAME)
+        end
+        bg.MouseDown = function()
+            bg:SetBackColor(_G.Theme.PRESS)
+        end
+        bg.MouseUp = function()
+            bg:SetBackColor(_G.Theme.BG)
+            if hover then
+                local size = (_G.Settings.quickLaunchSize or 50) + delta
+                if size < MIN_SIZE then size = MIN_SIZE end
+                if size > MAX_SIZE then size = MAX_SIZE end
+                _G.Settings.quickLaunchSize = size
+                _G.SaveSettings()
+                RefreshVal()
+                if _G.QuickLaunchBtn then
+                    _G.QuickLaunchBtn:SetIconSize(size)
+                end
+            end
+        end
+
+        return frame
+    end
+
+    local minusBtn = MakeStepBtn("-", -STEP)
+    local plusBtn  = MakeStepBtn("+",  STEP)
+
+    row.SizeChanged = function()
+        local w        = row:GetWidth()
+        local BTN_TOP  = math.floor((34 - BTN_H - 2) / 2)
+        local VAL_TOP  = math.floor((34 - BTN_H) / 2)
+        local right    = w - 10
+        local plusLeft  = right - (BTN_W + 2)
+        local valLeft   = plusLeft - 2 - VAL_W
+        local minusLeft = valLeft - 2 - (BTN_W + 2)
+
+        plusBtn:SetLeft(plusLeft)
+        plusBtn:SetTop(BTN_TOP)
+        valBg:SetLeft(valLeft)
+        valBg:SetTop(VAL_TOP)
+        minusBtn:SetLeft(minusLeft)
+        minusBtn:SetTop(BTN_TOP)
+
+        nameLabel:SetWidth(minusLeft - 12 - 4)
+    end
+
+    return row
+
+end
+
+-- ------------------------------------------------------------------------------------------------
+
 function Settings:MakeServerRow(serverName)
 
     local row = Turbine.UI.Control()
@@ -698,6 +821,7 @@ function Settings:BuildRows()
             _G.QuickLaunchBtn:ClearBadge()
         end
     end))
+    addRow(self:MakeQuickLaunchSizeRow())
     addRow(self:MakeTimezoneRow())
     addRow(self:MakeTimeDisplayRow())
     addRow(self:MakeLanguageRow())

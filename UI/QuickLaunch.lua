@@ -6,6 +6,7 @@ function _G.QuickLaunch:Constructor()
 
     self:SetSize(50, 50)
     self:SetBackground("LootLogs/Ressources/lootlogs_icon.tga")
+    self:SetStretchMode(1)
 
     local s = _G.Settings.quickLaunch
     self:SetPosition(s.left, s.top)
@@ -18,21 +19,30 @@ function _G.QuickLaunch:Constructor()
     self.badge = Turbine.UI.Window()
     self.badge:SetParent(self)
     self.badge:SetSize(20, 20)
-    self.badge:SetPosition(30, 0)
     self.badge:SetBackground("LootLogs/Ressources/badge_dot.tga")
+    self.badge:SetStretchMode(1)
     -- self.badge:SetBlendMode(Turbine.UI.BlendMode.Overlay)
     self.badge:SetVisible(false)
     self.badge:SetMouseVisible(false)
 
     self.badgeLabel = Turbine.UI.Label()
     self.badgeLabel:SetParent(self.badge)
-    self.badgeLabel:SetSize(20, 20)
     self.badgeLabel:SetPosition(0, 0)
     self.badgeLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
     self.badgeLabel:SetFont(Turbine.UI.Lotro.Font.Verdana14)
     self.badgeLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
     self.badgeLabel:SetForeColor(Turbine.UI.Color(1.0, 1.0, 1.0))
     self.badgeLabel:SetMouseVisible(false)
+
+    function self:SetIconSize(newSize)
+        self:SetSize(newSize, newSize)
+        local badgeSize = math.floor(newSize * 0.4)
+        self.badge:SetSize(badgeSize, badgeSize)
+        self.badge:SetPosition(newSize - badgeSize, 0)
+        self.badgeLabel:SetSize(badgeSize, badgeSize)
+    end
+
+    self:SetIconSize(_G.Settings.quickLaunchSize or 50)
 
     function self:IncrementBadge()
         if not _G.Settings.showBadge then return end

@@ -1,5 +1,10 @@
 # Changelog
 
+## [3.0.12] - 2026-07-24
+
+### Added
+- Quicklaunch icon size setting (Settings → Display) to resize the draggable quicklaunch button and its badge, 30–80px in 5px steps
+
 ## [3.0.11] - 2026-07-24
 
 ### Fixed
