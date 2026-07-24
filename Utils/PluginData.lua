@@ -318,10 +318,10 @@ for id, character in pairs(_G.Logs) do
             if event.onlyResetIfDone and character.logs[index].value ~= "Done" then
                 character.logs[index].timeOfDeath = _G.CalculateDeath(event)
                 allRecalculated[#allRecalculated + 1] = { character = character, index = index, newTimeOfDeath = character.logs[index].timeOfDeath }
-                logHasChanged = true
             else
                 allToDelete[#allToDelete + 1] = { character = character, index = index }
             end
+            logHasChanged = true
         end
     end
 end
