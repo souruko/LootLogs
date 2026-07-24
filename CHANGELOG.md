@@ -1,5 +1,10 @@
 # Changelog
 
+## [3.0.11] - 2026-07-24
+
+### Fixed
+- Login recalculation of extended lockouts (bosses with `onlyResetIfDone` that weren't completed) now correctly flags the log as changed so the recalculated `timeOfDeath` is actually saved
+
 ## [3.0.10] - 2026-07-23
 
 ### Added
