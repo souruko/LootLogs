@@ -200,52 +200,8 @@ local function FormatTimeRemaining(seconds, absTime)
     return FormatTimeSpan(seconds)
 end
 
--- Collect events for an instance grouped by order, returning sorted list of groups.
--- Each group: { name, tiers = [{tier, tierOrder, time}] }
-local function collectOrderGroups(instanceId, logs, currentTime)
-    local groups = {}
-
-    for eventIndex, event in pairs(_G.Events) do
-        if event.instance == instanceId then
-            local log = logs[eventIndex]
-            if log ~= nil then
-                local o = event.order or 99
-                if groups[o] == nil then
-                    groups[o] = { name = event.name, tiers = {}, minIndex = eventIndex }
-                else
-                    if eventIndex < groups[o].minIndex then groups[o].minIndex = eventIndex end
-                end
-                local t = groups[o].tiers
-                t[#t + 1] = {
-                    tier        = tostring(event.tier),
-                    tierOrder   = tierOrder(event.tier),
-                    time        = math.max(0, log.timeOfDeath - currentTime),
-                    timeOfDeath = log.timeOfDeath,
-                    value       = log.value,
-                }
-            end
-        end
-    end
-
-    local keys = {}
-    for o in pairs(groups) do keys[#keys + 1] = o end
-    table.sort(keys, function(a, b) return groups[a].minIndex < groups[b].minIndex end)
-
-    local result = {}
-    for _, o in ipairs(keys) do
-        local g = groups[o]
-        table.sort(g.tiers, function(a, b) return a.tierOrder > b.tierOrder end)
-        result[#result + 1] = g
-    end
-    return result
-end
-
--- ------------------------------------------------------------------------------------------------
--- Shared helper: appends tier-header + boss rows for one instance into the listbox.
--- Caller is responsible for clearing and setting up currentRows before the first call.
-function ContentView:_AddInstanceTierRows(instanceId, chars, currentTime, listWidth, tierFilter)
-
-    -- build: tiers[tierName] = { order, bosses = { bossOrder → { name, indices[] } } }
+-- Build tiers[tierName] = { order, bosses = { bossOrder -> { name, indices[] } } } for one instance.
+local function buildInstanceTiers(instanceId)
     local tiers = {}
     for eventIndex, event in pairs(_G.Events) do
         if event.instance == instanceId then
@@ -265,6 +221,16 @@ function ContentView:_AddInstanceTierRows(instanceId, chars, currentTime, listWi
     local sortedTierNames = {}
     for tierName in pairs(tiers) do sortedTierNames[#sortedTierNames + 1] = tierName end
     table.sort(sortedTierNames, function(a, b) return tiers[a].order > tiers[b].order end)
+
+    return tiers, sortedTierNames
+end
+
+-- ------------------------------------------------------------------------------------------------
+-- Shared helper: appends tier-header + boss rows for one instance into the listbox.
+-- Caller is responsible for clearing and setting up currentRows before the first call.
+function ContentView:_AddInstanceTierRows(instanceId, chars, currentTime, listWidth, tierFilter)
+
+    local tiers, sortedTierNames = buildInstanceTiers(instanceId)
 
     local function addRow(row)
         row:SetWidth(listWidth)
@@ -321,6 +287,62 @@ function ContentView:_AddInstanceTierRows(instanceId, chars, currentTime, listWi
     end
 
     return renderedTiers > 0
+
+end
+
+-- ------------------------------------------------------------------------------------------------
+-- Builds one compact row per tier for a single character within one instance: tier name + all
+-- boss/quest values on one line (boss/quest name shown via hover), matching the multi-value-per-
+-- line layout used by _AddInstanceTierRows. Only tiers where this character has at least one
+-- logged value are included. Returns a plain array of pre-sized rows (does not touch the listbox),
+-- so the caller can decide whether to commit them along with an instance header.
+function ContentView:_BuildCharacterInstanceRows(instanceId, character, currentTime, listWidth)
+
+    local tiers, sortedTierNames = buildInstanceTiers(instanceId)
+    local rows = {}
+
+    for _, tierName in ipairs(sortedTierNames) do
+        local tierData = tiers[tierName]
+
+        local sortedBossOrders = {}
+        for o in pairs(tierData.bosses) do sortedBossOrders[#sortedBossOrders + 1] = o end
+        table.sort(sortedBossOrders)
+
+        local bossNames      = {}
+        local bossValues     = {}
+        local minTimeOfDeath = nil
+        local hasAny         = false
+
+        for _, o in ipairs(sortedBossOrders) do
+            local boss = tierData.bosses[o]
+            bossNames[#bossNames + 1] = boss.name
+
+            local value = false
+            for _, ei in ipairs(boss.indices) do
+                if character.logs and character.logs[ei] ~= nil then
+                    local entry = character.logs[ei]
+                    value  = entry.value
+                    hasAny = true
+                    if minTimeOfDeath == nil or entry.timeOfDeath < minTimeOfDeath then
+                        minTimeOfDeath = entry.timeOfDeath
+                    end
+                    break
+                end
+            end
+            bossValues[#bossValues + 1] = value
+        end
+
+        if hasAny then
+            local timeRemaining = math.max(0, minTimeOfDeath - currentTime)
+            local timeText       = FormatTimeRemaining(timeRemaining, minTimeOfDeath)
+
+            local row = self:MakeCharacterTierRow(tierName, bossValues, bossNames, timeText)
+            row:SetWidth(listWidth)
+            rows[#rows + 1] = row
+        end
+    end
+
+    return rows
 
 end
 
@@ -529,22 +551,14 @@ function ContentView:ShowCharacterView(characterId)
 
         for _, instanceId in ipairs(instanceIds) do
             local instance = _G.Instances[instanceId]
-            local groups = collectOrderGroups(instanceId, character.logs, currentTime)
+            local tierRows = self:_BuildCharacterInstanceRows(instanceId, character, currentTime, listWidth)
 
-            if #groups > 0 then
+            if #tierRows > 0 then
                 local instanceRow = self:MakeInstanceRow(instance, true)
                 instanceRow:SetWidth(listWidth)
                 eventRows[#eventRows + 1] = instanceRow
-
-                for _, group in ipairs(groups) do
-                    local nameRow = self:MakeBossNameRow(group.name)
-                    nameRow:SetWidth(listWidth)
-                    eventRows[#eventRows + 1] = nameRow
-                    for _, t in ipairs(group.tiers) do
-                        local tierRow = self:MakeBossTierRow(t)
-                        tierRow:SetWidth(listWidth)
-                        eventRows[#eventRows + 1] = tierRow
-                    end
+                for _, r in ipairs(tierRows) do
+                    eventRows[#eventRows + 1] = r
                 end
             end
         end
@@ -612,14 +626,11 @@ function ContentView:ShowServerView(serverName)
 
             for _, instanceId in ipairs(instanceIds) do
                 local instance = _G.Instances[instanceId]
-                local groups = collectOrderGroups(instanceId, character.logs, currentTime)
-                if #groups > 0 then
+                local tierRows = self:_BuildCharacterInstanceRows(instanceId, character, currentTime, listWidth)
+                if #tierRows > 0 then
                     charRows[#charRows + 1] = self:MakeInstanceRow(instance, true)
-                    for _, group in ipairs(groups) do
-                        charRows[#charRows + 1] = self:MakeBossNameRow(group.name)
-                        for _, t in ipairs(group.tiers) do
-                            charRows[#charRows + 1] = self:MakeBossTierRow(t)
-                        end
+                    for _, r in ipairs(tierRows) do
+                        charRows[#charRows + 1] = r
                     end
                 end
             end
@@ -846,108 +857,99 @@ end
 
 -- ------------------------------------------------------------------------------------------------
 
-function ContentView:MakeBossNameRow(name)
+-- Compact single-line row combining the tier name with one character's values across all
+-- bosses/quests in that tier (multiple values side by side, boss/quest name shown on hover in
+-- the header) — merges what used to be a separate tier-header row and value row into one line,
+-- since only one character's data is ever shown here.
+function ContentView:MakeCharacterTierRow(tierName, bossValues, bossNames, timeText)
+
+    local TIER_W = 50
+    local LEFT   = 30
 
     local row = Turbine.UI.Control()
-    row:SetHeight(26)
+    row:SetHeight(28)
     row:SetBackColor(_G.Theme.PANEL)
-    row.MouseEnter = function() row:SetBackColor(_G.Theme.SECTION) end
+    row.MouseEnter = function() row:SetBackColor(_G.Theme.HEADER) end
     row.MouseLeave = function() row:SetBackColor(_G.Theme.PANEL) end
 
     local accent = Turbine.UI.Control()
     accent:SetParent(row)
-    accent:SetPosition(20, 6)
+    accent:SetPosition(20, 7)
     accent:SetSize(2, 14)
-    accent:SetBackColor(_G.Theme.HOVER)
+    accent:SetBackColor(_G.Theme.FRAME)
     accent:SetMouseVisible(false)
-
-    local nameLabel = Turbine.UI.Label()
-    nameLabel:SetParent(row)
-    nameLabel:SetPosition(30, 0)
-    nameLabel:SetHeight(26)
-    nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana14)
-    nameLabel:SetFontStyle(_G.Theme.FONT_STYLE)
-    nameLabel:SetForeColor(_G.Theme.TEXT)
-    nameLabel:SetText(name)
-    nameLabel:SetMouseVisible(false)
-
-    row.SizeChanged = function()
-        nameLabel:SetWidth(row:GetWidth() - 30)
-    end
-
-    return row
-
-end
-
--- ------------------------------------------------------------------------------------------------
-
-function ContentView:MakeBossTierRow(t)
-
-    local TIME_W = (_G.Settings.timeDisplay == "timestamp" and 140)
-               or  (_G.Settings.timeDisplay == "both" and 95)
-               or  68
-    local TIER_W  = 55
-    local VALUE_W = 44
-    local GAP     = 5
-    local LEFT    = 36
-
-    local row = Turbine.UI.Control()
-    row:SetHeight(22)
-    row:SetBackColor(_G.Theme.BG)
-    row.MouseEnter = function() row:SetBackColor(_G.Theme.PANEL) end
-    row.MouseLeave = function() row:SetBackColor(_G.Theme.BG) end
-
-    local dot = Turbine.UI.Control()
-    dot:SetParent(row)
-    dot:SetPosition(LEFT - 8, 9)
-    dot:SetSize(2, 4)
-    dot:SetBackColor(_G.Theme.FRAME)
-    dot:SetMouseVisible(false)
 
     local tierLabel = Turbine.UI.Label()
     tierLabel:SetParent(row)
-    tierLabel:SetHeight(22)
-    tierLabel:SetWidth(TIER_W)
+    tierLabel:SetPosition(LEFT, 0)
+    tierLabel:SetSize(TIER_W, 28)
     tierLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     tierLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
     tierLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     tierLabel:SetForeColor(_G.Theme.HOVER)
-    tierLabel:SetText(t.tier)
+    tierLabel:SetText(tierName)
     tierLabel:SetMouseVisible(false)
 
-    local valueLabel = nil
-    if t.value then
-        valueLabel = Turbine.UI.Label()
+    local baseHeaderName = self.headerName:GetText()
+
+    local valueLabels = {}
+    for i, value in ipairs(bossValues) do
+        local valueLabel = Turbine.UI.Label()
         valueLabel:SetParent(row)
-        valueLabel:SetHeight(22)
-        valueLabel:SetWidth(VALUE_W)
-        valueLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+        valueLabel:SetHeight(28)
+        valueLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
         valueLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
         valueLabel:SetFontStyle(_G.Theme.FONT_STYLE)
-        valueLabel:SetForeColor(_G.Theme.DIM2)
-        valueLabel:SetText(t.value)
-        valueLabel:SetMouseVisible(false)
+        valueLabel:SetMarkupEnabled(true)
+
+        if value == "Done" then
+            valueLabel:SetForeColor(_G.Theme.DIM2)
+            valueLabel:SetText("<u>Done</u>")
+        elseif value then
+            valueLabel:SetForeColor(_G.Theme.DIM2)
+            valueLabel:SetText(value)
+        else
+            valueLabel:SetForeColor(_G.Theme.DIM)
+            valueLabel:SetText("-")
+        end
+
+        valueLabel.MouseEnter = function()
+            self.headerName:SetText(baseHeaderName .. _G.CM("DIM") .. " - " .. bossNames[i] .. _G.CMR)
+        end
+        valueLabel.MouseLeave = function()
+            self.headerName:SetText(baseHeaderName)
+        end
+
+        valueLabels[i] = valueLabel
     end
 
     local timeLabel = Turbine.UI.Label()
     timeLabel:SetParent(row)
-    timeLabel:SetHeight(22)
-    timeLabel:SetWidth(TIME_W)
+    timeLabel:SetHeight(28)
     timeLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
     timeLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
     timeLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     timeLabel:SetForeColor(_G.Theme.ACCENT)
-    timeLabel:SetText(FormatTimeRemaining(t.time, t.timeOfDeath))
+    timeLabel:SetText(timeText .. "  ")
     timeLabel:SetMouseVisible(false)
 
+    local TIME_W = (_G.Settings.timeDisplay == "timestamp" and 140)
+              or  (_G.Settings.timeDisplay == "both" and 95)
+              or  68
+
     row.SizeChanged = function()
-        local w = row:GetWidth()
-        tierLabel:SetLeft(LEFT)
-        if valueLabel then
-            valueLabel:SetLeft(LEFT + TIER_W + GAP)
+        local w           = row:GetWidth()
+        local middleLeft  = LEFT + TIER_W
+        local middleWidth = math.max(0, w - middleLeft - TIME_W)
+        local colWidth    = middleWidth / #valueLabels
+
+        for i, valueLabel in ipairs(valueLabels) do
+            valueLabel:SetLeft(math.floor(middleLeft + (i - 1) * colWidth))
+            valueLabel:SetWidth(math.floor(colWidth))
         end
+
         timeLabel:SetLeft(w - TIME_W)
+        timeLabel:SetWidth(TIME_W)
     end
 
     return row
@@ -1056,13 +1058,15 @@ function ContentView:MakeInstanceRow(instance, indented)
     if indented then
         row:SetHeight(28)
         row:SetBackColor(_G.Theme.SECTION)
-        row.MouseEnter = function() row:SetBackColor(_G.Theme.HEADER) end
+        row.MouseEnter = function() row:SetBackColor(_G.Theme.PRESS) end
         row.MouseLeave = function() row:SetBackColor(_G.Theme.SECTION) end
 
+        -- Full-height left stripe (matching the non-indented instance row below) so this reads as
+        -- a header a level above the tier rows nested under it, which use a small floating notch instead.
         local accent = Turbine.UI.Control()
         accent:SetParent(row)
-        accent:SetPosition(12, 7)
-        accent:SetSize(2, 14)
+        accent:SetPosition(10, 0)
+        accent:SetSize(3, 28)
         accent:SetBackColor(_G.Theme.HOVER)
         accent:SetMouseVisible(false)
 
