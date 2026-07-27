@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.0.13] - 2026-07-27
+
+### Changed
+- Character and per-character instance rows now show one compact line per tier with all boss/quest values side by side (hover a value to see which boss/quest it belongs to), instead of a separate line per boss
+
+### Fixed
+- Quicklaunch notification badge no longer stretches or shifts out of place — it now stays a fixed size and correctly positioned on the icon
+
 ## [3.0.12] - 2026-07-24
 
 ### Added
