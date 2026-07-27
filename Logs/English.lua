@@ -4,6 +4,11 @@ _G.EventTypes = {
     Completions  = 3,
 }
 
+-- Completions message patterns -----------------------------------------------------------------
+_G.Ini_FavoredCompletions = ": You have (%d+) favoured completion"
+_G.Ini_Completions        = ": You have (%d+) completion"
+_G.Ini_ResetIn            = "resets in: "
+
 local Sunday    = 1
 local Monday    = 2
 local Thusday   = 3

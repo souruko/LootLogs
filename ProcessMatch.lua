@@ -38,9 +38,9 @@ function ProcessMatch(message, log, logIndex)
 
     -- instance chest with favoured / common / locked states
     elseif log.type == _G.EventTypes.Completions then
-        local favCount = string.match(message, ": You have (%d+) favoured completion")
-        local comCount = not favCount and string.match(message, ": You have (%d+) completion")
-        local isReset  = not favCount and not comCount and string.find(message, "resets in: ")
+        local favCount = string.match(message, _G.Ini_FavoredCompletions)
+        local comCount = not favCount and string.match(message, _G.Ini_Completions)
+        local isReset  = not favCount and not comCount and string.find(message, _G.Ini_ResetIn)
 
         local value
         if favCount then

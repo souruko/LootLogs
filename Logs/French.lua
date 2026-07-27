@@ -4,6 +4,11 @@ _G.EventTypes = {
     Completions  = 3,
 }
 
+-- Completions message patterns -----------------------------------------------------------------
+_G.Ini_FavoredCompletions = ": Il vous reste (%d+) objectifs favoris ."
+_G.Ini_Completions        = ": Il vous reste (%d+) objectifs ."
+_G.Ini_ResetIn            = "se réinitialisera dans : "
+
 local Sunday    = 1
 local Monday    = 2
 local Thusday   = 3

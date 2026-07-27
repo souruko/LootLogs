@@ -4,6 +4,11 @@ _G.EventTypes = {
     Completions  = 3,
 }
 
+-- Completions message patterns -----------------------------------------------------------------
+_G.Ini_FavoredCompletions = ": Euch verbleiben (%d+) bevorzugt%(e%) Abschl"
+_G.Ini_Completions        = ": Euch verbleiben (%d+) Abschl"
+_G.Ini_ResetIn            = "wird zurückgesetzt in: "
+
 local Sunday    = 1
 local Monday    = 2
 local Thusday   = 3
