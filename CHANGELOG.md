@@ -7,6 +7,7 @@
 
 ### Fixed
 - Quicklaunch notification badge no longer stretches or shifts out of place — it now stays a fixed size and correctly positioned on the icon
+- Instance completion messages (favoured/common/locked chest states) are now matched correctly on French and German clients instead of only on English ones
 
 ## [3.0.12] - 2026-07-24
 
