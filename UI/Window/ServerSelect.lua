@@ -6,7 +6,7 @@ function ServerSelectPopup:Constructor(onSelect)
 
     self.onSelect = onSelect
 
-    self:SetText("Select Server")
+    self:SetText(_G.L("selectServerTitle"))
     self:SetResizable(false)
 
     local popupWidth  = 300
@@ -26,6 +26,7 @@ end
 function ServerSelectPopup:Build()
 
     self.prompt = Turbine.UI.Label()
+    self.prompt:SetMultiline(false)
     self.prompt:SetParent(self)
     self.prompt:SetPosition(10, 36)
     self.prompt:SetSize(280, 28)
@@ -33,7 +34,7 @@ function ServerSelectPopup:Build()
     self.prompt:SetFont(Turbine.UI.Lotro.Font.Verdana14)
     self.prompt:SetFontStyle(_G.Theme.FONT_STYLE)
     self.prompt:SetForeColor(_G.Theme.TEXT)
-    self.prompt:SetText("Which server are you currently on?")
+    self.prompt:SetText(_G.L("selectServerText"))
 
     for i, serverName in ipairs(_G.Servers) do
 
@@ -52,6 +53,7 @@ function ServerSelectPopup:Build()
         bg:SetBackColor(_G.Theme.BG)
 
         local label = Turbine.UI.Label()
+        label:SetMultiline(false)
         label:SetParent(bg)
         label:SetSize(278, 34)
         label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)

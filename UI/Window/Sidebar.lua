@@ -5,6 +5,20 @@ import "LootLogs.UI.Window.SidebarItems.InstanceItem"
 import "LootLogs.UI.Window.SidebarItems.ContentItem"
 import "LootLogs.UI.Window.SidebarItems.ServerItem"
 
+-- sidebar geometry (docs/design/window-redesign/README.md, section 2)
+local BORDER     = 1
+local TAB_PAD    = 4
+local TAB_H      = 28
+local TAB_GAP    = 2
+-- the handoff says 62, which assumed an inline text star; a real 16px icon needs more
+local PINNED_W   = 76
+local PAD        = 8
+local SEARCH_H   = 24
+local ICON       = 16
+local COLLAPSE_W = 78
+local SEARCH_TOP = TAB_PAD + TAB_H + TAB_PAD
+local LIST_TOP   = SEARCH_TOP + SEARCH_H + TAB_PAD
+
 Sidebar = class(Turbine.UI.Control)
 -- window constructor --------------------------------------------------------------------------
 function Sidebar:Constructor()
@@ -20,12 +34,10 @@ function Sidebar:Constructor()
     self.selectedServer = nil
     self.selectedCharacter = nil
 
-    self.customListHover = false
     self.collapseHover = false
-    self.contentHover = false
-    self.characterHover = false
 
-    self.filterText = ""
+    self.filterText    = ""
+    self.filterFocused = false
 
     self.characterItems = {}
     self.contenItems = {}
@@ -42,6 +54,15 @@ function Sidebar:Constructor()
     local contentSelected = _G.Settings.selected.tab == _G.Tab.Content
     local characterSelected = _G.Settings.selected.tab == _G.Tab.Characters
     self:UpdateSelection(_G.Settings.selected.customList, contentSelected, characterSelected)
+
+end
+
+-- the window, which is no longer our direct parent: PanelWindow puts content
+-- inside self.client and hangs a back-pointer off it
+function Sidebar:Window()
+
+    local parent = self:GetParent()
+    return parent ~= nil and parent.window or nil
 
 end
 
@@ -63,7 +84,7 @@ function Sidebar:InstanceSelected(selectedItem)
         item:SetSelected(item == selectedItem)
     end
 
-    self:GetParent():SelectionChanged()
+    self:Window():SelectionChanged()
 
 end
 
@@ -86,7 +107,7 @@ function Sidebar:ContentSelected(selectedItem)
         item:SetSelected(false)
     end
 
-    self:GetParent():SelectionChanged()
+    self:Window():SelectionChanged()
 
 end
 
@@ -109,7 +130,7 @@ function Sidebar:CharacterSelected(selectedItem)
         item:SetSelected(item == selectedItem)
     end
 
-    self:GetParent():SelectionChanged()
+    self:Window():SelectionChanged()
 
 end
 
@@ -132,7 +153,7 @@ function Sidebar:ServerSelected(selectedItem)
         item:SetSelected(false)
     end
 
-    self:GetParent():SelectionChanged()
+    self:Window():SelectionChanged()
 
 end
 
@@ -221,7 +242,7 @@ function Sidebar:CreateServerItems()
 
     -- no server selected
     local index = #self.serverItems+1
-    self.serverItems[index] = SidebarItems.ServerItem("No Server Selected", self)
+    self.serverItems[index] = SidebarItems.ServerItem("No Server Selected", self, _G.L("noServer"))
 
     self.selectedServer = self:FindItemById(_G.Settings.selected.server, self.serverItems)
 
@@ -260,6 +281,8 @@ function Sidebar:FillContentItems()
             self.itemView:AddItem(contentItem)
         end
     end
+
+    self:RefreshTierSquares()
 
 end
 
@@ -320,12 +343,22 @@ function Sidebar:FillCharacterItems()
 
 end
 
+-- the per-tier squares are derived from the logs at render time, so they have to be
+-- recomputed whenever the logs change or the list is rebuilt
+function Sidebar:RefreshTierSquares()
+
+    for _, item in pairs(self.instanceItems or {}) do
+        item:RefreshSquares()
+    end
+
+end
+
 function Sidebar:RefreshItems()
 
     self:CreateServerItems()
     self:CreateCharacterItems()
 
-    local itemWidth = self:GetWidth() - 22
+    local itemWidth = self:ItemWidth()
     for _, item in pairs(self.serverItems) do
         item:SetWidth(itemWidth)
     end
@@ -346,7 +379,7 @@ function Sidebar:ClearSelection()
     self:CreateServerItems()
     self:CreateCharacterItems()
 
-    local itemWidth = self:GetWidth() - 22
+    local itemWidth = self:ItemWidth()
     for _, item in pairs(self.serverItems) do
         item:SetWidth(itemWidth)
     end
@@ -423,46 +456,29 @@ function Sidebar:UpdateSelection(isCustomList, isContent, isCharacter)
 
     self:UpdateSelectionVisual()
 
-    if (isCustomList or isContent or isCharacter) and self:GetParent() ~= nil then
-        self:GetParent():SelectionChanged()
+    if (isCustomList or isContent or isCharacter) and self:Window() ~= nil then
+        self:Window():SelectionChanged()
     end
 
 end
-
 function Sidebar:UpdateSelectionVisual()
 
-    if self.customListSelected then
-        self.background4:SetBackColor(_G.Theme.SEL_BG)
-        self.customList:SetForeColor(_G.Theme.ACCENT)
-    else
-        self.background4:SetBackColor(_G.Theme.BG)
-        self.customList:SetForeColor(_G.Theme.DIM2)
-    end
+    -- while the Pinned tab is selected the list still shows one of the other two
+    -- tabs, so that tab is marked as well, a step below selected
+    local showingContent    = _G.Settings.selected.tab == _G.Tab.Content
+    local showingCharacters = _G.Settings.selected.tab == _G.Tab.Characters
 
-    local contentDim   = self.customListSelected and _G.Settings.selected.tab == _G.Tab.Content
-    local characterDim = self.customListSelected and _G.Settings.selected.tab == _G.Tab.Characters
+    self.pinnedTab.selected     = self.customListSelected == true
+    self.contentTab.selected    = self.contentSelected == true
+    self.charactersTab.selected = self.characterSelected == true
 
-    if self.contentSelected then
-        self.background5:SetBackColor(_G.Theme.SEL_BG)
-        self.content:SetForeColor(_G.Theme.ACCENT)
-    elseif contentDim then
-        self.background5:SetBackColor(_G.Theme.HEADER)
-        self.content:SetForeColor(_G.Theme.HOVER)
-    else
-        self.background5:SetBackColor(_G.Theme.BG)
-        self.content:SetForeColor(_G.Theme.DIM2)
-    end
+    self.pinnedTab.dimmed     = false
+    self.contentTab.dimmed    = self.customListSelected and showingContent
+    self.charactersTab.dimmed = self.customListSelected and showingCharacters
 
-    if self.characterSelected then
-        self.background6:SetBackColor(_G.Theme.SEL_BG)
-        self.characters:SetForeColor(_G.Theme.ACCENT)
-    elseif characterDim then
-        self.background6:SetBackColor(_G.Theme.HEADER)
-        self.characters:SetForeColor(_G.Theme.HOVER)
-    else
-        self.background6:SetBackColor(_G.Theme.BG)
-        self.characters:SetForeColor(_G.Theme.DIM2)
-    end
+    self.pinnedTab:ApplyState()
+    self.contentTab:ApplyState()
+    self.charactersTab:ApplyState()
 
 end
 
@@ -474,364 +490,339 @@ function Sidebar:CollapseAll()
                               (self.customListSelected and _G.Settings.selected.tab == _G.Tab.Content)
 
     if showingCharacters then
-        for index, item in ipairs(self.serverItems) do
+        for index, item in ipairs(self.serverItems or {}) do
             item:SetCollapsed(true)
         end
     elseif showingContent then
-        for index, item in ipairs(self.contenItems) do
+        for index, item in ipairs(self.contenItems or {}) do
             item:SetCollapsed(true)
         end
     end
 
 end
 
+-- ------------------------------------------------------------------------------------------------
+
+function Sidebar:ClearFilter()
+
+    self.filter:SetText("")
+    self:ApplyFilter("")
+    self:RefreshSearchRow()
+
+end
+
+-- the clear button only exists while there is something to clear
+function Sidebar:RefreshSearchRow()
+
+    local filtering = (self.filterText or "") ~= ""
+
+    self.clearBtn:SetVisible(filtering)
+    self.placeholder:SetVisible(not filtering and not self.filterFocused)
+    self:LayoutSearchRow()
+
+end
+
+function Sidebar:LayoutSearchRow()
+
+    local inner = self.searchBg:GetWidth()
+    if inner <= 0 then return end
+
+    local collapseLeft = inner - COLLAPSE_W
+    self.collapseBtn:SetPosition(collapseLeft, 0)
+    self.collapseBtn:SetSize(COLLAPSE_W, SEARCH_H - 2 * BORDER)
+    self.collapseLabel:SetWidth(math.max(0, COLLAPSE_W - ICON - 4))
+    self.collapseIcon:SetLeft(COLLAPSE_W - ICON - 2)
+
+    local clearLeft = collapseLeft - 2 - ICON
+    self.clearBtn:SetPosition(clearLeft, math.floor((SEARCH_H - 2 * BORDER - ICON) / 2))
+
+    local textLeft  = ICON + 6
+    local textRight = self.clearBtn:IsVisible() and clearLeft or collapseLeft
+    local textWidth = math.max(0, textRight - textLeft - 2)
+
+    self.filter:SetPosition(textLeft, 1)
+    self.filter:SetWidth(textWidth)
+    self.placeholder:SetPosition(textLeft + 2, 0)
+    self.placeholder:SetWidth(textWidth)
+
+end
+
+function Sidebar:ItemWidth()
+
+    return math.max(0, self:GetWidth() - 2 * BORDER - 12)
+
+end
+
 function Sidebar:SizeChanged()
 
+    if self.panel == nil then return end
+
     local width, height = self:GetSize()
+    local iw = math.max(0, width  - 2 * BORDER)
+    local ih = math.max(0, height - 2 * BORDER)
 
-    self.background1:SetSize(width - 10, height - 10)
-    self.frame1:SetSize(width - 20, height - 20)
+    self.panel:SetSize(iw, ih)
 
-    -- todo
-    self.frame2:SetWidth(width - 22)
-    self.background4:SetWidth(width - 24)
-    self.customList:SetWidth(width - 22)
+    -- tab row ---------------------------------------------------------------------------------
+    local rowWidth = iw - 2 * TAB_PAD
+    local pinnedW  = self.pinnedTab:IsVisible() and PINNED_W or 0
+    local gapCount = pinnedW > 0 and 2 or 1
+    local rest     = math.max(0, rowWidth - pinnedW - TAB_GAP * gapCount)
+    local contentW = math.floor(rest / 2)
+    local charW    = rest - contentW
 
-    -- content / character toggle
-    self.frame3:SetWidth(math.floor((width - 22) / 2))
-    self.background5:SetWidth(math.floor((width - 22) / 2) - 2)
-    self.content:SetWidth(self.background5:GetWidth())
+    self.contentTab:SetPosition(TAB_PAD, TAB_PAD)
+    self.contentTab:SetWidth(contentW)
+    self.contentTab.label:SetWidth(contentW)
 
-    self.frame4:SetLeft(self.background5:GetWidth() + 4)
-    self.frame4:SetWidth(width - self.frame4:GetLeft() - 21)
-    self.background6:SetWidth(self.frame4:GetWidth() - 2)
-    self.characters:SetWidth(self.background6:GetWidth())
+    self.charactersTab:SetPosition(TAB_PAD + contentW + TAB_GAP, TAB_PAD)
+    self.charactersTab:SetWidth(charW)
+    self.charactersTab.label:SetWidth(charW)
 
-    -- filter
-    self.background2:SetWidth(width - 64)
-    self.filter:SetLeft(4)
-    self.filter:SetWidth(width - 68)
+    self.pinnedTab:SetPosition(TAB_PAD + contentW + TAB_GAP + charW + TAB_GAP, TAB_PAD)
+    self.pinnedTab:SetWidth(pinnedW)
+    self.pinnedTab.label:SetWidth(math.max(0, pinnedW - ICON - 10))
 
-    -- clear button
-    self.clearBg:SetLeft(width - 62)
+    -- search row ------------------------------------------------------------------------------
+    local searchW = iw - 2 * PAD
 
-    -- collapse button
-    self.background3:SetLeft(width - 41)
+    self.searchFrame:SetPosition(PAD, SEARCH_TOP)
+    self.searchFrame:SetSize(searchW, SEARCH_H)
+    self.searchBg:SetSize(math.max(0, searchW - 2 * BORDER), SEARCH_H - 2 * BORDER)
+    self:LayoutSearchRow()
 
-    -- select
-    self.itemView:SetSize(width - 22, height - self.itemView:GetTop() - 21)
+    -- list ------------------------------------------------------------------------------------
+    self.itemView:SetPosition(0, LIST_TOP)
+    self.itemView:SetSize(iw, math.max(0, ih - LIST_TOP))
     self.itemScrollbar:SetHeight(self.itemView:GetHeight())
-    self.itemScrollbar:SetLeft(width - 32)
+    self.itemScrollbar:SetLeft(iw - 10)
 
-    -- items
-    for index, item in pairs(self.characterItems) do
-        item:SetWidth(width - 22)
+    local itemWidth = self:ItemWidth()
+    for index, item in pairs(self.characterItems or {}) do
+        item:SetWidth(itemWidth)
     end
-    for index, item in pairs(self.instanceItems) do
-        item:SetWidth(width - 22)
+    for index, item in pairs(self.instanceItems or {}) do
+        item:SetWidth(itemWidth)
     end
-
-
-    for index, item in pairs(self.serverItems) do
-        item:SetWidth(width - 22)
+    for index, item in pairs(self.serverItems or {}) do
+        item:SetWidth(itemWidth)
     end
-    for index, item in pairs(self.contenItems) do
-        item:SetWidth(width - 22)
+    for index, item in pairs(self.contenItems or {}) do
+        item:SetWidth(itemWidth)
     end
 
 end
 
 function Sidebar:ApplySettings()
 
-    local top = 1
-
-    -- todo
-    if _G.Settings.showCustomList == true then
-
-        self.frame2:SetPosition(1, top)
-        self.frame2:SetVisible(true)
-        self.background4:SetVisible(true)
-        self.customList:SetVisible(true)
-        top = top + 31
-
-    else
-
-        self.frame2:SetVisible(false)
-        self.background4:SetVisible(false)
-        self.customList:SetVisible(false)
-
-    end
-
-    -- content / character toggle
-    self.frame3:SetPosition(1, top)
-    self.frame4:SetTop(top)
-
-    top = top + 31
-
-    -- filter
-    self.background2:SetPosition(1, top)
-
-    -- clear button
-    self.clearBg:SetTop(top)
-
-    -- collapse button
-    self.background3:SetTop(top)
-    top = top + 21
-
-    -- select
-    self.itemView:SetPosition(1, top)
-
+    self.pinnedTab:SetVisible(_G.Settings.showCustomList == true)
     self:SizeChanged()
 
 end
 
 function Sidebar:ApplyLanguage()
 
-    self.customList:SetText(_G.L("customListBtn"))
-    self.content:SetText(_G.L("contentBtn"))
-    self.characters:SetText(_G.L("charactersBtn"))
+    self.pinnedTab.label:SetText(_G.L("pinnedBtn"))
+    self.contentTab.label:SetText(_G.L("contentBtn"))
+    self.charactersTab.label:SetText(_G.L("charactersBtn"))
+    self.placeholder:SetText(_G.L("searchPlaceholder"))
+    self.collapseLabel:SetText(_G.L("collapseAll"))
 
-    if self.filterText == "" then
-        self.filter:SetText(_G.L("searchPlaceholder"))
+end
+
+-- ------------------------------------------------------------------------------------------------
+
+-- one tab in the top row. iconPath is optional and sits at the left edge.
+function Sidebar:MakeTab(iconPath, onClick)
+
+    local tab = Turbine.UI.Control()
+    tab:SetParent(self.panel)
+    tab:SetHeight(TAB_H)
+    tab:SetMouseVisible(true)
+
+    local label = Turbine.UI.Label()
+    label:SetMultiline(false)
+    label:SetParent(tab)
+    label:SetHeight(TAB_H)
+    label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
+    label:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    label:SetFontStyle(_G.Theme.FONT_STYLE)
+    label:SetMouseVisible(false)
+
+    if iconPath ~= nil then
+        local icon = Turbine.UI.Control()
+        icon:SetParent(tab)
+        icon:SetSize(ICON, ICON)
+        icon:SetPosition(6, math.floor((TAB_H - ICON) / 2))
+        icon:SetBackground(iconPath)
+        icon:SetBlendMode(Turbine.UI.BlendMode.Overlay)
+        icon:SetMouseVisible(false)
+        label:SetPosition(ICON + 8, 0)
+        label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+        tab.icon = icon
     end
+
+    tab.label    = label
+    tab.selected = false
+    tab.dimmed   = false
+    tab.hovered  = false
+
+    function tab:ApplyState()
+        if self.selected then
+            self:SetBackColor(_G.Theme.SEL_BG)
+            self.label:SetForeColor(_G.Theme.ACCENT)
+        elseif self.hovered then
+            self:SetBackColor(_G.Theme.FRAME)
+            self.label:SetForeColor(_G.Theme.TEXT)
+        elseif self.dimmed then
+            self:SetBackColor(_G.Theme.SECTION)
+            self.label:SetForeColor(_G.Theme.TEXT)
+        else
+            self:SetBackColor(_G.Theme.SECTION)
+            self.label:SetForeColor(_G.Theme.DIM2)
+        end
+    end
+
+    tab.MouseEnter = function() tab.hovered = true  tab:ApplyState() end
+    tab.MouseLeave = function() tab.hovered = false tab:ApplyState() end
+    tab.MouseClick = onClick
+    tab:ApplyState()
+
+    return tab
 
 end
 
 function Sidebar:Build()
 
-    -- base background: warm dark brown outer ring
-	self:SetBackColor(_G.Theme.OUTER)
+    -- 1px border, sunken panel inside it
+    self:SetBackColor(_G.Theme.FRAME)
 
-    self.background1 = Turbine.UI.Control()
-    self.background1:SetParent(self)
-    self.background1:SetBackColor(_G.Theme.BG)
-    self.background1:SetPosition(5, 5)
+    self.panel = Turbine.UI.Control()
+    self.panel:SetParent(self)
+    self.panel:SetPosition(BORDER, BORDER)
+    self.panel:SetBackColor(_G.Theme.PANEL)
 
-    self.frame1 = Turbine.UI.Control()
-    self.frame1:SetParent(self.background1)
-    self.frame1:SetBackColor(_G.Theme.FRAME)
-    self.frame1:SetPosition(5, 5)
+    -- tab row: Content | Characters | Pinned ----------------------------------------------------
+    self.contentTab = self:MakeTab(nil, function()
+        self:UpdateSelection(false, true, false)
+    end)
+    self.contentTab.label:SetText(_G.L("contentBtn"))
 
-    -- todo row
-    self.frame2 = Turbine.UI.Control()
-    self.frame2:SetParent(self.frame1)
-    self.frame2:SetBackColor(_G.Theme.BG)
-    self.frame2:SetHeight(30)
+    self.charactersTab = self:MakeTab(nil, function()
+        self:UpdateSelection(false, false, true)
+    end)
+    self.charactersTab.label:SetText(_G.L("charactersBtn"))
 
-    self.background4 = Turbine.UI.Control()
-    self.background4:SetParent(self.frame2)
-    self.background4:SetBackColor(_G.Theme.BG)
-    self.background4:SetPosition(1, 1)
-    self.background4:SetHeight(28)
-    self.background4.MouseEnter = function ()
-        self.customListHover = true
-        self.frame2:SetBackColor(_G.Theme.HOVER)
-    end
-    self.background4.MouseLeave = function ()
-        self.customListHover = false
-        self.frame2:SetBackColor(_G.Theme.BG)
-    end
-    self.background4.MouseDown = function ()
-        self.background4:SetBackColor(_G.Theme.PRESS)
-    end
-    self.background4.MouseUp = function ()
-        self.background4:SetBackColor(_G.Theme.BG)
-        if self.customListHover then
-            self:UpdateSelection(true, false, false)
-        end
-    end
+    self.pinnedTab = self:MakeTab("LootLogs/Ressources/star_fill.tga", function()
+        self:UpdateSelection(true, false, false)
+    end)
+    self.pinnedTab.label:SetText(_G.L("pinnedBtn"))
 
-    self.customList = Turbine.UI.Label()
-    self.customList:SetParent(self.background4)
-    self.customList:SetHeight(28)
-    self.customList:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
-    self.customList:SetFont(Turbine.UI.Lotro.Font.Verdana16)
-    self.customList:SetFontStyle(_G.Theme.FONT_STYLE)
-    self.customList:SetText(_G.L("customListBtn"))
-    self.customList:SetMouseVisible(false)
-    self.customList:SetForeColor(_G.Theme.DIM2)
+    -- search row --------------------------------------------------------------------------------
+    self.searchFrame = Turbine.UI.Control()
+    self.searchFrame:SetParent(self.panel)
+    self.searchFrame:SetBackColor(_G.Theme.FRAME)
 
-    -- content / characters row
-    self.frame3 = Turbine.UI.Control()
-    self.frame3:SetParent(self.frame1)
-    self.frame3:SetBackColor(_G.Theme.BG)
-    self.frame3:SetHeight(30)
+    self.searchBg = Turbine.UI.Control()
+    self.searchBg:SetParent(self.searchFrame)
+    self.searchBg:SetPosition(BORDER, BORDER)
+    self.searchBg:SetBackColor(_G.Theme.BG)
 
-    self.background5 = Turbine.UI.Control()
-    self.background5:SetParent(self.frame3)
-    self.background5:SetBackColor(_G.Theme.BG)
-    self.background5:SetPosition(1, 1)
-    self.background5:SetHeight(28)
-    self.background5.MouseEnter = function ()
-        self.contentHover = true
-        self.frame3:SetBackColor(_G.Theme.HOVER)
-    end
-    self.background5.MouseLeave = function ()
-        self.contentHover = false
-        self.frame3:SetBackColor(_G.Theme.BG)
-    end
-    self.background5.MouseDown = function ()
-        self.background5:SetBackColor(_G.Theme.PRESS)
-    end
-    self.background5.MouseUp = function ()
-        self.background5:SetBackColor(_G.Theme.BG)
-        if self.contentHover then
-            self:UpdateSelection(false, true, false)
-        end
-    end
-
-    self.content = Turbine.UI.Label()
-    self.content:SetParent(self.background5)
-    self.content:SetHeight(28)
-    self.content:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
-    self.content:SetFont(Turbine.UI.Lotro.Font.Verdana16)
-    self.content:SetText(_G.L("contentBtn"))
-    self.content:SetMouseVisible(false)
-    self.content:SetFontStyle(_G.Theme.FONT_STYLE)
-    self.content:SetForeColor(_G.Theme.DIM2)
-
-    self.frame4 = Turbine.UI.Control()
-    self.frame4:SetParent(self.frame1)
-    self.frame4:SetBackColor(_G.Theme.BG)
-    self.frame4:SetHeight(30)
-
-    self.background6 = Turbine.UI.Control()
-    self.background6:SetParent(self.frame4)
-    self.background6:SetBackColor(_G.Theme.BG)
-    self.background6:SetPosition(1, 1)
-    self.background6:SetHeight(28)
-    self.background6.MouseEnter = function ()
-        self.characterHover = true
-        self.frame4:SetBackColor(_G.Theme.HOVER)
-    end
-    self.background6.MouseLeave = function ()
-        self.characterHover = false
-        self.frame4:SetBackColor(_G.Theme.BG)
-    end
-    self.background6.MouseDown = function ()
-        self.background6:SetBackColor(_G.Theme.PRESS)
-    end
-    self.background6.MouseUp = function ()
-        self.background6:SetBackColor(_G.Theme.BG)
-        if self.characterHover then
-            self:UpdateSelection(false, false, true)
-        end
-    end
-
-    self.characters = Turbine.UI.Label()
-    self.characters:SetParent(self.background6)
-    self.characters:SetHeight(28)
-    self.characters:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
-    self.characters:SetFont(Turbine.UI.Lotro.Font.Verdana16)
-    self.characters:SetText(_G.L("charactersBtn"))
-    self.characters:SetMouseVisible(false)
-    self.characters:SetFontStyle(_G.Theme.FONT_STYLE)
-    self.characters:SetForeColor(_G.Theme.DIM2)
-
-    -- filter / collapse row
-    self.background2 = Turbine.UI.Control()
-    self.background2:SetParent(self.frame1)
-    self.background2:SetBackColor(_G.Theme.PANEL)
-    self.background2:SetHeight(20)
+    self.searchIcon = Turbine.UI.Control()
+    self.searchIcon:SetParent(self.searchBg)
+    self.searchIcon:SetSize(ICON, ICON)
+    self.searchIcon:SetPosition(3, math.floor((SEARCH_H - 2 * BORDER - ICON) / 2))
+    self.searchIcon:SetBackground("LootLogs/Ressources/search.tga")
+    self.searchIcon:SetBlendMode(Turbine.UI.BlendMode.Overlay)
+    self.searchIcon:SetMouseVisible(false)
 
     self.filter = Turbine.UI.TextBox()
-    self.filter:SetParent(self.background2)
-    self.filter:SetHeight(20)
+    self.filter:SetParent(self.searchBg)
+    self.filter:SetHeight(SEARCH_H - 2 * BORDER - 2)
     self.filter:SetFont(Turbine.UI.Lotro.Font.Verdana12)
     self.filter:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     self.filter:SetMultiline(false)
-    self.filter:SetBackColor(_G.Theme.PANEL)
-    self.filter:SetForeColor(_G.Theme.DIM2)
-    self.filter:SetText(_G.L("searchPlaceholder"))
+    self.filter:SetBackColor(_G.Theme.BG)
+    self.filter:SetForeColor(_G.Theme.TEXT)
+    self.filter:SetText("")
+
+    -- a real placeholder rather than seeding the field with its own prompt text,
+    -- which the old sidebar then had to filter back out of every search
+    self.placeholder = Turbine.UI.Label()
+    self.placeholder:SetMultiline(false)
+    self.placeholder:SetParent(self.searchBg)
+    self.placeholder:SetHeight(SEARCH_H - 2 * BORDER)
+    self.placeholder:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+    self.placeholder:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    self.placeholder:SetFontStyle(_G.Theme.FONT_STYLE)
+    self.placeholder:SetForeColor(_G.Theme.DIM)
+    self.placeholder:SetText(_G.L("searchPlaceholder"))
+    self.placeholder:SetMouseVisible(false)
+
     self.filter.FocusGained = function()
-        if self.filter:GetText() == _G.L("searchPlaceholder") then
-            self.filter:SetText("")
-        end
+        self.filterFocused = true
+        self:RefreshSearchRow()
     end
     self.filter.FocusLost = function()
-        if self.filter:GetText() == "" then
-            self.filter:SetText(_G.L("searchPlaceholder"))
-            self:ApplyFilter("")
-        end
+        self.filterFocused = false
+        self:RefreshSearchRow()
     end
     self.filter.TextChanged = function()
-        local text = self.filter:GetText()
-        if text == _G.L("searchPlaceholder") then text = "" end
-        self:ApplyFilter(text)
+        self:ApplyFilter(self.filter:GetText())
+        self:RefreshSearchRow()
     end
 
-    -- clear search button
-    self.clearBg = Turbine.UI.Control()
-    self.clearBg:SetParent(self.frame1)
-    self.clearBg:SetSize(20, 20)
-    self.clearBg:SetBackColor(_G.Theme.PANEL)
-
-    local clearHover = false
-    self.clearBg.MouseEnter = function()
-        clearHover = true
-        self.clearBg:SetBackColor(_G.Theme.PRESS)
-        self.clearLabel:SetForeColor(_G.Theme.TEXT)
-    end
-    self.clearBg.MouseLeave = function()
-        clearHover = false
-        self.clearBg:SetBackColor(_G.Theme.PANEL)
-        self.clearLabel:SetForeColor(_G.Theme.DIM2)
-    end
-    self.clearBg.MouseDown = function()
-        self.clearBg:SetBackColor(_G.Theme.SEL_BG)
-    end
-    self.clearBg.MouseUp = function()
-        self.clearBg:SetBackColor(_G.Theme.PANEL)
-        if clearHover then
-            self.filter:SetText(_G.L("searchPlaceholder"))
-            self:ApplyFilter("")
-        end
+    -- clear button, only while there is text
+    self.clearBtn = Turbine.UI.Control()
+    self.clearBtn:SetParent(self.searchBg)
+    self.clearBtn:SetSize(ICON, ICON)
+    self.clearBtn:SetBackground("LootLogs/Ressources/cross.tga")
+    self.clearBtn:SetBlendMode(Turbine.UI.BlendMode.Overlay)
+    self.clearBtn:SetVisible(false)
+    self.clearBtn.MouseClick = function()
+        self:ClearFilter()
     end
 
-    self.clearLabel = Turbine.UI.Label()
-    self.clearLabel:SetParent(self.clearBg)
-    self.clearLabel:SetSize(20, 20)
-    self.clearLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
-    self.clearLabel:SetFont(Turbine.UI.Lotro.Font.Verdana16)
-    self.clearLabel:SetFontStyle(_G.Theme.FONT_STYLE)
-    self.clearLabel:SetText("X")
-    self.clearLabel:SetMouseVisible(false)
-    self.clearLabel:SetForeColor(_G.Theme.DIM2)
+    -- collapse all, at the right edge of the same field
+    self.collapseBtn = Turbine.UI.Control()
+    self.collapseBtn:SetParent(self.searchBg)
+    self.collapseBtn:SetMouseVisible(true)
 
-    self.background3 = Turbine.UI.Control()
-    self.background3:SetParent(self.frame1)
-    self.background3:SetBackColor(_G.Theme.BG)
-    self.background3:SetBackground("LootLogs/Ressources/collaps.tga")
-    self.background3:SetBlendMode(Turbine.UI.BlendMode.Multiplys)
-    self.background3:SetSize(20, 20)
-    self.background3.MouseEnter = function ()
+    self.collapseLabel = Turbine.UI.Label()
+    self.collapseLabel:SetMultiline(false)
+    self.collapseLabel:SetParent(self.collapseBtn)
+    self.collapseLabel:SetPosition(0, 0)
+    self.collapseLabel:SetHeight(SEARCH_H - 2 * BORDER)
+    self.collapseLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
+    self.collapseLabel:SetFont(Turbine.UI.Lotro.Font.Verdana10)
+    self.collapseLabel:SetFontStyle(_G.Theme.FONT_STYLE)
+    self.collapseLabel:SetForeColor(_G.Theme.DIM)
+    self.collapseLabel:SetText(_G.L("collapseAll"))
+    self.collapseLabel:SetMouseVisible(false)
+
+    self.collapseIcon = Turbine.UI.Control()
+    self.collapseIcon:SetParent(self.collapseBtn)
+    self.collapseIcon:SetSize(ICON, ICON)
+    self.collapseIcon:SetTop(math.floor((SEARCH_H - 2 * BORDER - ICON) / 2))
+    self.collapseIcon:SetBackground("LootLogs/Ressources/collaps.tga")
+    self.collapseIcon:SetBlendMode(Turbine.UI.BlendMode.Overlay)
+    self.collapseIcon:SetMouseVisible(false)
+
+    self.collapseBtn.MouseEnter = function()
         self.collapseHover = true
-        self.background3:SetBackColor(_G.Theme.PRESS)
+        self.collapseLabel:SetForeColor(_G.Theme.TEXT)
     end
-    self.background3.MouseLeave = function ()
+    self.collapseBtn.MouseLeave = function()
         self.collapseHover = false
-        self.background3:SetBackColor(_G.Theme.BG)
+        self.collapseLabel:SetForeColor(_G.Theme.DIM)
     end
-    self.background3.MouseDown = function ()
-        self.background3:SetBackColor(_G.Theme.SEL_BG)
-    end
-    self.background3.MouseUp = function ()
-        if self.collapseHover then
-            self.background3:SetBackColor(_G.Theme.PRESS)
-            self:CollapseAll()
-        end
+    self.collapseBtn.MouseClick = function()
+        self:CollapseAll()
     end
 
-    self.collapsIcon = Turbine.UI.Control()
-    self.collapsIcon:SetParent(self.background3)
-    self.collapsIcon:SetBackground("LootLogs/Ressources/collaps.tga")
-    self.collapsIcon:SetBlendMode(Turbine.UI.BlendMode.Overlay)
-    self.collapsIcon:SetPosition(-2, -2)
-    self.collapsIcon:SetSize(20, 20)
-    self.collapsIcon:SetMouseVisible(false)
-
+    -- list --------------------------------------------------------------------------------------
     self.itemView = Turbine.UI.ListBox()
-    self.itemView:SetParent(self.frame1)
+    self.itemView:SetParent(self.panel)
     self.itemView:SetBackColor(_G.Theme.PANEL)
 
     self.itemScrollbar = Turbine.UI.Lotro.ScrollBar()

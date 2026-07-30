@@ -1,4 +1,20 @@
 
+-- One character row in the Characters tab: class portrait, name, level, and the
+-- CURRENT tag on whoever is logged in.
+--
+-- The class icon is drawn at its native 20x20: Turbine clips a background instead of
+-- scaling it, and stretching inside a ListBox that has a scrollbar draws the image
+-- outside the list.
+
+local ROW_H     = 28
+local INDENT    = 20
+local PAD_RIGHT = 10
+local MARK_W    = 2
+local PORTRAIT  = 20
+local TAG_W     = 54
+local TAG_H     = 14
+local LEVEL_W   = 42
+
 CharacterItem = class(Turbine.UI.Control)
 function CharacterItem:Constructor(id, character, sidebar)
 	Turbine.UI.Control.Constructor( self )
@@ -8,23 +24,44 @@ function CharacterItem:Constructor(id, character, sidebar)
     self.name      = character.name
     self.sidebar   = sidebar
     self.hover     = false
+    self.selected  = false
+    self.isCurrent = (id == _G.characterId)
 
     self:Build()
-    self:ApplySettings()
+    self:ApplyState()
 
 end
 
 function CharacterItem:SetSelected(value)
 
-    if value then
-        self.background1:SetBackColor(_G.Theme.SEL_BG)
-        self.nameLabel:SetForeColor(_G.Theme.ACCENT)
-        self.levelLabel:SetForeColor(_G.Theme.TEXT)
-    else
-        self.background1:SetBackColor(_G.Theme.BG)
-        self.nameLabel:SetForeColor(_G.Theme.TEXT)
-        self.levelLabel:SetForeColor(_G.Theme.DIM)
+    self.selected = value
+    self:ApplyState()
+
+end
+
+function CharacterItem:ApplyState()
+
+    self.mark:SetVisible(self.selected)
+
+    local ground = _G.Theme.PANEL
+    if self.selected then
+        ground = _G.Theme.SEL_BG
+    elseif self.hover then
+        ground = _G.Theme.SECTION
     end
+
+    self.row:SetBackColor(ground)
+    -- the tag is an outline, so its middle has to follow the row
+    self.tagBg:SetBackColor(ground)
+
+    -- the logged-in character stays marked whether or not it is the selected one
+    if self.isCurrent or self.selected then
+        self.nameLabel:SetForeColor(_G.Theme.ACCENT)
+    else
+        self.nameLabel:SetForeColor(_G.Theme.TEXT)
+    end
+
+    self.levelLabel:SetForeColor(self.selected and _G.Theme.DIM2 or _G.Theme.DIM)
 
 end
 
@@ -34,14 +71,28 @@ end
 
 function CharacterItem:SizeChanged()
 
-    if not self.frame1 then return end
-    local width = self:GetWidth()
+    if self.row == nil then return end
 
-    self.frame1:SetWidth(width - 24)
-    self.background1:SetWidth(width - 26)
-    self.nameLabel:SetWidth(width - 108)
-    self.levelLabel:SetLeft(width - 74)
-    self.levelLabel:SetWidth(44)
+    local width = self:GetWidth()
+    if width <= 0 then return end
+
+    self.row:SetSize(width, ROW_H)
+    self.mark:SetSize(MARK_W, ROW_H)
+
+    local right = width - PAD_RIGHT
+
+    self.levelLabel:SetLeft(right - LEVEL_W)
+    self.levelLabel:SetWidth(LEVEL_W)
+    right = right - LEVEL_W - 6
+
+    if self.isCurrent then
+        self.tagFrame:SetLeft(right - TAG_W)
+        right = right - TAG_W - 6
+    end
+
+    local nameLeft = INDENT + PORTRAIT + 8
+    self.nameLabel:SetLeft(nameLeft)
+    self.nameLabel:SetWidth(math.max(0, right - nameLeft))
 
 end
 
@@ -50,62 +101,96 @@ function CharacterItem:ApplySettings() end
 function CharacterItem:Build()
 
     self:SetMouseVisible(false)
-    self:SetHeight(44)
+    self:SetHeight(ROW_H)
 
-    self.frame1 = Turbine.UI.Control()
-    self.frame1:SetPosition(12, 3)
-    self.frame1:SetParent(self)
-    self.frame1:SetBackColor(_G.Theme.FRAME)
-    self.frame1:SetHeight(38)
-
-    self.background1 = Turbine.UI.Control()
-    self.background1:SetPosition(1, 1)
-    self.background1:SetParent(self.frame1)
-    self.background1:SetBackColor(_G.Theme.BG)
-    self.background1:SetHeight(36)
-    self.background1.MouseEnter = function()
+    self.row = Turbine.UI.Control()
+    self.row:SetParent(self)
+    self.row:SetPosition(0, 0)
+    self.row:SetHeight(ROW_H)
+    self.row:SetBackColor(_G.Theme.PANEL)
+    self.row.MouseEnter = function()
         self.hover = true
-        self.frame1:SetBackColor(_G.Theme.HOVER)
+        self:ApplyState()
     end
-    self.background1.MouseLeave = function()
+    self.row.MouseLeave = function()
         self.hover = false
-        self.frame1:SetBackColor(_G.Theme.FRAME)
+        self:ApplyState()
     end
-    self.background1.MouseDown = function()
-        self.background1:SetBackColor(_G.Theme.PRESS)
-    end
-    self.background1.MouseUp = function()
-        self.background1:SetBackColor(_G.Theme.BG)
-        if self.hover then self:Clicked() end
+    self.row.MouseClick = function()
+        self:Clicked()
     end
 
-    self.classIcon = Turbine.UI.Control()
-    self.classIcon:SetParent(self.background1)
-    self.classIcon:SetPosition(4, 8)
-    self.classIcon:SetSize(20, 20)
-    self.classIcon:SetBlendMode(Turbine.UI.BlendMode.Overlay)
-    self.classIcon:SetBackground(_G.ClassIcons[self.character.class])
+    self.mark = Turbine.UI.Control()
+    self.mark:SetParent(self.row)
+    self.mark:SetPosition(0, 0)
+    self.mark:SetSize(MARK_W, ROW_H)
+    self.mark:SetBackColor(_G.Theme.ACCENT)
+    self.mark:SetVisible(false)
+    self.mark:SetMouseVisible(false)
+
+    -- no frame around the portrait: the class icon is round, so a square ring reads as a
+    -- box behind it. Marking the current character is left to the name colour and the tag.
+    self.portrait = Turbine.UI.Control()
+    self.portrait:SetParent(self.row)
+    self.portrait:SetPosition(INDENT, math.floor((ROW_H - PORTRAIT) / 2))
+    self.portrait:SetSize(PORTRAIT, PORTRAIT)
+    self.portrait:SetMouseVisible(false)
+    -- AlphaBlend, not Overlay: Overlay is for the white glyph .tga files and renders a
+    -- full-colour game icon invisible against the dark panel
+    self.portrait:SetBlendMode(Turbine.UI.BlendMode.AlphaBlend)
+    if _G.ClassIcons[self.character.class] ~= nil then
+        self.portrait:SetBackground(_G.ClassIcons[self.character.class])
+    end
 
     self.nameLabel = Turbine.UI.Label()
-    self.nameLabel:SetParent(self.background1)
-    self.nameLabel:SetHeight(36)
-    self.nameLabel:SetLeft(30)
+    self.nameLabel:SetMultiline(false)
+    self.nameLabel:SetParent(self.row)
+    self.nameLabel:SetTop(0)
+    self.nameLabel:SetHeight(ROW_H)
     self.nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     self.nameLabel:SetFontStyle(_G.Theme.FONT_STYLE)
-    self.nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana16)
-    self.nameLabel:SetMultiline(true)
+    self.nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
     self.nameLabel:SetText(self.name)
-    self.nameLabel:SetMouseVisible(false)
     self.nameLabel:SetForeColor(_G.Theme.TEXT)
+    self.nameLabel:SetMouseVisible(false)
+
+    -- CURRENT tag
+    self.tagFrame = Turbine.UI.Control()
+    self.tagFrame:SetParent(self.row)
+    self.tagFrame:SetTop(math.floor((ROW_H - TAG_H) / 2))
+    self.tagFrame:SetSize(TAG_W, TAG_H)
+    self.tagFrame:SetBackColor(_G.Theme.ACCENT)
+    self.tagFrame:SetVisible(self.isCurrent)
+    self.tagFrame:SetMouseVisible(false)
+
+    self.tagBg = Turbine.UI.Control()
+    self.tagBg:SetParent(self.tagFrame)
+    self.tagBg:SetPosition(1, 1)
+    self.tagBg:SetSize(TAG_W - 2, TAG_H - 2)
+    self.tagBg:SetBackColor(_G.Theme.PANEL)
+    self.tagBg:SetMouseVisible(false)
+
+    self.tagLabel = Turbine.UI.Label()
+    self.tagLabel:SetMultiline(false)
+    self.tagLabel:SetParent(self.tagBg)
+    self.tagLabel:SetSize(TAG_W - 2, TAG_H - 2)
+    self.tagLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
+    self.tagLabel:SetFont(Turbine.UI.Lotro.Font.Verdana10)
+    self.tagLabel:SetFontStyle(_G.Theme.FONT_STYLE)
+    self.tagLabel:SetForeColor(_G.Theme.ACCENT)
+    self.tagLabel:SetText(_G.L("currentTag"))
+    self.tagLabel:SetMouseVisible(false)
 
     self.levelLabel = Turbine.UI.Label()
-    self.levelLabel:SetParent(self.background1)
-    self.levelLabel:SetHeight(36)
+    self.levelLabel:SetMultiline(false)
+    self.levelLabel:SetParent(self.row)
+    self.levelLabel:SetTop(0)
+    self.levelLabel:SetHeight(ROW_H)
     self.levelLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
     self.levelLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     self.levelLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
-    self.levelLabel:SetText(self.character.level and ("Lv." .. self.character.level) or "")
-    self.levelLabel:SetMouseVisible(false)
+    self.levelLabel:SetText(self.character.level and ("Lv " .. self.character.level) or "")
     self.levelLabel:SetForeColor(_G.Theme.DIM)
+    self.levelLabel:SetMouseVisible(false)
 
 end

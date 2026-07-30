@@ -1,5 +1,39 @@
 # Changelog
 
+Versions are `3.<lotro update>.<release>`. The leading 3 is fixed, the middle number is the LOTRO
+content update the build targets, and the last number counts fixes and changes within it.
+
+## [3.49.0] - 2026-07-30
+
+### Added
+- Each instance in the sidebar now shows a row of small squares, one per tier, telling you at a glance where the character you're playing still has runs left
+- Boss names are always visible as column headers instead of appearing only when you hover a value; hover a name to see it in full
+- Values are now coloured chips — "2 common", "1 favour", a tick for done — with a legend along the bottom explaining them
+- Tier rows say when they reset in plain words, like "weekly · Thu 03:00"
+- The character you're logged in as is marked everywhere: a CURRENT tag in the sidebar and a highlighted name in every table
+- Reset countdowns turn amber in their last three days
+- Trackers that carry over instead of resetting when you don't finish them are now marked
+- Instances in a content pack, and packs and instances in the character view, can be collapsed; a collapsed instance shows a one-line summary with its next reset
+- Settings can now clear the logs of the character you're playing
+
+### Changed
+- The window has been redrawn from scratch: its own slim frame, a compact title bar, and panels that match across every view
+- The settings gear and the quickslot moved into the title bar, and the footer bar and its clock are gone
+- Custom List is now called Pinned and shares a single row of tabs with Content and Characters
+- Searching expands matching groups on its own and shows how many matches each one holds
+- Instances with five or more chests switch to a narrower table with short codes so every chest still fits
+- Locked and done are now the same chip — you can't run either, so they no longer look different
+- Instances you've never touched sink to the bottom of a content pack instead of sitting in the middle
+- Settings is laid out in two columns, and every theme has its own row with a colour preview
+- The Rivendell theme was recoloured to match the Gibberish options panel
+- The character buttons now read "clear logs" and "delete" instead of "clr" and "del"
+- All icons redrawn
+
+### Fixed
+- The Print Alerts setting did nothing at all — switching it off now genuinely stops the alerts, and the setting is no longer labelled with its internal name
+- Class icons were invisible and cut off; they now show properly in the sidebar and in every header
+- Long boss names no longer run over each other in the column headers
+
 ## [3.0.13] - 2026-07-27
 
 ### Changed

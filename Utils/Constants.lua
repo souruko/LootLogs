@@ -5,6 +5,17 @@
 --=================================================================================================
 
 
+-- The separator the design uses between meta fields: "Corsairs of Umbar - Lv 150 - 3
+-- chests". Written as its UTF-8 bytes so the source encoding cannot change it. If the
+-- game font ever fails to draw it, this is the one line to change.
+_G.Sep = " \194\183 "
+
+-- Shown in the title bar. Versioning is 3.<lotro update>.<release>: the leading 3 is
+-- fixed, the middle number is the LOTRO content update this build targets, and the last
+-- counts fixes and changes within it. Keep in step with LootLogs.plugin and
+-- LootLogs.plugincompendium when releasing.
+_G.LootLogsVersion = "3.49.0"
+
 _G.localPlayer = Turbine.Gameplay.LocalPlayer.GetInstance()
 _G.name = _G.localPlayer:GetName()
 _G.characterId = nil

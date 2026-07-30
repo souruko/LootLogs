@@ -26,6 +26,7 @@ function _G.QuickLaunch:Constructor()
     self.badge:SetZOrder(1)
 
     self.badgeLabel = Turbine.UI.Label()
+    self.badgeLabel:SetMultiline(false)
     self.badgeLabel:SetParent(self.badge)
     self.badgeLabel:SetPosition(0, 0)
     self.badgeLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)

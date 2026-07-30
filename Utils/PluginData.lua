@@ -92,7 +92,7 @@ end
 -- structure
 -- 
 -- timezone
--- _G.PrintAlerts
+-- printAlerts
 -- printWelcome
 -- useCustomList
 -- showServers
@@ -144,7 +144,7 @@ end
 if _G.Settings == nil then
     _G.Settings = {}
     _G.Settings.timezone = 1
-    _G.Settings.PrintAlerts = true
+    _G.Settings.printAlerts = true
     _G.Settings.printWelcome = true
     _G.Settings.showCustomList = true
     _G.Settings.showServers = true
@@ -196,6 +196,26 @@ end
 
 if _G.Settings.colorTheme == nil then
     _G.Settings.colorTheme = "moria"
+end
+
+-- the alerts toggle used to write printAlerts while the check read PrintAlerts, so the
+-- setting never did anything; keep whichever value was actually stored
+if _G.Settings.printAlerts == nil then
+    _G.Settings.printAlerts = (_G.Settings.PrintAlerts ~= false)
+end
+_G.Settings.PrintAlerts = nil
+
+-- collapse state of each instance block in the content pack view
+if _G.Settings.packInstances == nil then
+    _G.Settings.packInstances = {}
+end
+
+-- collapse state of the pack and instance groups in the character view
+if _G.Settings.charPacks == nil then
+    _G.Settings.charPacks = {}
+end
+if _G.Settings.charInstances == nil then
+    _G.Settings.charInstances = {}
 end
 
 if _G.Settings.showBadge == nil then

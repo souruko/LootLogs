@@ -7,13 +7,232 @@
 
 function _G.PrintAlert(text)
     
-    if _G.Settings.PrintAlerts == false then
+    if _G.Settings.printAlerts == false then
         return
     end
 
     Turbine.Shell.WriteLine(text)
 
 end
+
+-- Turbine has no letter-spacing, so the uppercase labels in the design fake it by putting a
+-- space between characters. Splits on UTF-8 boundaries so localised labels survive.
+function _G.Spaced(text)
+
+    local chars = {}
+    for char in string.gmatch(text, "[\1-\127\194-\244][\128-\191]*") do
+        chars[#chars + 1] = char
+    end
+
+    return table.concat(chars, " ")
+
+end
+
+-- string.upper only touches ASCII, which leaves "Carn Dum" style names half-cased in the
+-- uppercase group headers. This also covers the Latin-1 supplement, so the German and
+-- French strings survive too.
+function _G.Upper(text)
+
+    local out = string.upper(text)
+
+    out = string.gsub(out, "\195([\160-\190])", function(char)
+        local byte = string.byte(char)
+        if byte == 183 then return "\195" .. char end   -- division sign, not a letter
+        return "\195" .. string.char(byte - 32)
+    end)
+
+    return out
+
+end
+
+-- Turbine cannot measure a label and does not clip an oversized one either, so a name
+-- wider than its column simply runs over its neighbours. Cut it to fit from an average
+-- glyph width instead; the full text is still reachable on hover.
+function _G.Truncate(text, pixels, charWidth)
+
+    if text == nil or text == "" then return "" end
+    if pixels == nil or pixels <= 0 then return "" end
+
+    local chars = {}
+    for char in string.gmatch(text, "[\1-\127\194-\244][\128-\191]*") do
+        chars[#chars + 1] = char
+    end
+
+    local fits = math.floor(pixels / (charWidth or 6.2))
+    if #chars <= fits then return text end
+    if fits < 3 then return "" end
+
+    return table.concat(chars, "", 1, fits - 2) .. ".."
+
+end
+
+-- rough average glyph widths for the Verdana sizes the plugin uses
+_G.CharWidth = { [10] = 5.4, [12] = 6.4, [14] = 7.6, [16] = 8.6 }
+
+-- A colour between two theme roles. Turbine has no gradients, so the fading section
+-- rules in the settings panel are drawn as a few segments stepped with this.
+function _G.MixColor(roleA, roleB, t)
+
+    local theme = _G.Themes[_G.Settings.colorTheme or "moria"]
+    local a = theme and theme[roleA]
+    local b = theme and theme[roleB]
+    if a == nil or b == nil then return _G.Theme[roleA] end
+
+    return Turbine.UI.Color(
+        a[1] + (b[1] - a[1]) * t,
+        a[2] + (b[2] - a[2]) * t,
+        a[3] + (b[3] - a[3]) * t)
+
+end
+
+-- per-tier squares -------------------------------------------------------------------------------
+
+_G.TierSquare     = 6
+_G.TierSquareGap  = 3
+_G.TierSquareMax  = 5
+
+-- Summarises one character's logs for one instance, one entry per tier, lowest tier first.
+-- Each entry is "done", "used" or "empty", taken from the least progressed boss in that tier:
+-- all bosses done or locked -> done, any boss partly used -> used, any boss with nothing
+-- recorded -> empty. Returns nil when the character has nothing recorded for the instance at
+-- all, which is how the sidebar knows to draw no bar.
+function _G.InstanceTierStates(instanceId, characterId)
+
+    local character = characterId ~= nil and _G.Logs[characterId] or nil
+    if character == nil or character.logs == nil then return nil end
+
+    -- gather the tiers of this instance, and the boss buckets within each tier
+    local tiers = {}
+    for eventIndex, event in pairs(_G.Events) do
+        if event.instance == instanceId then
+            local tierName = tostring(event.tier)
+            if tiers[tierName] == nil then
+                tiers[tierName] = {
+                    name   = tierName,
+                    order  = (_G.TierOrder and _G.TierOrder[tierName]) or 99,
+                    bosses = {},
+                }
+            end
+            local bossOrder = event.order or 99
+            if tiers[tierName].bosses[bossOrder] == nil then
+                tiers[tierName].bosses[bossOrder] = {}
+            end
+            local indices = tiers[tierName].bosses[bossOrder]
+            indices[#indices + 1] = eventIndex
+        end
+    end
+
+    local ordered = {}
+    for _, tier in pairs(tiers) do ordered[#ordered + 1] = tier end
+    table.sort(ordered, function(a, b)
+        if a.order ~= b.order then return a.order < b.order end
+        return a.name < b.name
+    end)
+
+    local all = {}
+
+    for _, tier in ipairs(ordered) do
+
+        -- start at the most progressed state and let every boss drag it down
+        local state    = "done"
+        local hasEntry = false
+
+        for _, indices in pairs(tier.bosses) do
+            local entry = nil
+            for _, eventIndex in ipairs(indices) do
+                if character.logs[eventIndex] ~= nil then
+                    entry = character.logs[eventIndex]
+                    break
+                end
+            end
+
+            if entry == nil then
+                state = "empty"
+            else
+                hasEntry = true
+                if entry.value ~= "Done" and entry.value ~= "Locked" and state ~= "empty" then
+                    state = "used"
+                end
+            end
+        end
+
+        all[#all + 1] = { state = state, hasEntry = hasEntry }
+    end
+
+    -- More tiers than squares: ten instances carry Solo on top of T1-T5. The design
+    -- puts T1 leftmost, so it is the bottom of the ladder that gets dropped, not the
+    -- top tier the player cares most about.
+    local first = math.max(1, #all - _G.TierSquareMax + 1)
+
+    local states = {}
+    local hasAny = false
+    for index = first, #all do
+        states[#states + 1] = all[index].state
+        hasAny = hasAny or all[index].hasEntry
+    end
+
+    if not hasAny then return nil end
+
+    return states
+
+end
+
+function _G.InstanceIsPinned(instanceId)
+
+    local tiers = _G.CustomList and _G.CustomList[instanceId]
+    if tiers == nil then return false end
+
+    for _, pinned in pairs(tiers) do
+        if pinned == true then return true end
+    end
+
+    return false
+
+end
+
+-- One square: 1px border, filled unless the tier is untouched. `ground` is the colour behind
+-- the square, which an empty square shows through its own middle.
+function _G.MakeTierSquare(parent)
+
+    local square = Turbine.UI.Control()
+    square:SetParent(parent)
+    square:SetSize(_G.TierSquare, _G.TierSquare)
+    square:SetMouseVisible(false)
+
+    square.fill = Turbine.UI.Control()
+    square.fill:SetParent(square)
+    square.fill:SetPosition(1, 1)
+    square.fill:SetSize(_G.TierSquare - 2, _G.TierSquare - 2)
+    square.fill:SetMouseVisible(false)
+
+    return square
+
+end
+
+function _G.SetTierSquareState(square, state, ground)
+
+    if state == "used" then
+        square:SetBackColor(_G.Theme.CHIP_USED_FRAME)
+        square.fill:SetBackColor(_G.Theme.CHIP_USED_TEXT)
+    elseif state == "done" then
+        square:SetBackColor(_G.Theme.CHIP_DONE_FRAME)
+        square.fill:SetBackColor(_G.Theme.CHIP_DONE_TEXT)
+    else
+        square:SetBackColor(_G.Theme.SQUARE_EMPTY)
+        square.fill:SetBackColor(ground or _G.Theme.PANEL)
+    end
+
+end
+
+-- width a bar of n squares occupies
+function _G.TierSquaresWidth(count)
+
+    if count == nil or count <= 0 then return 0 end
+    return count * _G.TierSquare + (count - 1) * _G.TierSquareGap
+
+end
+
+-- ------------------------------------------------------------------------------------------------
 
 function _G.TableContains(t, value)
     for i = 1, #t do

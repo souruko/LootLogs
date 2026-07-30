@@ -1,4 +1,16 @@
 
+-- settings panel geometry (docs/design/window-redesign/README.md, section 10)
+local BORDER     = 1
+local HEADER_H   = 44
+local PAD_X      = 14
+local COL_GAP    = 16
+local SECTION_H  = 26
+local RULE_STEPS = 6
+local CLOSE_SIZE = 22
+local THEME_H    = 26
+
+local THEME_MODES = { "moria", "lorien", "mordor", "rivendell", "rohan", "wulf", "misty" }
+
 Settings = class(Turbine.UI.Control)
 
 function Settings:Constructor()
@@ -14,33 +26,117 @@ end
 
 -- ------------------------------------------------------------------------------------------------
 
+-- the window, which is no longer our direct parent: PanelWindow puts content
+-- inside self.client and hangs a back-pointer off it
+function Settings:Window()
+
+    local parent = self:GetParent()
+    return parent ~= nil and parent.window or nil
+
+end
+
 function Settings:MakeSectionHeader(title)
 
     local row = Turbine.UI.Control()
-    row:SetHeight(26)
-    row:SetBackColor(_G.Theme.SECTION)
+    row:SetHeight(SECTION_H)
     row:SetMouseVisible(false)
 
-    local accent = Turbine.UI.Control()
-    accent:SetParent(row)
-    accent:SetPosition(0, 0)
-    accent:SetSize(3, 26)
-    accent:SetBackColor(_G.Theme.FRAME)
-    accent:SetMouseVisible(false)
-
     local label = Turbine.UI.Label()
+    label:SetMultiline(false)
     label:SetParent(row)
-    label:SetPosition(12, 0)
-    label:SetHeight(26)
+    label:SetPosition(0, 0)
+    label:SetHeight(SECTION_H - 1)
     label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    label:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    label:SetFont(Turbine.UI.Lotro.Font.Verdana10)
     label:SetFontStyle(_G.Theme.FONT_STYLE)
-    label:SetForeColor(_G.Theme.DIM)
-    label:SetText(string.upper(title))
+    label:SetForeColor(_G.Theme.DIM2)
+    label:SetText(_G.Upper(title))
     label:SetMouseVisible(false)
 
+    -- Turbine has no gradients, so the rule fades in steps from the frame colour into
+    -- the panel it sits on
+    local steps = {}
+    for index = 1, RULE_STEPS do
+        local segment = Turbine.UI.Control()
+        segment:SetParent(row)
+        segment:SetHeight(1)
+        segment:SetTop(SECTION_H - 1)
+        segment:SetBackColor(_G.MixColor("FRAME", "PANEL", (index - 1) / RULE_STEPS))
+        segment:SetMouseVisible(false)
+        steps[index] = segment
+    end
+
     row.SizeChanged = function()
-        label:SetWidth(row:GetWidth() - 12)
+        local width = row:GetWidth()
+        label:SetWidth(width)
+
+        local segmentWidth = math.floor(width / RULE_STEPS)
+        for index, segment in ipairs(steps) do
+            segment:SetLeft((index - 1) * segmentWidth)
+            segment:SetWidth(index == RULE_STEPS and (width - (index - 1) * segmentWidth)
+                                                 or  segmentWidth)
+        end
+    end
+
+    return row
+
+end
+
+-- ------------------------------------------------------------------------------------------------
+
+-- A plain full-width button row, used for the destructive action at the bottom.
+function Settings:MakeActionRow(text, destructive, onClick)
+
+    local row = Turbine.UI.Control()
+    row:SetHeight(34)
+    row:SetMouseVisible(false)
+
+    local frame = Turbine.UI.Control()
+    frame:SetParent(row)
+    frame:SetPosition(0, 6)
+    frame:SetHeight(22)
+    frame:SetBackColor(_G.Theme.FRAME)
+
+    local bg = Turbine.UI.Control()
+    bg:SetParent(frame)
+    bg:SetPosition(1, 1)
+    bg:SetHeight(20)
+    bg:SetBackColor(_G.Theme.BG)
+
+    local label = Turbine.UI.Label()
+    label:SetMultiline(false)
+    label:SetParent(bg)
+    label:SetPosition(0, 0)
+    label:SetHeight(20)
+    label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
+    label:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    label:SetFontStyle(_G.Theme.FONT_STYLE)
+    label:SetForeColor(destructive and _G.Theme.CHIP_USED_TEXT or _G.Theme.DIM2)
+    label:SetText(text)
+    label:SetMouseVisible(false)
+
+    local hover = false
+    bg.MouseEnter = function()
+        hover = true
+        frame:SetBackColor(_G.Theme.HOVER)
+    end
+    bg.MouseLeave = function()
+        hover = false
+        frame:SetBackColor(_G.Theme.FRAME)
+    end
+    bg.MouseDown = function()
+        bg:SetBackColor(_G.Theme.PRESS)
+    end
+    bg.MouseUp = function()
+        bg:SetBackColor(_G.Theme.BG)
+        if hover then onClick() end
+    end
+
+    row.SizeChanged = function()
+        local width = row:GetWidth()
+        frame:SetWidth(width)
+        bg:SetWidth(width - 2)
+        label:SetWidth(width - 2)
     end
 
     return row
@@ -57,6 +153,7 @@ function Settings:MakeToggleRow(labelText, settingKey, onChanged)
     row:SetMouseVisible(false)
 
     local nameLabel = Turbine.UI.Label()
+    nameLabel:SetMultiline(false)
     nameLabel:SetParent(row)
     nameLabel:SetPosition(12, 0)
     nameLabel:SetHeight(34)
@@ -82,6 +179,7 @@ function Settings:MakeToggleRow(labelText, settingKey, onChanged)
     toggleBg:SetBackColor(_G.Theme.BG)
 
     local toggleLabel = Turbine.UI.Label()
+    toggleLabel:SetMultiline(false)
     toggleLabel:SetParent(toggleBg)
     toggleLabel:SetSize(TOGGLE_W, TOGGLE_H)
     toggleLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
@@ -143,6 +241,7 @@ function Settings:MakeTimezoneRow()
     row:SetMouseVisible(false)
 
     local nameLabel = Turbine.UI.Label()
+    nameLabel:SetMultiline(false)
     nameLabel:SetParent(row)
     nameLabel:SetPosition(12, 0)
     nameLabel:SetHeight(34)
@@ -164,6 +263,7 @@ function Settings:MakeTimezoneRow()
     valBg:SetMouseVisible(false)
 
     local valLabel = Turbine.UI.Label()
+    valLabel:SetMultiline(false)
     valLabel:SetParent(valBg)
     valLabel:SetSize(VAL_W, BTN_H)
     valLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
@@ -195,6 +295,7 @@ function Settings:MakeTimezoneRow()
         bg:SetBackColor(_G.Theme.BG)
 
         local lbl = Turbine.UI.Label()
+        lbl:SetMultiline(false)
         lbl:SetParent(bg)
         lbl:SetSize(BTN_W, BTN_H)
         lbl:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
@@ -267,6 +368,7 @@ function Settings:MakeQuickLaunchSizeRow()
     row:SetMouseVisible(false)
 
     local nameLabel = Turbine.UI.Label()
+    nameLabel:SetMultiline(false)
     nameLabel:SetParent(row)
     nameLabel:SetPosition(12, 0)
     nameLabel:SetHeight(34)
@@ -289,6 +391,7 @@ function Settings:MakeQuickLaunchSizeRow()
     valBg:SetMouseVisible(false)
 
     local valLabel = Turbine.UI.Label()
+    valLabel:SetMultiline(false)
     valLabel:SetParent(valBg)
     valLabel:SetSize(VAL_W, BTN_H)
     valLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
@@ -315,6 +418,7 @@ function Settings:MakeQuickLaunchSizeRow()
         bg:SetBackColor(_G.Theme.BG)
 
         local lbl = Turbine.UI.Label()
+        lbl:SetMultiline(false)
         lbl:SetParent(bg)
         lbl:SetSize(BTN_W, BTN_H)
         lbl:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
@@ -407,6 +511,7 @@ function Settings:MakeServerRow(serverName)
     accent:SetMouseVisible(false)
 
     local label = Turbine.UI.Label()
+    label:SetMultiline(false)
     label:SetParent(row)
     label:SetPosition(12, 0)
     label:SetHeight(34)
@@ -444,7 +549,7 @@ function Settings:MakeServerRow(serverName)
             _G.Logs[_G.characterId].server = serverName
             _G.SaveLogs()
             self:RefreshServerRows()
-            self:GetParent().sidebar:RefreshItems()
+            self:Window().sidebar:RefreshItems()
         end
         row:SetBackColor(GetBgColor())
     end
@@ -467,6 +572,7 @@ function Settings:MakeTimeDisplayRow()
     row:SetMouseVisible(false)
 
     local nameLabel = Turbine.UI.Label()
+    nameLabel:SetMultiline(false)
     nameLabel:SetParent(row)
     nameLabel:SetPosition(12, 0)
     nameLabel:SetHeight(34)
@@ -479,7 +585,7 @@ function Settings:MakeTimeDisplayRow()
 
     local MODES  = { "timespan", "timestamp", "both" }
     local LABELS = { _G.L("timeDisplaySpan"), _G.L("timeDisplayStamp"), _G.L("timeDisplayBoth") }
-    local BTN_W  = 76
+    local BTN_W  = 60
     local BTN_H  = 22
     local buttons = {}
 
@@ -508,6 +614,7 @@ function Settings:MakeTimeDisplayRow()
         bg:SetBackColor(_G.Theme.BG)
 
         local lbl = Turbine.UI.Label()
+        lbl:SetMultiline(false)
         lbl:SetParent(bg)
         lbl:SetSize(BTN_W, BTN_H)
         lbl:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
@@ -538,7 +645,7 @@ function Settings:MakeTimeDisplayRow()
             if hover and _G.Settings.timeDisplay ~= mode then
                 _G.Settings.timeDisplay = mode
                 _G.SaveSettings()
-                self:GetParent().contentView:UpdateContent()
+                self:Window().contentView:UpdateContent()
             end
         end
     end
@@ -571,6 +678,7 @@ function Settings:MakeLanguageRow()
     row:SetMouseVisible(false)
 
     local nameLabel = Turbine.UI.Label()
+    nameLabel:SetMultiline(false)
     nameLabel:SetParent(row)
     nameLabel:SetPosition(12, 0)
     nameLabel:SetHeight(34)
@@ -612,6 +720,7 @@ function Settings:MakeLanguageRow()
         bg:SetBackColor(_G.Theme.BG)
 
         local lbl = Turbine.UI.Label()
+        lbl:SetMultiline(false)
         lbl:SetParent(bg)
         lbl:SetSize(BTN_W, BTN_H)
         lbl:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
@@ -643,8 +752,8 @@ function Settings:MakeLanguageRow()
                 _G.Settings.language = lang
                 _G.SaveSettings()
                 self:Rebuild()
-                self:GetParent().sidebar:ApplyLanguage()
-                self:GetParent().contentView:UpdateContent()
+                self:Window().sidebar:ApplyLanguage()
+                self:Window().contentView:UpdateContent()
             end
         end
     end
@@ -669,127 +778,98 @@ end
 
 -- ------------------------------------------------------------------------------------------------
 
-function Settings:MakeColorThemeRow()
+-- One theme per row: a preview swatch of that theme's own ground and accent, its name,
+-- and the active one marked. The old row laid all seven out side by side, which needs
+-- more than twice the width a column has.
+function Settings:MakeThemeRow(mode, label)
+
+    local raw = _G.Themes[mode]
+    local function colour(role)
+        local rgb = raw[role]
+        return Turbine.UI.Color(rgb[1], rgb[2], rgb[3])
+    end
+
+    local active = (_G.Settings.colorTheme == mode)
 
     local row = Turbine.UI.Control()
-    row:SetHeight(34)
-    row:SetBackColor(_G.Theme.PANEL)
-    row:SetMouseVisible(false)
+    row:SetHeight(THEME_H)
+    row:SetBackColor(active and _G.Theme.SEL_BG or _G.Theme.PANEL)
 
-    local nameLabel = Turbine.UI.Label()
-    nameLabel:SetParent(row)
-    nameLabel:SetPosition(12, 0)
-    nameLabel:SetHeight(34)
-    nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana14)
-    nameLabel:SetFontStyle(_G.Theme.FONT_STYLE)
-    nameLabel:SetForeColor(_G.Theme.TEXT)
-    nameLabel:SetText(_G.L("colorTheme"))
-    nameLabel:SetMouseVisible(false)
+    local mark = Turbine.UI.Control()
+    mark:SetParent(row)
+    mark:SetPosition(0, 0)
+    mark:SetSize(2, THEME_H)
+    mark:SetBackColor(_G.Theme.ACCENT)
+    mark:SetVisible(active)
+    mark:SetMouseVisible(false)
 
-    local MODES  = { "moria", "lorien", "mordor", "rivendell", "rohan", "wulf", "misty" }
-    local LABELS = { _G.L("themeMoria"), _G.L("themeLorien"), _G.L("themeMordor"), _G.L("themeRivendell"), _G.L("themeRohan"), _G.L("themeWulf"), _G.L("themeMisty") }
-    local BTN_W  = 70
-    local BTN_H  = 22
-    local buttons = {}
+    -- 26x12 preview: the theme's frame, its ground, and a dot of its accent
+    local swatch = Turbine.UI.Control()
+    swatch:SetParent(row)
+    swatch:SetPosition(10, math.floor((THEME_H - 12) / 2))
+    swatch:SetSize(26, 12)
+    swatch:SetBackColor(colour("FRAME"))
+    swatch:SetMouseVisible(false)
 
-    local function RefreshButtons()
-        for i, mode in ipairs(MODES) do
-            local c = buttons[i].c
-            if _G.Settings.colorTheme == mode then
-                buttons[i].frame:SetBackColor(c.HOVER)
-                buttons[i].bg:SetBackColor(c.HOVER)
-                buttons[i].label:SetForeColor(c.BG)
-                buttons[i].label:SetFontStyle(Turbine.UI.FontStyle.None)
-            else
-                buttons[i].frame:SetBackColor(c.FRAME)
-                buttons[i].bg:SetBackColor(c.BG)
-                buttons[i].label:SetForeColor(c.TEXT)
-                buttons[i].label:SetFontStyle(Turbine.UI.FontStyle.None)
-            end
-        end
+    local ground = Turbine.UI.Control()
+    ground:SetParent(swatch)
+    ground:SetPosition(1, 1)
+    ground:SetSize(24, 10)
+    ground:SetBackColor(colour("BG"))
+    ground:SetMouseVisible(false)
+
+    local dot = Turbine.UI.Control()
+    dot:SetParent(ground)
+    dot:SetPosition(16, 3)
+    dot:SetSize(4, 4)
+    dot:SetBackColor(colour("ACCENT"))
+    dot:SetMouseVisible(false)
+
+    local name = Turbine.UI.Label()
+    name:SetMultiline(false)
+    name:SetParent(row)
+    name:SetPosition(44, 0)
+    name:SetHeight(THEME_H)
+    name:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+    name:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    name:SetFontStyle(_G.Theme.FONT_STYLE)
+    name:SetForeColor(active and _G.Theme.ACCENT or _G.Theme.TEXT)
+    name:SetText(label)
+    name:SetMouseVisible(false)
+
+    local hover = false
+    row.MouseEnter = function()
+        hover = true
+        if not active then row:SetBackColor(_G.Theme.SECTION) end
     end
-
-    for i, mode in ipairs(MODES) do
-        local td = _G.Themes[mode]
-        local c = {
-            FRAME  = Turbine.UI.Color(td.FRAME[1],  td.FRAME[2],  td.FRAME[3]),
-            BG     = Turbine.UI.Color(td.BG[1],     td.BG[2],     td.BG[3]),
-            HOVER  = Turbine.UI.Color(td.HOVER[1],  td.HOVER[2],  td.HOVER[3]),
-            PRESS  = Turbine.UI.Color(td.PRESS[1],  td.PRESS[2],  td.PRESS[3]),
-            TEXT   = Turbine.UI.Color(td.TEXT[1],   td.TEXT[2],   td.TEXT[3]),
-            ACCENT = Turbine.UI.Color(td.ACCENT[1], td.ACCENT[2], td.ACCENT[3]),
-        }
-
-        local frame = Turbine.UI.Control()
-        frame:SetParent(row)
-        frame:SetSize(BTN_W + 2, BTN_H + 2)
-        frame:SetBackColor(c.FRAME)
-
-        local bg = Turbine.UI.Control()
-        bg:SetParent(frame)
-        bg:SetPosition(1, 1)
-        bg:SetSize(BTN_W, BTN_H)
-        bg:SetBackColor(c.BG)
-
-        local lbl = Turbine.UI.Label()
-        lbl:SetParent(bg)
-        lbl:SetSize(BTN_W, BTN_H)
-        lbl:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
-        lbl:SetFont(Turbine.UI.Lotro.Font.Verdana12)
-        lbl:SetFontStyle(_G.Theme.FONT_STYLE)
-        lbl:SetForeColor(c.TEXT)
-        lbl:SetText(LABELS[i])
-        lbl:SetMouseVisible(false)
-
-        buttons[i] = { frame = frame, bg = bg, label = lbl, c = c }
-
-        local hover = false
-        bg.MouseEnter = function()
-            hover = true
-            frame:SetBackColor(c.HOVER)
-            lbl:SetForeColor(c.ACCENT)
-        end
-        bg.MouseLeave = function()
-            hover = false
-            RefreshButtons()
-        end
-        bg.MouseDown = function()
-            bg:SetBackColor(c.PRESS)
-        end
-        bg.MouseUp = function()
-            if hover and _G.Settings.colorTheme ~= mode then
-                _G.Settings.colorTheme = mode
-                _G.SaveSettings()
-                _G.ApplyTheme(mode)
-                local old = _G.Window
-                _G.Window = nil
-                if old then old:SetVisible(false) end
-                local reloader = Turbine.UI.Control()
-                reloader.Update = function()
-                    reloader:SetWantsUpdates(false)
-                    _G.Window = _G.LLWindow()
-                    _G.Window:SetVisible(true)
-                end
-                reloader:SetWantsUpdates(true)
-            else
-                RefreshButtons()
-            end
-        end
+    row.MouseLeave = function()
+        hover = false
+        if not active then row:SetBackColor(_G.Theme.PANEL) end
     end
+    row.MouseClick = function()
+        if active then return end
 
-    RefreshButtons()
+        _G.Settings.colorTheme = mode
+        _G.SaveSettings()
+        _G.ApplyTheme(mode)
+
+        -- the whole window is rebuilt: every control cached a colour at build time
+        local old = _G.Window
+        _G.Window = nil
+        if old then old:SetVisible(false) end
+
+        local reloader = Turbine.UI.Control()
+        reloader.Update = function()
+            reloader:SetWantsUpdates(false)
+            _G.Window = _G.LLWindow()
+            _G.Window:SetVisible(true)
+            _G.Window:ToggleSettings()
+        end
+        reloader:SetWantsUpdates(true)
+    end
 
     row.SizeChanged = function()
-        local w     = row:GetWidth()
-        local top   = math.floor((34 - BTN_H - 2) / 2)
-        local right = w - 10
-        for i = #MODES, 1, -1 do
-            buttons[i].frame:SetLeft(right - (BTN_W + 2))
-            buttons[i].frame:SetTop(top)
-            right = right - (BTN_W + 2) - 4
-        end
-        nameLabel:SetWidth(right - 12)
+        name:SetWidth(math.max(0, row:GetWidth() - 44 - 10))
     end
 
     return row
@@ -800,41 +880,67 @@ end
 
 function Settings:BuildRows()
 
-    local function addRow(row)
-        self.listbox:AddItem(row)
-        self.allRows[#self.allRows + 1] = row
+    local function left(row)
+        self.leftList:AddItem(row)
+        self.allRows[#self.allRows + 1] = { row = row, side = "left" }
+        return row
     end
 
-    addRow(self:MakeSectionHeader(_G.L("sectionChat")))
-    addRow(self:MakeToggleRow(_G.L("printAlerts"),  "printAlerts",  nil))
-    addRow(self:MakeToggleRow(_G.L("printWelcome"), "printWelcome", nil))
+    local function right(row)
+        self.rightList:AddItem(row)
+        self.allRows[#self.allRows + 1] = { row = row, side = "right" }
+        return row
+    end
 
-    addRow(self:MakeSectionHeader(_G.L("sectionDisplay")))
-    addRow(self:MakeToggleRow(_G.L("showCustomList"), "showCustomList", function()
-        self:GetParent().sidebar:ApplySettings()
+    -- left column: what the plugin says and shows -----------------------------------------
+    left(self:MakeSectionHeader(_G.L("sectionChat")))
+    left(self:MakeToggleRow(_G.L("printAlerts"),  "printAlerts",  nil))
+    left(self:MakeToggleRow(_G.L("printWelcome"), "printWelcome", nil))
+
+    left(self:MakeSectionHeader(_G.L("sectionDisplay")))
+    left(self:MakeToggleRow(_G.L("showCustomList"), "showCustomList", function()
+        self:Window().sidebar:ApplySettings()
     end))
-    addRow(self:MakeToggleRow(_G.L("showServers"), "showServers", function()
-        self:GetParent().sidebar:FillCharacterItems()
+    left(self:MakeToggleRow(_G.L("showServers"), "showServers", function()
+        self:Window().sidebar:FillCharacterItems()
     end))
-    addRow(self:MakeToggleRow(_G.L("showBadge"), "showBadge", function()
+    left(self:MakeToggleRow(_G.L("showBadge"), "showBadge", function()
         if not _G.Settings.showBadge and _G.QuickLaunchBtn then
             _G.QuickLaunchBtn:ClearBadge()
         end
     end))
-    addRow(self:MakeQuickLaunchSizeRow())
-    addRow(self:MakeTimezoneRow())
-    addRow(self:MakeTimeDisplayRow())
-    addRow(self:MakeLanguageRow())
+    left(self:MakeQuickLaunchSizeRow())
+    left(self:MakeTimezoneRow())
+    left(self:MakeTimeDisplayRow())
 
-    addRow(self:MakeSectionHeader(_G.L("sectionAppearance")))
-    addRow(self:MakeColorThemeRow())
+    -- right column: how it looks, where it is, and the destructive bit ---------------------
+    right(self:MakeSectionHeader(_G.L("sectionLanguage")))
+    right(self:MakeLanguageRow())
 
-    addRow(self:MakeSectionHeader(_G.L("sectionServer")))
+    right(self:MakeSectionHeader(_G.L("sectionAppearance")))
+    for _, mode in ipairs(THEME_MODES) do
+        right(self:MakeThemeRow(mode, _G.L("theme" .. string.upper(string.sub(mode, 1, 1)) .. string.sub(mode, 2))))
+    end
+
+    right(self:MakeSectionHeader(_G.L("sectionServer")))
     for _, serverName in ipairs(_G.Servers) do
         local row = self:MakeServerRow(serverName)
         self.serverRowMap[serverName] = row
-        addRow(row)
+        right(row)
     end
+
+    right(self:MakeSectionHeader(_G.L("sectionActions")))
+    right(self:MakeActionRow(_G.L("clearThisChar"), true, function()
+        local logs = _G.Logs[_G.characterId]
+        if logs == nil then return end
+        logs.logs = {}
+        _G.SaveLogs()
+        local window = self:Window()
+        if window ~= nil then
+            window.contentView:UpdateContent()
+            window.sidebar:RefreshTierSquares()
+        end
+    end))
 
 end
 
@@ -842,15 +948,12 @@ end
 
 function Settings:Rebuild()
 
-    self.listbox:ClearItems()
-    self.allRows = {}
+    self.leftList:ClearItems()
+    self.rightList:ClearItems()
+    self.allRows      = {}
     self.serverRowMap = {}
     self:BuildRows()
-
-    local listW = self.listbox:GetWidth()
-    for _, row in ipairs(self.allRows) do
-        row:SetWidth(listW)
-    end
+    self:SizeChanged()
 
 end
 
@@ -868,26 +971,43 @@ end
 
 function Settings:SizeChanged()
 
+    if self.header == nil then return end
+
     local width, height = self:GetSize()
+    local iw = math.max(0, width - 2 * BORDER)
 
-    self.background1:SetSize(width - 10, height - 10)
-    self.frame1:SetSize(width - 20, height - 20)
+    self.header:SetWidth(iw)
+    self.closeBtn:SetLeft(iw - CLOSE_SIZE - PAD_X)
+    self.headerName:SetWidth(math.max(0, iw - CLOSE_SIZE - PAD_X * 2 - 8))
+    self.separator:SetPosition(BORDER, BORDER + HEADER_H)
+    self.separator:SetWidth(iw)
 
-    local headerW  = width - 22
-    local CLOSE_SIZE = 24
-    self.header:SetWidth(headerW)
-    self.closeBtn:SetLeft(headerW - CLOSE_SIZE - 6)
-    self.headerName:SetWidth(headerW - CLOSE_SIZE - 20)
-    self.separator:SetWidth(headerW)
+    local bodyTop = BORDER + HEADER_H + 1
+    local bodyH   = math.max(0, height - BORDER - bodyTop)
 
-    local listW = headerW - 12
-    self.background2:SetSize(headerW, height - 55)
-    self.listbox:SetSize(listW, height - 55)
-    self.scrollbar:SetPosition(listW, 0)
-    self.scrollbar:SetHeight(height - 55)
+    self.body:SetPosition(BORDER, bodyTop)
+    self.body:SetSize(iw, bodyH)
 
-    for _, row in ipairs(self.allRows) do
-        row:SetWidth(listW)
+    -- two columns with a rule between them
+    local columnW = math.floor((iw - PAD_X * 2 - COL_GAP) / 2)
+    local listW   = math.max(0, columnW - 12)
+
+    self.leftList:SetPosition(PAD_X, 0)
+    self.leftList:SetSize(columnW, bodyH)
+    self.leftScroll:SetPosition(PAD_X + listW, 0)
+    self.leftScroll:SetHeight(bodyH)
+
+    local rightLeft = PAD_X + columnW + COL_GAP
+    self.divider:SetPosition(PAD_X + columnW + math.floor(COL_GAP / 2), 8)
+    self.divider:SetSize(1, math.max(0, bodyH - 16))
+
+    self.rightList:SetPosition(rightLeft, 0)
+    self.rightList:SetSize(columnW, bodyH)
+    self.rightScroll:SetPosition(rightLeft + listW, 0)
+    self.rightScroll:SetHeight(bodyH)
+
+    for _, entry in ipairs(self.allRows) do
+        entry.row:SetWidth(listW)
     end
 
 end
@@ -896,28 +1016,27 @@ end
 
 function Settings:Build()
 
-    self:SetBackColor(_G.Theme.OUTER)
-
-    self.background1 = Turbine.UI.Control()
-    self.background1:SetParent(self)
-    self.background1:SetBackColor(_G.Theme.BG)
-    self.background1:SetPosition(5, 5)
-
-    self.frame1 = Turbine.UI.Control()
-    self.frame1:SetParent(self.background1)
-    self.frame1:SetBackColor(_G.Theme.FRAME)
-    self.frame1:SetPosition(5, 5)
+    -- same chrome as the content panel: 1px border, header, rule, body
+    self:SetBackColor(_G.Theme.FRAME)
 
     self.header = Turbine.UI.Control()
-    self.header:SetParent(self.frame1)
-    self.header:SetPosition(1, 1)
-    self.header:SetHeight(32)
+    self.header:SetParent(self)
+    self.header:SetPosition(BORDER, BORDER)
+    self.header:SetHeight(HEADER_H)
     self.header:SetBackColor(_G.Theme.HEADER)
 
+    self.headerMark = Turbine.UI.Control()
+    self.headerMark:SetParent(self.header)
+    self.headerMark:SetPosition(0, 0)
+    self.headerMark:SetSize(2, HEADER_H)
+    self.headerMark:SetBackColor(_G.Theme.ACCENT)
+    self.headerMark:SetMouseVisible(false)
+
     self.headerName = Turbine.UI.Label()
+    self.headerName:SetMultiline(false)
     self.headerName:SetParent(self.header)
-    self.headerName:SetPosition(10, 0)
-    self.headerName:SetHeight(32)
+    self.headerName:SetPosition(PAD_X, 0)
+    self.headerName:SetHeight(HEADER_H)
     self.headerName:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     self.headerName:SetFont(Turbine.UI.Lotro.Font.Verdana16)
     self.headerName:SetFontStyle(_G.Theme.FONT_STYLE)
@@ -925,72 +1044,58 @@ function Settings:Build()
     self.headerName:SetText(_G.L("settingsTitle"))
     self.headerName:SetMouseVisible(false)
 
-    -- close button (top-right of header)
-    local CLOSE_SIZE = 24
-
+    -- close button, matching the title bar buttons
     self.closeBtn = Turbine.UI.Control()
     self.closeBtn:SetParent(self.header)
-    self.closeBtn:SetSize(CLOSE_SIZE + 2, CLOSE_SIZE + 2)
-    self.closeBtn:SetTop(math.floor((32 - CLOSE_SIZE - 2) / 2))
-    self.closeBtn:SetBackColor(_G.Theme.FRAME)
+    self.closeBtn:SetSize(CLOSE_SIZE, CLOSE_SIZE)
+    self.closeBtn:SetTop(math.floor((HEADER_H - CLOSE_SIZE) / 2))
+    self.closeBtn:SetBackColor(_G.Theme.SEL_BG)
 
-    local closeBg = Turbine.UI.Control()
-    closeBg:SetParent(self.closeBtn)
-    closeBg:SetPosition(1, 1)
-    closeBg:SetSize(CLOSE_SIZE, CLOSE_SIZE)
-    closeBg:SetBackColor(_G.Theme.BG)
+    local closeIcon = Turbine.UI.Control()
+    closeIcon:SetParent(self.closeBtn)
+    closeIcon:SetSize(16, 16)
+    closeIcon:SetPosition(math.floor((CLOSE_SIZE - 16) / 2), math.floor((CLOSE_SIZE - 16) / 2))
+    closeIcon:SetBackground("LootLogs/Ressources/cross.tga")
+    closeIcon:SetBlendMode(Turbine.UI.BlendMode.Overlay)
+    closeIcon:SetMouseVisible(false)
 
-    local closeLabel = Turbine.UI.Label()
-    closeLabel:SetParent(closeBg)
-    closeLabel:SetSize(CLOSE_SIZE, CLOSE_SIZE)
-    closeLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
-    closeLabel:SetFont(Turbine.UI.Lotro.Font.Verdana14)
-    closeLabel:SetFontStyle(_G.Theme.FONT_STYLE)
-    closeLabel:SetForeColor(_G.Theme.DIM)
-    closeLabel:SetText("x")
-    closeLabel:SetMouseVisible(false)
-
-    local closeHover = false
-    closeBg.MouseEnter = function()
-        closeHover = true
-        self.closeBtn:SetBackColor(_G.Theme.HOVER)
-        closeLabel:SetForeColor(_G.Theme.ACCENT)
-    end
-    closeBg.MouseLeave = function()
-        closeHover = false
-        self.closeBtn:SetBackColor(_G.Theme.FRAME)
-        closeLabel:SetForeColor(_G.Theme.DIM)
-    end
-    closeBg.MouseDown = function()
-        closeBg:SetBackColor(_G.Theme.PRESS)
-    end
-    closeBg.MouseUp = function()
-        closeBg:SetBackColor(_G.Theme.BG)
-        if closeHover then
-            self:GetParent():ToggleSettings()
-        end
-    end
+    self.closeBtn.MouseEnter = function() self.closeBtn:SetBackColor(_G.Theme.FRAME) end
+    self.closeBtn.MouseLeave = function() self.closeBtn:SetBackColor(_G.Theme.SEL_BG) end
+    self.closeBtn.MouseClick = function() self:Window():ToggleSettings() end
 
     self.separator = Turbine.UI.Control()
-    self.separator:SetParent(self.frame1)
-    self.separator:SetPosition(1, 33)
+    self.separator:SetParent(self)
     self.separator:SetHeight(1)
     self.separator:SetBackColor(_G.Theme.FRAME)
 
-    self.background2 = Turbine.UI.Control()
-    self.background2:SetParent(self.frame1)
-    self.background2:SetBackColor(_G.Theme.PANEL)
-    self.background2:SetPosition(1, 34)
+    self.body = Turbine.UI.Control()
+    self.body:SetParent(self)
+    self.body:SetBackColor(_G.Theme.PANEL)
 
-    self.listbox = Turbine.UI.ListBox()
-    self.listbox:SetParent(self.background2)
-    self.listbox:SetBackColor(_G.Theme.PANEL)
+    self.divider = Turbine.UI.Control()
+    self.divider:SetParent(self.body)
+    self.divider:SetBackColor(_G.Theme.FRAME)
+    self.divider:SetMouseVisible(false)
 
-    self.scrollbar = Turbine.UI.Lotro.ScrollBar()
-    self.scrollbar:SetOrientation(Turbine.UI.Orientation.Vertical)
-    self.scrollbar:SetParent(self.background2)
-    self.scrollbar:SetWidth(10)
-    self.listbox:SetVerticalScrollBar(self.scrollbar)
+    self.leftList = Turbine.UI.ListBox()
+    self.leftList:SetParent(self.body)
+    self.leftList:SetBackColor(_G.Theme.PANEL)
+
+    self.leftScroll = Turbine.UI.Lotro.ScrollBar()
+    self.leftScroll:SetOrientation(Turbine.UI.Orientation.Vertical)
+    self.leftScroll:SetParent(self.body)
+    self.leftScroll:SetWidth(10)
+    self.leftList:SetVerticalScrollBar(self.leftScroll)
+
+    self.rightList = Turbine.UI.ListBox()
+    self.rightList:SetParent(self.body)
+    self.rightList:SetBackColor(_G.Theme.PANEL)
+
+    self.rightScroll = Turbine.UI.Lotro.ScrollBar()
+    self.rightScroll:SetOrientation(Turbine.UI.Orientation.Vertical)
+    self.rightScroll:SetParent(self.body)
+    self.rightScroll:SetWidth(10)
+    self.rightList:SetVerticalScrollBar(self.rightScroll)
 
     self:BuildRows()
 

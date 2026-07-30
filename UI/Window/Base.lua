@@ -1,134 +1,119 @@
+-- Main window: title bar + sidebar column + content panel.
+--
+-- Chrome (border, title bar, drag, close, resize) comes from PanelWindow.
+
+import "LootLogs.UI.Window.PanelWindow"
 import "LootLogs.UI.Window.Settings"
 import "LootLogs.UI.Window.Sidebar"
 import "LootLogs.UI.Window.ContentView"
 import "LootLogs.UI.Window.ServerSelect"
 
-local DAY_NAMES = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" }
+local SEP_W      = 1
+local PAD        = 8
+local GAP        = 8
+local BTN_SIZE   = 22
+local DIV_H      = 16
+local TITLE_H    = 30
 
-_G.LLWindow = class(Turbine.UI.Lotro.Window)
+-- body geometry (docs/design/window-redesign/README.md, section 1)
+local SIDEBAR_W  = 262
+local LEGEND_H   = 24
+
+local MIN_WIDTH  = 1000
+local MIN_HEIGHT = 200
+
+_G.LLWindow = class(_G.PanelWindow)
 -- window constructor --------------------------------------------------------------------------
 function _G.LLWindow:Constructor()
-	Turbine.UI.Lotro.Window.Constructor( self )
+	_G.PanelWindow.Constructor( self, {
+        resizable  = true,
+        min_width  = MIN_WIDTH,
+        min_height = MIN_HEIGHT,
+    })
 
     self.windowSettings  = _G.Settings.window
     self.settingsVisible = false
 
-    self:SetText("LootLogs")
-    self:SetResizable(true)
-    self:SetMinimumSize(1000, 200)
+    self:RefreshTitle()
 
-    self.sidebar = Sidebar()
-    self.sidebar:SetParent(self)
-    self.sidebar:SetPosition(10, 35)
-    self.sidebar:SetWidth(300)
+    -- title bar extras (left of the close button) ----------------------------------------------
+    self.settingsBtn = self:MakeTitleButton("LootLogs/Ressources/settings.tga", function()
+        self:ToggleSettings()
+    end)
 
-    self.contentView = ContentView()
-    self.contentView:SetParent(self)
-    self.contentView:SetPosition(315, 35)
-
-    self.settings = Settings()
-    self.settings:SetParent(self)
-    self.settings:SetPosition(315, 35)
-
-    -- footer bar (below sidebar) --------------------------------------------------------------
-    self.footer = Turbine.UI.Control()
-    self.footer:SetParent(self)
-    self.footer:SetSize(300, 28)
-    self.footer:SetBackColor(_G.Theme.OUTER)
-
-    -- settings button (left side)
-    self.settingsBtn = Turbine.UI.Control()
-    self.settingsBtn:SetParent(self.footer)
-    self.settingsBtn:SetPosition(0, 0)
-    self.settingsBtn:SetSize(28, 28)
-    self.settingsBtn:SetBackColor(_G.Theme.FRAME)
-
-    self.settingsBg = Turbine.UI.Control()
-    self.settingsBg:SetParent(self.settingsBtn)
-    self.settingsBg:SetPosition(1, 1)
-    self.settingsBg:SetSize(26, 26)
-    self.settingsBg:SetBackColor(_G.Theme.BG)
-    self.settingsBg:SetMouseVisible(false)
-
-    self.settingsIcon = Turbine.UI.Control()
-    self.settingsIcon:SetParent(self.settingsBg)
-    self.settingsIcon:SetSize(26, 26)
-    self.settingsIcon:SetPosition(-1, -1)
-    self.settingsIcon:SetBackground("LootLogs/Ressources/settings.tga")
-    self.settingsIcon:SetBlendMode(Turbine.UI.BlendMode.Overlay)
-    self.settingsIcon:SetMouseVisible(false)
-
-    local btnHover = false
-    self.settingsBtn.MouseEnter = function()
-        btnHover = true
-        self.settingsBtn:SetBackColor(_G.Theme.HOVER)
-    end
-    self.settingsBtn.MouseLeave = function()
-        btnHover = false
-        self.settingsBtn:SetBackColor(_G.Theme.FRAME)
-    end
-    self.settingsBtn.MouseDown = function()
-        self.settingsBg:SetBackColor(_G.Theme.PRESS)
-    end
-    self.settingsBtn.MouseUp = function()
-        self.settingsBg:SetBackColor(_G.Theme.BG)
-        if btnHover then
-            self:ToggleSettings()
-        end
-    end
-
-    -- quickslot (between settings button and clock)
     _G.LootLogs_Shortcut = _G.L("quickslotCmd")
     self.quickslot = Turbine.UI.Lotro.Quickslot()
-    self.quickslot:SetParent(self.footer)
-    self.quickslot:SetPosition(32, -2)
-    self.quickslot:SetSize(29, 29)
+    self.quickslot:SetParent(self.titlebar)
+    self.quickslot:SetSize(BTN_SIZE, BTN_SIZE)
     self.quickslot:SetShortcut(Turbine.UI.Lotro.Shortcut(Turbine.UI.Lotro.ShortcutType.Alias, _G.LootLogs_Shortcut))
 
-    -- clock (right side, with dark background panel)
-    self.clockBg = Turbine.UI.Control()
-    self.clockBg:SetParent(self.footer)
-    self.clockBg:SetPosition(65, 5)
-    self.clockBg:SetSize(230, 17)
-    self.clockBg:SetBackColor(_G.Theme.BG)
-    self.clockBg:SetMouseVisible(false)
+    self.title_div = Turbine.UI.Control()
+    self.title_div:SetParent(self.titlebar)
+    self.title_div:SetSize(SEP_W, DIV_H)
+    self.title_div:SetBackColor(_G.Theme.FRAME)
+    self.title_div:SetMouseVisible(false)
 
-    self.clockLabel = Turbine.UI.Label()
-    self.clockLabel:SetParent(self.footer)
-    self.clockLabel:SetPosition(61, 0)
-    self.clockLabel:SetHeight(28)
-    self.clockLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
-    self.clockLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
-    self.clockLabel:SetFontStyle(_G.Theme.FONT_STYLE)
-    self.clockLabel:SetForeColor(_G.Theme.DIM2)
-    self.clockLabel:SetMouseVisible(false)
+    -- sidebar column ---------------------------------------------------------------------------
+    self.sidebar = Sidebar()
+    self.sidebar:SetParent(self.client)
+    self.sidebar:SetWidth(SIDEBAR_W)
 
-    -- clock ticker (fires every game tick, updates label when minute changes)
-    local win        = self
-    local lastMinute = -1
-    self.clockUpdater = Turbine.UI.Control()
-    self.clockUpdater.Update = function()
-        local date = Turbine.Engine.GetDate()
-        if date.Minute ~= lastMinute then
-            lastMinute = date.Minute
-            win:UpdateClock()
-        end
+    -- legend strip under the sidebar (filled in with the per-tier squares in phase 3)
+    self.sidebarLegend = Turbine.UI.Control()
+    self.sidebarLegend:SetParent(self.client)
+    self.sidebarLegend:SetBackColor(_G.Theme.FRAME)
+
+    self.sidebarLegendBg = Turbine.UI.Control()
+    self.sidebarLegendBg:SetParent(self.sidebarLegend)
+    self.sidebarLegendBg:SetPosition(SEP_W, SEP_W)
+    self.sidebarLegendBg:SetBackColor(_G.Theme.PANEL)
+    self.sidebarLegendBg:SetMouseVisible(false)
+
+    -- one sample of each square state, then what the bar means
+    local sampleTop = math.floor((LEGEND_H - 2 * SEP_W - _G.TierSquare) / 2)
+    for index, state in ipairs({ "used", "done", "empty" }) do
+        local square = _G.MakeTierSquare(self.sidebarLegendBg)
+        square:SetPosition(8 + (index - 1) * (_G.TierSquare + _G.TierSquareGap), sampleTop)
+        _G.SetTierSquareState(square, state, _G.Theme.PANEL)
     end
 
-    -- position and size
-    self:SetPosition(self.windowSettings.left, self.windowSettings.top)
-    self:SetSize(self.windowSettings.width, self.windowSettings.height)
+    self.sidebarLegendLabel = Turbine.UI.Label()
+    self.sidebarLegendLabel:SetMultiline(false)
+    self.sidebarLegendLabel:SetParent(self.sidebarLegendBg)
+    self.sidebarLegendLabel:SetPosition(8 + _G.TierSquaresWidth(3) + 8, 0)
+    self.sidebarLegendLabel:SetHeight(LEGEND_H - 2 * SEP_W)
+    self.sidebarLegendLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+    self.sidebarLegendLabel:SetFont(Turbine.UI.Lotro.Font.Verdana10)
+    self.sidebarLegendLabel:SetFontStyle(_G.Theme.FONT_STYLE)
+    self.sidebarLegendLabel:SetForeColor(_G.Theme.DIM)
+    self.sidebarLegendLabel:SetText(_G.L("tierLegend"))
+    self.sidebarLegendLabel:SetMouseVisible(false)
 
-    self.clockUpdater:SetWantsUpdates(true)
+    -- content panel ----------------------------------------------------------------------------
+    self.contentView = ContentView()
+    self.contentView:SetParent(self.client)
+
+    self.settings = Settings()
+    self.settings:SetParent(self.client)
+
+    -- position and size ------------------------------------------------------------------------
+    self:SetPosition(self.windowSettings.left, self.windowSettings.top)
+    self:SetSize(
+        math.max(MIN_WIDTH,  self.windowSettings.width),
+        math.max(MIN_HEIGHT, self.windowSettings.height)
+    )
+
     self.contentView:UpdateContent()
 
+    self:SetWantsKeyEvents(true)
     self.KeyDown = function(sender, args)
         if args.Action == Turbine.UI.Lotro.Action.Escape then
-            self:SetVisible(false)
+            self:CloseWindow()
         end
     end
 
-    self:SetWantsKeyEvents(true)
+    -- a Turbine.UI.Window starts hidden, unlike the Lotro window this replaced
+    self:SetVisible(true)
 
     if _G.Server == nil then
         self.serverSelectPopup = ServerSelectPopup(function()
@@ -140,14 +125,11 @@ end
 
 -- ------------------------------------------------------------------------------------------------
 
-function _G.LLWindow:UpdateClock()
+-- brand plus a dimmed version, the same title bar Gibberish3 draws
+function _G.LLWindow:RefreshTitle()
 
-    local date    = Turbine.Engine.GetDate()
-    local dayName = DAY_NAMES[date.DayOfWeek] or ""
-    self.clockLabel:SetText(string.format(
-        "%s, %02d.%02d.%04d  %02d:%02d",
-        dayName, date.Day, date.Month, date.Year, date.Hour, date.Minute
-    ))
+    self:SetTitleText("LOOTLOGS  "
+        .. _G.CM("DIM") .. (_G.LootLogsVersion or "") .. _G.CMR)
 
 end
 
@@ -157,15 +139,7 @@ function _G.LLWindow:ToggleSettings()
     self.settings:SetVisible(self.settingsVisible)
     self.contentView:SetVisible(not self.settingsVisible)
 
-    if self.settingsVisible then
-        -- self.settingsIcon:SetForeColor(Turbine.UI.Color(1.0, 0.88, 0.55))
-    else
-        -- self.settingsIcon:SetForeColor(_G.Theme.DIM2)
-    end
-
 end
-
--- ------------------------------------------------------------------------------------------------
 
 function _G.LLWindow:SelectionChanged()
 
@@ -173,38 +147,75 @@ function _G.LLWindow:SelectionChanged()
 
 end
 
-function _G.LLWindow:SizeChanged()
+-- ------------------------------------------------------------------------------------------------
 
-    local width, height = self:GetSize()
+function _G.LLWindow:OnLayout(width, height)
 
-    self.windowSettings.width = width
-    self.windowSettings.height = height
-    _G.SaveSettings()
+    if self.sidebar == nil then return end
 
-    -- sidebar (shorter to leave room for footer)
-    self.sidebar:SetHeight(height - 78)
+    -- title bar extras, right to left from the close button
+    local btn_top = math.floor((TITLE_H - BTN_SIZE) / 2)
+    local x = self:TitleBarRight() - SEP_W
+    self.title_div:SetPosition(x, math.floor((TITLE_H - DIV_H) / 2))
+    x = x - GAP - BTN_SIZE
+    self.quickslot:SetPosition(x, btn_top)
+    x = x - GAP - BTN_SIZE
+    self.settingsBtn:SetPosition(x, btn_top)
 
-    -- footer (28px, 2px gap below sidebar, 10px bottom margin)
-    self.footer:SetPosition(10, height - 38)
-    self.footer:SetWidth(300)
-    self.settingsBtn:SetLeft(0)
-    self.clockBg:SetLeft(67)
-    self.clockBg:SetWidth(228)
-    self.clockLabel:SetLeft(68)
-    self.clockLabel:SetWidth(226)
+    self.title_label:SetWidth(math.max(0, x - GAP - PAD))
 
-    -- content / settings panels (full height)
-    self.contentView:SetSize(width - 325, height - 45)
-    self.settings:SetSize(width - 325, height - 45)
+    -- sidebar, with the legend strip pinned above the bottom margin
+    local legendTop = height - PAD - LEGEND_H
+
+    self.sidebar:SetPosition(PAD, PAD)
+    self.sidebar:SetHeight(math.max(0, legendTop - GAP - PAD))
+
+    self.sidebarLegend:SetPosition(PAD, legendTop)
+    self.sidebarLegend:SetSize(SIDEBAR_W, LEGEND_H)
+    self.sidebarLegendBg:SetSize(SIDEBAR_W - 2 * SEP_W, LEGEND_H - 2 * SEP_W)
+    self.sidebarLegendLabel:SetWidth(math.max(0,
+        SIDEBAR_W - 2 * SEP_W - self.sidebarLegendLabel:GetLeft() - 8))
+
+    -- content / settings panels
+    local contentLeft = PAD + SIDEBAR_W + GAP
+    local contentW    = math.max(0, width - contentLeft - PAD)
+    local contentH    = math.max(0, height - 2 * PAD)
+
+    self.contentView:SetPosition(contentLeft, PAD)
+    self.contentView:SetSize(contentW, contentH)
+
+    self.settings:SetPosition(contentLeft, PAD)
+    self.settings:SetSize(contentW, contentH)
 
 end
 
-function _G.LLWindow:PositionChanged()
+-- ------------------------------------------------------------------------------------------------
+
+function _G.LLWindow:OnMoved()
 
     local left, top = self:GetPosition()
 
     self.windowSettings.left = left
     self.windowSettings.top  = top
     _G.SaveSettings()
+
+end
+
+function _G.LLWindow:OnResized()
+
+    local width, height = self:GetSize()
+
+    self.windowSettings.width  = width
+    self.windowSettings.height = height
+    _G.SaveSettings()
+
+end
+
+function _G.LLWindow:PositionChanged()
+
+    -- the drag itself saves once on mouse-up, via OnMoved
+    if not self._dragging then
+        self:OnMoved()
+    end
 
 end

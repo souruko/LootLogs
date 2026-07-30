@@ -1,5 +1,13 @@
 
 
+local META_W    = 78
+local HEADER_H  = 22
+local CHILD_H   = 24   -- instance row
+local ICON      = 12   -- disclosure triangle
+local MARK_W    = 2
+local NAME_LEFT = 26
+local PAD_RIGHT = 10
+
 ContentItem = class(Turbine.UI.ListBox)
 function ContentItem:Constructor(content, index, sidebar)
     Turbine.UI.ListBox.Constructor(self)
@@ -17,12 +25,13 @@ function ContentItem:Constructor(content, index, sidebar)
     end
     self.settings = _G.Settings.content[self.index]
 
-    self.collapseHover = false
-    self.nameHover     = false
+    self.hover    = false
+    self.selected = false
     self.isCollapsed   = _G.Settings.content[self.index].collapsed
 
     self:Build()
     self:ApplySettings()
+    self:ApplyState()
     self:ApplyCollapsed(self.isCollapsed)
 end
 
@@ -49,11 +58,38 @@ function ContentItem:FillChildren()
         end
     end
 
-    if not self.isCollapsed then
-        local childCount = self:GetItemCount() - 1
-        self:SetHeight(38 + 44 * childCount)
-    end
+    self:RefreshMeta()
+    self:ApplyCollapsed(self.isCollapsed)
 end
+
+function ContentItem:RefreshMeta()
+
+    local childCount = self:GetItemCount() - 1
+
+    if self.searchText ~= "" then
+        self.metaLabel:SetText(childCount .. " " .. _G.L("matchCount"))
+    else
+        self.metaLabel:SetText("LV " .. (self.content.level or "") .. _G.Sep .. childCount)
+    end
+
+    self:LayoutHeader()
+
+end
+
+function ContentItem:LayoutHeader()
+
+    local width = self:GetWidth()
+    if width <= 0 then return end
+
+    self.blank:SetWidth(width)
+    self.headerBg:SetWidth(width)
+    self.metaLabel:SetLeft(width - PAD_RIGHT - META_W)
+
+    local metaRoom = (self.metaLabel:GetText() ~= "") and (META_W + 8) or 0
+    self.nameLabel:SetWidth(math.max(0, width - NAME_LEFT - PAD_RIGHT - metaRoom))
+
+end
+
 
 function ContentItem:ClearChildren()
     self.children = {}
@@ -62,13 +98,25 @@ function ContentItem:ClearChildren()
 end
 
 function ContentItem:SetSelected(value)
-    if value then
+    self.selected = value
+    self:ApplyState()
+end
+
+function ContentItem:ApplyState()
+
+    self.mark:SetVisible(self.selected == true)
+
+    if self.selected then
         self.headerBg:SetBackColor(_G.Theme.SEL_BG)
         self.nameLabel:SetForeColor(_G.Theme.ACCENT)
-    else
-        self.headerBg:SetBackColor(_G.Theme.HEADER)
+    elseif self.hover then
+        self.headerBg:SetBackColor(_G.Theme.FRAME)
         self.nameLabel:SetForeColor(_G.Theme.TEXT)
+    else
+        self.headerBg:SetBackColor(_G.Theme.SECTION)
+        self.nameLabel:SetForeColor(_G.Theme.DIM2)
     end
+
 end
 
 function ContentItem:SetCollapsed(value)
@@ -82,12 +130,13 @@ function ContentItem:SetCollapsed(value)
 end
 
 function ContentItem:ApplyCollapsed(value)
-    if value then
-        self:SetHeight(38)
+    -- a collapsed group still opens while a search is running, so its hits are visible
+    if value and self.searchText == "" then
+        self:SetHeight(HEADER_H)
         self.arrowIcon:SetBackground("LootLogs/Ressources/arrow_right.tga")
     else
         local childCount = self:GetItemCount() - 1
-        self:SetHeight(38 + 44 * childCount)
+        self:SetHeight(HEADER_H + CHILD_H * childCount)
         self.arrowIcon:SetBackground("LootLogs/Ressources/arrow_down.tga")
     end
 end
@@ -98,109 +147,88 @@ end
 
 function ContentItem:SizeChanged()
     if not self.blank then return end
-    local width = self:GetWidth()
-    self.blank:SetWidth(width)
-    self.accentStrip:SetWidth(width - 12)
-    self.headerFrame:SetWidth(width - 12)
-    self.headerBg:SetWidth(width - 14)
-    self.nameBtn:SetWidth(width - 41)
-    self.nameLabel:SetWidth(width - 41)
+    self:LayoutHeader()
 end
 
 function ContentItem:ApplySettings()
 end
 
 function ContentItem:Build()
-    self:SetHeight(38)
+    self:SetHeight(HEADER_H)
     self:SetMouseVisible(false)
 
     self.blank = Turbine.UI.Control()
     self.blank:SetMouseVisible(false)
-    self.blank:SetHeight(38)
-
-    self.accentStrip = Turbine.UI.Control()
-    self.accentStrip:SetParent(self.blank)
-    self.accentStrip:SetPosition(0, 6)
-    self.accentStrip:SetHeight(2)
-    self.accentStrip:SetBackColor(_G.Theme.STRIP)
-    self.accentStrip:SetMouseVisible(false)
-
-    -- single unified header bar
-    self.headerFrame = Turbine.UI.Control()
-    self.headerFrame:SetParent(self.blank)
-    self.headerFrame:SetPosition(0, 8)
-    self.headerFrame:SetHeight(28)
-    self.headerFrame:SetBackColor(_G.Theme.FRAME)
+    self.blank:SetHeight(HEADER_H)
 
     self.headerBg = Turbine.UI.Control()
-    self.headerBg:SetParent(self.headerFrame)
-    self.headerBg:SetPosition(1, 1)
-    self.headerBg:SetHeight(26)
-    self.headerBg:SetBackColor(_G.Theme.HEADER)
-    self.headerBg:SetMouseVisible(false)
-
-    -- collapse button (left 26px of header)
-    self.arrowBtn = Turbine.UI.Control()
-    self.arrowBtn:SetParent(self.headerFrame)
-    self.arrowBtn:SetPosition(1, 1)
-    self.arrowBtn:SetSize(26, 26)
-    self.arrowBtn.MouseEnter = function()
-        self.collapseHover = true
-        self.headerFrame:SetBackColor(_G.Theme.HOVER)
+    self.headerBg:SetParent(self.blank)
+    self.headerBg:SetPosition(0, 0)
+    self.headerBg:SetHeight(HEADER_H)
+    self.headerBg:SetBackColor(_G.Theme.SECTION)
+    self.headerBg.MouseEnter = function()
+        self.hover = true
+        self:ApplyState()
     end
-    self.arrowBtn.MouseLeave = function()
-        self.collapseHover = false
-        if not self.nameHover then
-            self.headerFrame:SetBackColor(_G.Theme.FRAME)
-        end
+    self.headerBg.MouseLeave = function()
+        self.hover = false
+        self:ApplyState()
     end
-    self.arrowBtn.MouseUp = function()
-        if self.collapseHover then
-            self:SetCollapsed()
-        end
+    self.headerBg.MouseClick = function()
+        self:Clicked()
     end
 
+    self.mark = Turbine.UI.Control()
+    self.mark:SetParent(self.headerBg)
+    self.mark:SetPosition(0, 0)
+    self.mark:SetSize(MARK_W, HEADER_H)
+    self.mark:SetBackColor(_G.Theme.ACCENT)
+    self.mark:SetVisible(false)
+    self.mark:SetMouseVisible(false)
+
+    -- disclosure triangle; its own click target, so it does not also select the group
     self.arrowIcon = Turbine.UI.Control()
-    self.arrowIcon:SetParent(self.arrowBtn)
-    self.arrowIcon:SetSize(20, 20)
+    self.arrowIcon:SetParent(self.headerBg)
+    self.arrowIcon:SetPosition(6, math.floor((HEADER_H - ICON) / 2))
+    self.arrowIcon:SetSize(ICON, ICON)
     self.arrowIcon:SetBackground("LootLogs/Ressources/arrow_down.tga")
     self.arrowIcon:SetBlendMode(Turbine.UI.BlendMode.Overlay)
-    self.arrowIcon:SetMouseVisible(false)
-
-    -- name / select area (fills rest of header)
-    self.nameBtn = Turbine.UI.Control()
-    self.nameBtn:SetParent(self.headerFrame)
-    self.nameBtn:SetPosition(28, 1)
-    self.nameBtn:SetHeight(26)
-    self.nameBtn.MouseEnter = function()
-        self.nameHover = true
-        self.headerFrame:SetBackColor(_G.Theme.HOVER)
+    self.arrowIcon.MouseEnter = function()
+        self.hover = true
+        self:ApplyState()
     end
-    self.nameBtn.MouseLeave = function()
-        self.nameHover = false
-        if not self.collapseHover then
-            self.headerFrame:SetBackColor(_G.Theme.FRAME)
-        end
+    self.arrowIcon.MouseLeave = function()
+        self.hover = false
+        self:ApplyState()
     end
-    self.nameBtn.MouseDown = function()
-        self.headerBg:SetBackColor(_G.Theme.SEL_BG)
-    end
-    self.nameBtn.MouseUp = function()
-        self.headerBg:SetBackColor(_G.Theme.HEADER)
-        if self.nameHover then
-            self:Clicked()
-        end
+    self.arrowIcon.MouseClick = function()
+        self:SetCollapsed()
     end
 
     self.nameLabel = Turbine.UI.Label()
-    self.nameLabel:SetParent(self.nameBtn)
-    self.nameLabel:SetHeight(26)
+    self.nameLabel:SetMultiline(false)
+    self.nameLabel:SetParent(self.headerBg)
+    self.nameLabel:SetPosition(NAME_LEFT, 0)
+    self.nameLabel:SetHeight(HEADER_H)
     self.nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     self.nameLabel:SetFontStyle(_G.Theme.FONT_STYLE)
-    self.nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana16)
-    self.nameLabel:SetText(self.name)
-    self.nameLabel:SetForeColor(_G.Theme.TEXT)
+    self.nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    self.nameLabel:SetText(_G.Upper(self.name))
+    self.nameLabel:SetForeColor(_G.Theme.DIM2)
     self.nameLabel:SetMouseVisible(false)
+
+    self.metaLabel = Turbine.UI.Label()
+    self.metaLabel:SetMultiline(false)
+    self.metaLabel:SetParent(self.headerBg)
+    self.metaLabel:SetTop(0)
+    self.metaLabel:SetHeight(HEADER_H)
+    self.metaLabel:SetWidth(META_W)
+    self.metaLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
+    self.metaLabel:SetFont(Turbine.UI.Lotro.Font.Verdana10)
+    self.metaLabel:SetFontStyle(_G.Theme.FONT_STYLE)
+    self.metaLabel:SetForeColor(_G.Theme.DIM)
+    self.metaLabel:SetText("")
+    self.metaLabel:SetMouseVisible(false)
 
     self:AddItem(self.blank)
 end

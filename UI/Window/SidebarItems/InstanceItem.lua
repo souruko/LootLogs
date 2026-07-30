@@ -1,4 +1,13 @@
 
+-- One instance row in the Content tab: name, pin marker, and a bar of per-tier
+-- squares summarising the current character's logs for that instance.
+
+local ROW_H     = 24
+local INDENT    = 22
+local PAD_RIGHT = 10
+local MARK_W    = 2
+local PIN       = 10
+
 InstanceItem = class(Turbine.UI.Control)
 function InstanceItem:Constructor(id, instance, sidebar)
 	Turbine.UI.Control.Constructor( self )
@@ -8,21 +17,37 @@ function InstanceItem:Constructor(id, instance, sidebar)
     self.name     = instance.name
     self.sidebar  = sidebar
     self.hover    = false
+    self.selected = false
 
     self:Build()
-    self:ApplySettings()
+    self:RefreshSquares()
 
 end
 
 function InstanceItem:SetSelected(value)
 
-    if value then
-        self.background1:SetBackColor(_G.Theme.SEL_BG)
+    self.selected = value
+    self:ApplyState()
+
+end
+
+function InstanceItem:ApplyState()
+
+    self.mark:SetVisible(self.selected)
+
+    if self.selected then
+        self.row:SetBackColor(_G.Theme.SEL_BG)
         self.nameLabel:SetForeColor(_G.Theme.ACCENT)
+    elseif self.hover then
+        self.row:SetBackColor(_G.Theme.SECTION)
+        self.nameLabel:SetForeColor(_G.Theme.TEXT)
     else
-        self.background1:SetBackColor(_G.Theme.BG)
+        self.row:SetBackColor(_G.Theme.PANEL)
         self.nameLabel:SetForeColor(_G.Theme.TEXT)
     end
+
+    -- an empty square shows the row colour through its middle
+    self:PaintSquares()
 
 end
 
@@ -30,14 +55,85 @@ function InstanceItem:Clicked()
     self.sidebar:InstanceSelected(self)
 end
 
+-- ------------------------------------------------------------------------------------------------
+
+function InstanceItem:Ground()
+
+    if self.selected then return _G.Theme.SEL_BG end
+    if self.hover    then return _G.Theme.SECTION end
+    return _G.Theme.PANEL
+
+end
+
+function InstanceItem:PaintSquares()
+
+    if self.states == nil then return end
+
+    for index, square in ipairs(self.squares) do
+        if self.states[index] ~= nil then
+            _G.SetTierSquareState(square, self.states[index], self:Ground())
+        end
+    end
+
+end
+
+-- Recomputes the bar from the current character's logs. Called whenever the list is
+-- refilled and whenever a chest is logged.
+function InstanceItem:RefreshSquares()
+
+    self.states = _G.InstanceTierStates(self.id, _G.characterId)
+    self.pinned = _G.InstanceIsPinned(self.id)
+
+    for index, square in ipairs(self.squares) do
+        square:SetVisible(self.states ~= nil and self.states[index] ~= nil)
+    end
+
+    self.pinIcon:SetVisible(self.pinned)
+
+    self:PaintSquares()
+    self:LayoutRow()
+
+end
+
+function InstanceItem:LayoutRow()
+
+    local width = self:GetWidth()
+    if width <= 0 then return end
+
+    self.row:SetSize(width, ROW_H)
+    self.mark:SetSize(MARK_W, ROW_H)
+
+    local right = width - PAD_RIGHT
+
+    local squareCount = self.states ~= nil and #self.states or 0
+    local squaresW    = _G.TierSquaresWidth(squareCount)
+
+    if squareCount > 0 then
+        local left = right - squaresW
+        for index = 1, squareCount do
+            self.squares[index]:SetPosition(
+                left + (index - 1) * (_G.TierSquare + _G.TierSquareGap),
+                math.floor((ROW_H - _G.TierSquare) / 2))
+        end
+        right = left - 6
+    end
+
+    -- Turbine cannot measure a label, so the pin sits at a fixed spot before the
+    -- squares rather than tight against the end of the name
+    if self.pinned then
+        right = right - PIN
+        self.pinIcon:SetPosition(right, math.floor((ROW_H - PIN) / 2))
+        right = right - 4
+    end
+
+    self.nameLabel:SetWidth(math.max(0, right - INDENT))
+
+end
+
 function InstanceItem:SizeChanged()
 
-    if not self.frame1 then return end
-    local width = self:GetWidth()
-
-    self.frame1:SetWidth(width - 24)
-    self.background1:SetWidth(width - 26)
-    self.nameLabel:SetWidth(width - 56)
+    if self.row == nil then return end
+    self:LayoutRow()
 
 end
 
@@ -46,52 +142,58 @@ function InstanceItem:ApplySettings() end
 function InstanceItem:Build()
 
     self:SetMouseVisible(false)
-    self:SetHeight(44)
+    self:SetHeight(ROW_H)
 
-    self.frame1 = Turbine.UI.Control()
-    self.frame1:SetPosition(12, 3)
-    self.frame1:SetParent(self)
-    self.frame1:SetBackColor(_G.Theme.FRAME)
-    self.frame1:SetHeight(38)
-
-    self.background1 = Turbine.UI.Control()
-    self.background1:SetPosition(1, 1)
-    self.background1:SetParent(self.frame1)
-    self.background1:SetBackColor(_G.Theme.BG)
-    self.background1:SetHeight(36)
-    self.background1.MouseEnter = function()
+    self.row = Turbine.UI.Control()
+    self.row:SetParent(self)
+    self.row:SetPosition(0, 0)
+    self.row:SetHeight(ROW_H)
+    self.row:SetBackColor(_G.Theme.PANEL)
+    self.row.MouseEnter = function()
         self.hover = true
-        self.frame1:SetBackColor(_G.Theme.HOVER)
+        self:ApplyState()
     end
-    self.background1.MouseLeave = function()
+    self.row.MouseLeave = function()
         self.hover = false
-        self.frame1:SetBackColor(_G.Theme.FRAME)
+        self:ApplyState()
     end
-    self.background1.MouseDown = function()
-        self.background1:SetBackColor(_G.Theme.PRESS)
-    end
-    self.background1.MouseUp = function()
-        self.background1:SetBackColor(_G.Theme.BG)
-        if self.hover then self:Clicked() end
+    self.row.MouseClick = function()
+        self:Clicked()
     end
 
-    self.classIcon = Turbine.UI.Control()
-    self.classIcon:SetParent(self.background1)
-    self.classIcon:SetPosition(4, 8)
-    self.classIcon:SetSize(20, 20)
-    self.classIcon:SetBlendMode(Turbine.UI.BlendMode.Overlay)
-    self.classIcon:SetBackground(_G.ClassIcons[self.instance.class])
+    self.mark = Turbine.UI.Control()
+    self.mark:SetParent(self.row)
+    self.mark:SetPosition(0, 0)
+    self.mark:SetSize(MARK_W, ROW_H)
+    self.mark:SetBackColor(_G.Theme.ACCENT)
+    self.mark:SetVisible(false)
+    self.mark:SetMouseVisible(false)
 
     self.nameLabel = Turbine.UI.Label()
-    self.nameLabel:SetParent(self.background1)
-    self.nameLabel:SetHeight(36)
-    self.nameLabel:SetLeft(30)
+    self.nameLabel:SetMultiline(false)
+    self.nameLabel:SetParent(self.row)
+    self.nameLabel:SetPosition(INDENT, 0)
+    self.nameLabel:SetHeight(ROW_H)
     self.nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     self.nameLabel:SetFontStyle(_G.Theme.FONT_STYLE)
-    self.nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana16)
-    self.nameLabel:SetMultiline(true)
+    self.nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
     self.nameLabel:SetText(self.name)
-    self.nameLabel:SetMouseVisible(false)
     self.nameLabel:SetForeColor(_G.Theme.TEXT)
+    self.nameLabel:SetMouseVisible(false)
+
+    self.pinIcon = Turbine.UI.Control()
+    self.pinIcon:SetParent(self.row)
+    self.pinIcon:SetSize(PIN, PIN)
+    self.pinIcon:SetBackground("LootLogs/Ressources/star_pin.tga")
+    self.pinIcon:SetBlendMode(Turbine.UI.BlendMode.Overlay)
+    self.pinIcon:SetVisible(false)
+    self.pinIcon:SetMouseVisible(false)
+
+    self.squares = {}
+    for index = 1, _G.TierSquareMax do
+        local square = _G.MakeTierSquare(self.row)
+        square:SetVisible(false)
+        self.squares[index] = square
+    end
 
 end

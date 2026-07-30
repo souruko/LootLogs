@@ -85,5 +85,9 @@ function ProcessMatch(message, log, logIndex)
         _G.Window.contentView:UpdateContent()
     end
 
+    if _G.Window and _G.Window.sidebar then
+        _G.Window.sidebar:RefreshTierSquares()
+    end
+
 end
 
