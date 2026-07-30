@@ -1,14 +1,65 @@
 
 -- content panel geometry (docs/design/window-redesign/README.md, section 5)
-local BORDER    = 1
-local HEADER_H  = 44
-local LEGEND_H  = 24
-local PILL_W    = 108
-local PILL_H    = 16
-local TYPE_W    = 70
-local ACT_H     = 20            -- character view action buttons
-local ACT_CLEAR_W = 76
-local ACT_DEL_W   = 58
+local BORDER, HEADER_H, LEGEND_H, PILL_W, PILL_H, TYPE_W, ACT_H, ACT_CLEAR_W, ACT_DEL_W
+
+-- instance view geometry, same section
+local PAD_X, NAME_W, COL_LEFT, COL_GAP, TIME_W, CHIP_W, CHIP_W_C, CHIP_H, COMPACT_AT,
+      COL_LEFT_C, TICK, CARRY, COLHEAD_H, COLHEAD_NESTED_H, TIER_H, TIER_NESTED_H,
+      BLOCK_H, COLLAPSED_H, GROUP_H, INSTANCE_INDENT, TIER_INDENT, TIER_LABEL_W,
+      ROW_H, STAR, CARET, MARK_W, AMBER_AFTER
+
+-- recomputed when the Font Size setting changes. Icon boxes (TICK, CARRY, STAR, CARET)
+-- stay fixed: Turbine clips a .tga rather than resizing it.
+local function Metrics()
+
+    BORDER      = 1
+    MARK_W      = 2
+    -- chests at which the table switches to codes. At the largest font the worded chip
+    -- no longer fits four columns in the minimum window, so the switch comes a chest
+    -- earlier rather than letting the chips overlap.
+    COMPACT_AT  = ((_G.Settings and _G.Settings.fontScale or 0) >= 2) and 4 or 5
+    TICK        = 10
+    CARRY       = 10            -- carry-over marker
+    STAR        = 12            -- pin toggle on a tier band
+    CARET       = 12            -- disclosure triangle
+    AMBER_AFTER = 3 * 86400     -- countdown turns amber inside three days
+
+    HEADER_H    = _G.Scaled(44)
+    LEGEND_H    = _G.Scaled(24)
+    PILL_W      = _G.Scaled(108)
+    PILL_H      = _G.Scaled(16)
+    TYPE_W      = _G.Scaled(70)
+    ACT_H       = _G.Scaled(20)  -- character view action buttons
+    ACT_CLEAR_W = _G.Scaled(76)
+    ACT_DEL_W   = _G.Scaled(58)
+
+    PAD_X       = _G.Scaled(14)
+    NAME_W      = _G.Scaled(104)
+    COL_LEFT    = _G.Scaled(130)
+    COL_LEFT_C  = _G.Scaled(108)
+    COL_GAP     = _G.Scaled(8)
+    TIME_W      = _G.Scaled(104)
+    CHIP_W      = _G.Scaled(64)
+    -- the compact chip only ever holds two characters, so it follows the text rather
+    -- than the blanket scale; at Large a proportional 44px left no gap between columns
+    CHIP_W_C    = math.floor(_G.GlyphWidth(10) * 3) + 14
+    CHIP_H      = _G.Scaled(15)
+
+    COLHEAD_H        = _G.Scaled(22)
+    COLHEAD_NESTED_H = _G.Scaled(20)   -- inside a pack-view instance block
+    TIER_H           = _G.Scaled(26)
+    TIER_NESTED_H    = _G.Scaled(24)
+    ROW_H            = _G.Scaled(24)
+    BLOCK_H          = _G.Scaled(28)   -- instance block header in the pack view
+    COLLAPSED_H      = _G.Scaled(22)
+    GROUP_H          = _G.Scaled(26)   -- pack / instance header in the character view
+    INSTANCE_INDENT  = _G.Scaled(20)
+    TIER_INDENT      = _G.Scaled(30)
+    TIER_LABEL_W     = _G.Scaled(64)
+
+end
+
+_G.RegisterMetrics(Metrics)
 
 ContentView = class(Turbine.UI.Control)
 
@@ -163,35 +214,6 @@ local function buildInstanceTiers(instanceId)
 
     return tiers, sortedTierNames
 end
-
--- instance view geometry (docs/design/window-redesign/README.md, section 5)
-local PAD_X       = 14
-local NAME_W      = 104
-local COL_LEFT    = 130
-local COL_GAP     = 8
-local TIME_W      = 104
-local CHIP_W      = 64
-local CHIP_W_C    = 34          -- compact chip, 5+ chests
-local CHIP_H      = 15
-local COMPACT_AT  = 5           -- chests at which the table switches to codes
-local COL_LEFT_C  = 108
-local TICK        = 10
-local CARRY       = 10          -- carry-over marker
-local COLHEAD_H        = 22
-local COLHEAD_NESTED_H = 20     -- inside a pack-view instance block
-local TIER_H           = 26
-local TIER_NESTED_H    = 24
-local BLOCK_H          = 28     -- instance block header in the pack view
-local COLLAPSED_H      = 22
-local GROUP_H          = 26     -- pack / instance header in the character view
-local INSTANCE_INDENT  = 20
-local TIER_INDENT      = 30
-local TIER_LABEL_W     = 64
-local ROW_H       = 24
-local STAR        = 12          -- pin toggle on a tier band
-local CARET       = 12          -- disclosure triangle
-local MARK_W      = 2
-local AMBER_AFTER = 3 * 86400   -- countdown turns amber inside three days
 
 -- Five or more chests and the worded chips stop fitting, so the table switches to
 -- codes: narrower columns starting further left, and a narrower name column with them.
@@ -770,7 +792,7 @@ local function TextWidth(text, font)
         chars = chars + 1
     end
 
-    return math.floor(chars * _G.CharWidth[font or 12])
+    return math.floor(chars * _G.GlyphWidth(font or 12))
 
 end
 
@@ -805,7 +827,7 @@ function ContentView:MakeChip(parent, value, compact)
         dash:SetParent(parent)
         dash:SetSize(chipWidth, CHIP_H)
         dash:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
-        dash:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+        dash:SetFont(_G.Font(12))
         dash:SetFontStyle(_G.Theme.FONT_STYLE)
         dash:SetForeColor(_G.Theme.DASH)
         dash:SetText("-")
@@ -876,7 +898,7 @@ function ContentView:MakeChip(parent, value, compact)
     label:SetSize(chipWidth - 2 - textLeft, CHIP_H - 2)
     label:SetTextAlignment((tick and not compact) and Turbine.UI.ContentAlignment.MiddleLeft
                                                   or  Turbine.UI.ContentAlignment.MiddleCenter)
-    label:SetFont(Turbine.UI.Lotro.Font.Verdana10)
+    label:SetFont(_G.Font(10))
     label:SetFontStyle(_G.Theme.FONT_STYLE)
     label:SetForeColor(fore)
     label:SetText(text)
@@ -914,14 +936,14 @@ function ContentView:MakeBossColumnHeaderRow(bossNames, nested, firstLabel)
     charLabel:SetPosition(PAD_X, 0)
     charLabel:SetSize(NAME_W, height)
     charLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    charLabel:SetFont(Turbine.UI.Lotro.Font.Verdana10)
+    charLabel:SetFont(_G.Font(10))
     charLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     charLabel:SetForeColor(_G.Theme.DIM)
     charLabel:SetText(_G.L(firstLabel or "colCharacter"))
     charLabel:SetMouseVisible(false)
 
-    local bossFont = compact and Turbine.UI.Lotro.Font.Verdana10
-                              or  Turbine.UI.Lotro.Font.Verdana12
+    local bossFont = compact and _G.Font(10)
+                              or  _G.Font(12)
 
     -- assigned below, once the popup those handlers drive exists
     local showFullName, hideFullName
@@ -949,7 +971,7 @@ function ContentView:MakeBossColumnHeaderRow(bossNames, nested, firstLabel)
     resetLabel:SetHeight(height)
     resetLabel:SetWidth(TIME_W)
     resetLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
-    resetLabel:SetFont(Turbine.UI.Lotro.Font.Verdana10)
+    resetLabel:SetFont(_G.Font(10))
     resetLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     resetLabel:SetForeColor(_G.Theme.DIM)
     resetLabel:SetText(_G.L("colResets"))
@@ -993,7 +1015,7 @@ function ContentView:MakeBossColumnHeaderRow(bossNames, nested, firstLabel)
 
         local rowWidth = row:GetWidth()
         local width    = math.min(math.max(0, rowWidth - 2 * PAD_X),
-                                  math.floor(chars * _G.CharWidth[compact and 10 or 12]) + 14)
+                                  math.floor(chars * _G.GlyphWidth(compact and 10 or 12)) + 14)
         if width <= 0 then return end
 
         local centre = label:GetLeft() + math.floor(label:GetWidth() / 2)
@@ -1019,7 +1041,7 @@ function ContentView:MakeBossColumnHeaderRow(bossNames, nested, firstLabel)
         border:SetWidth(width)
 
         local left, colWidth, timeLeft, nameWidth = ColumnGeometry(width, #bossLabels)
-        local charWidth = _G.CharWidth[compact and 10 or 12]
+        local charWidth = _G.GlyphWidth(compact and 10 or 12)
 
         charLabel:SetWidth(nameWidth)
         for index, label in ipairs(bossLabels) do
@@ -1060,7 +1082,7 @@ function ContentView:MakeTierHeaderRow(instanceId, tierName, nested)
     label:SetPosition(PAD_X, 0)
     label:SetSize(TIER_LABEL_W, height)
     label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    label:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    label:SetFont(_G.Font(12))
     label:SetFontStyle(_G.Theme.FONT_STYLE)
     label:SetForeColor(_G.Theme.ACCENT)
     label:SetText(tierName)
@@ -1072,7 +1094,7 @@ function ContentView:MakeTierHeaderRow(instanceId, tierName, nested)
     schedule:SetPosition(PAD_X + TIER_LABEL_W, 0)
     schedule:SetHeight(height)
     schedule:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    schedule:SetFont(Turbine.UI.Lotro.Font.Verdana10)
+    schedule:SetFont(_G.Font(10))
     schedule:SetFontStyle(_G.Theme.FONT_STYLE)
     schedule:SetForeColor(_G.Theme.DIM)
     schedule:SetText(nested and "" or ResetSchedule(TierReset(instanceId, tierName)))
@@ -1160,7 +1182,7 @@ function ContentView:MakeValueRow(labelText, bossValues, timeText, index, remain
     nameLabel:SetPosition(indent, 0)
     nameLabel:SetSize(NAME_W, ROW_H)
     nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    nameLabel:SetFont(_G.Font(12))
     nameLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     nameLabel:SetForeColor(options.accent and _G.Theme.ACCENT or _G.Theme.TEXT)
     nameLabel:SetText(labelText)
@@ -1189,7 +1211,7 @@ function ContentView:MakeValueRow(labelText, bossValues, timeText, index, remain
     timeLabel:SetHeight(ROW_H)
     timeLabel:SetWidth(TIME_W)
     timeLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
-    timeLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    timeLabel:SetFont(_G.Font(12))
     timeLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     timeLabel:SetForeColor((remaining ~= nil and remaining < AMBER_AFTER)
         and _G.Theme.CHIP_USED_TEXT or _G.Theme.ACCENT)
@@ -1206,7 +1228,7 @@ function ContentView:MakeValueRow(labelText, bossValues, timeText, index, remain
         if carryMarker ~= nil then labelWidth = math.max(0, labelWidth - CARRY - 6) end
 
         nameLabel:SetWidth(labelWidth)
-        local shown = _G.Truncate(labelText, labelWidth, _G.CharWidth[12])
+        local shown = _G.Truncate(labelText, labelWidth, _G.GlyphWidth(12))
         nameLabel:SetText(shown)
 
         if carryMarker ~= nil then
@@ -1248,7 +1270,7 @@ function ContentView:MakeEmptyTierRow()
     label:SetPosition(32, 0)
     label:SetHeight(ROW_H)
     label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    label:SetFont(Turbine.UI.Lotro.Font.Verdana10)
+    label:SetFont(_G.Font(10))
     label:SetFontStyle(_G.Theme.FONT_STYLE)
     label:SetForeColor(_G.Theme.DIM)
     label:SetText(_G.L("nothingRecorded"))
@@ -1318,7 +1340,7 @@ function ContentView:MakeInstanceBlockHeaderRow(instanceId, instance, collapsed,
     name:SetPosition(PAD_X, 0)
     name:SetHeight(BLOCK_H)
     name:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    name:SetFont(Turbine.UI.Lotro.Font.Verdana14)
+    name:SetFont(_G.Font(14))
     name:SetFontStyle(_G.Theme.FONT_STYLE)
     name:SetForeColor(_G.Theme.ACCENT)
     name:SetText(instance.name)
@@ -1330,7 +1352,7 @@ function ContentView:MakeInstanceBlockHeaderRow(instanceId, instance, collapsed,
     chests:SetHeight(BLOCK_H)
     chests:SetWidth(90)
     chests:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
-    chests:SetFont(Turbine.UI.Lotro.Font.Verdana10)
+    chests:SetFont(_G.Font(10))
     chests:SetFontStyle(_G.Theme.FONT_STYLE)
     chests:SetForeColor(_G.Theme.DIM)
     chests:SetText(InstanceChestCount(instanceId) .. " " .. _G.L("chestsCount"))
@@ -1376,7 +1398,7 @@ function ContentView:MakeCollapsedInstanceRow(tierCount, soonest, currentTime)
     label:SetPosition(32, 0)
     label:SetHeight(COLLAPSED_H)
     label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    label:SetFont(Turbine.UI.Lotro.Font.Verdana10)
+    label:SetFont(_G.Font(10))
     label:SetFontStyle(_G.Theme.FONT_STYLE)
     label:SetForeColor(_G.Theme.DIM)
     label:SetText(text)
@@ -1404,7 +1426,7 @@ function ContentView:MakeUntouchedInstanceRow(instance)
     name:SetPosition(PAD_X, 0)
     name:SetHeight(BLOCK_H)
     name:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    name:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    name:SetFont(_G.Font(12))
     name:SetFontStyle(_G.Theme.FONT_STYLE)
     name:SetForeColor(_G.Theme.DIM)
     name:SetText(instance.name)
@@ -1416,7 +1438,7 @@ function ContentView:MakeUntouchedInstanceRow(instance)
     note:SetHeight(BLOCK_H)
     note:SetWidth(140)
     note:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
-    note:SetFont(Turbine.UI.Lotro.Font.Verdana10)
+    note:SetFont(_G.Font(10))
     note:SetFontStyle(_G.Theme.FONT_STYLE)
     note:SetForeColor(_G.Theme.DASH)
     note:SetText(_G.L("packNothing"))
@@ -1544,7 +1566,7 @@ function ContentView:MakeGroupHeaderRow(text, collapsed, indent, accentMark, upp
     label:SetPosition(indent, 0)
     label:SetHeight(GROUP_H)
     label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    label:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    label:SetFont(_G.Font(12))
     label:SetFontStyle(_G.Theme.FONT_STYLE)
     label:SetForeColor(upper and _G.Theme.DIM2 or _G.Theme.ACCENT)
     label:SetText(upper and _G.Upper(text) or text)
@@ -1800,7 +1822,7 @@ function ContentView:MakeCharacterHeaderRow(character)
     nameLabel:SetPosition(36, 0)
     nameLabel:SetHeight(34)
     nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana16)
+    nameLabel:SetFont(_G.Font(16))
     nameLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     nameLabel:SetForeColor(_G.Theme.ACCENT)
     nameLabel:SetText(character.name)
@@ -1837,7 +1859,7 @@ function ContentView:MakeContentRow(content)
     nameLabel:SetPosition(12, 0)
     nameLabel:SetHeight(34)
     nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana16)
+    nameLabel:SetFont(_G.Font(16))
     nameLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     nameLabel:SetForeColor(_G.Theme.ACCENT)
     nameLabel:SetText(content.name)
@@ -1848,7 +1870,7 @@ function ContentView:MakeContentRow(content)
     levelLabel:SetParent(row)
     levelLabel:SetHeight(34)
     levelLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
-    levelLabel:SetFont(Turbine.UI.Lotro.Font.Verdana14)
+    levelLabel:SetFont(_G.Font(14))
     levelLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     levelLabel:SetForeColor(_G.Theme.DIM2)
     levelLabel:SetText(_G.L("levelPrefix") .. content.level .. "  ")
@@ -1892,7 +1914,7 @@ function ContentView:MakeInstanceRow(instance, indented)
         label:SetPosition(22, 0)
         label:SetHeight(28)
         label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-        label:SetFont(Turbine.UI.Lotro.Font.Verdana16)
+        label:SetFont(_G.Font(16))
         label:SetFontStyle(_G.Theme.FONT_STYLE)
         label:SetForeColor(_G.Theme.ACCENT)
         label:SetText(instance.name)
@@ -1920,7 +1942,7 @@ function ContentView:MakeInstanceRow(instance, indented)
         label:SetPosition(12, 0)
         label:SetHeight(30)
         label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-        label:SetFont(Turbine.UI.Lotro.Font.Verdana16)
+        label:SetFont(_G.Font(16))
         label:SetFontStyle(_G.Theme.FONT_STYLE)
         label:SetForeColor(_G.Theme.ACCENT)
         label:SetText(instance.name)
@@ -1950,7 +1972,7 @@ function ContentView:MakeEmptyRow(message)
     label:SetPosition(0, 0)
     label:SetHeight(40)
     label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
-    label:SetFont(Turbine.UI.Lotro.Font.Verdana14)
+    label:SetFont(_G.Font(14))
     label:SetFontStyle(_G.Theme.FONT_STYLE)
     label:SetForeColor(_G.Theme.DIM)
     label:SetText(message)
@@ -2053,7 +2075,7 @@ function ContentView:BuildLegend()
         item:SetTop(1)
         item:SetHeight(LEGEND_H - 1)
         item:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-        item:SetFont(Turbine.UI.Lotro.Font.Verdana10)
+        item:SetFont(_G.Font(10))
         item:SetFontStyle(_G.Theme.FONT_STYLE)
         item:SetForeColor(colour or _G.Theme.DIM)
         item:SetMouseVisible(false)
@@ -2199,7 +2221,7 @@ function ContentView:Build()
     self.headerName:SetPosition(PAD_X, 4)
     self.headerName:SetHeight(22)
     self.headerName:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    self.headerName:SetFont(Turbine.UI.Lotro.Font.Verdana16)
+    self.headerName:SetFont(_G.Font(16))
     self.headerName:SetFontStyle(_G.Theme.FONT_STYLE)
     self.headerName:SetForeColor(_G.Theme.ACCENT)
     self.headerName:SetMarkupEnabled(true)
@@ -2211,7 +2233,7 @@ function ContentView:Build()
     self.headerSub:SetPosition(PAD_X, 24)
     self.headerSub:SetHeight(16)
     self.headerSub:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    self.headerSub:SetFont(Turbine.UI.Lotro.Font.Verdana10)
+    self.headerSub:SetFont(_G.Font(10))
     self.headerSub:SetFontStyle(_G.Theme.FONT_STYLE)
     self.headerSub:SetForeColor(_G.Theme.DIM)
     self.headerSub:SetMouseVisible(false)
@@ -2237,7 +2259,7 @@ function ContentView:Build()
     self.headerPillLabel:SetParent(pillBg)
     self.headerPillLabel:SetSize(PILL_W - 2, PILL_H - 2)
     self.headerPillLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
-    self.headerPillLabel:SetFont(Turbine.UI.Lotro.Font.Verdana10)
+    self.headerPillLabel:SetFont(_G.Font(10))
     self.headerPillLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     self.headerPillLabel:SetForeColor(_G.Theme.DIM2)
     self.headerPillLabel:SetMouseVisible(false)
@@ -2248,7 +2270,7 @@ function ContentView:Build()
     self.headerType:SetTop(0)
     self.headerType:SetHeight(HEADER_H)
     self.headerType:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
-    self.headerType:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    self.headerType:SetFont(_G.Font(12))
     self.headerType:SetFontStyle(_G.Theme.FONT_STYLE)
     self.headerType:SetForeColor(_G.Theme.DIM)
     self.headerType:SetMouseVisible(false)
@@ -2295,7 +2317,7 @@ function ContentView:Build()
     self.clearLogsLabel:SetParent(self.clearLogsBg)
     self.clearLogsLabel:SetSize(ACT_CLEAR_W - 2, ACT_H - 2)
     self.clearLogsLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
-    self.clearLogsLabel:SetFont(Turbine.UI.Lotro.Font.Verdana10)
+    self.clearLogsLabel:SetFont(_G.Font(10))
     self.clearLogsLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     self.clearLogsLabel:SetText(_G.L("clearLogsBtn"))
     self.clearLogsLabel:SetMouseVisible(false)
@@ -2351,7 +2373,7 @@ function ContentView:Build()
     self.deleteCharLabel:SetParent(self.deleteCharBg)
     self.deleteCharLabel:SetSize(ACT_DEL_W - 2, ACT_H - 2)
     self.deleteCharLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
-    self.deleteCharLabel:SetFont(Turbine.UI.Lotro.Font.Verdana10)
+    self.deleteCharLabel:SetFont(_G.Font(10))
     self.deleteCharLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     self.deleteCharLabel:SetText(_G.L("deleteCharBtn"))
     self.deleteCharLabel:SetMouseVisible(false)
@@ -2364,7 +2386,7 @@ function ContentView:Build()
     self.headerTooltip:SetPosition(PAD_X, 0)
     self.headerTooltip:SetHeight(HEADER_H)
     self.headerTooltip:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
-    self.headerTooltip:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    self.headerTooltip:SetFont(_G.Font(12))
     self.headerTooltip:SetFontStyle(_G.Theme.FONT_STYLE)
     self.headerTooltip:SetForeColor(_G.Theme.DIM2)
     self.headerTooltip:SetVisible(false)

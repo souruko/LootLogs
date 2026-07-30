@@ -1,12 +1,19 @@
 
 
-local META_W    = 78
-local HEADER_H  = 22
-local CHILD_H   = 24   -- instance row
-local ICON      = 12   -- disclosure triangle
-local MARK_W    = 2
-local NAME_LEFT = 26
-local PAD_RIGHT = 10
+local META_W, HEADER_H, CHILD_H, ICON, MARK_W, NAME_LEFT, PAD_RIGHT
+
+-- recomputed when the Font Size setting changes
+local function Metrics()
+    META_W           = _G.Scaled(78)
+    HEADER_H         = _G.Scaled(22)
+    CHILD_H          = _G.Scaled(24)  -- instance row
+    ICON             = 12  -- disclosure triangle
+    MARK_W           = 2
+    NAME_LEFT        = _G.Scaled(26)
+    PAD_RIGHT        = _G.Scaled(10)
+end
+
+_G.RegisterMetrics(Metrics)
 
 ContentItem = class(Turbine.UI.ListBox)
 function ContentItem:Constructor(content, index, sidebar)
@@ -212,7 +219,7 @@ function ContentItem:Build()
     self.nameLabel:SetHeight(HEADER_H)
     self.nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     self.nameLabel:SetFontStyle(_G.Theme.FONT_STYLE)
-    self.nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    self.nameLabel:SetFont(_G.Font(12))
     self.nameLabel:SetText(_G.Upper(self.name))
     self.nameLabel:SetForeColor(_G.Theme.DIM2)
     self.nameLabel:SetMouseVisible(false)
@@ -224,7 +231,7 @@ function ContentItem:Build()
     self.metaLabel:SetHeight(HEADER_H)
     self.metaLabel:SetWidth(META_W)
     self.metaLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
-    self.metaLabel:SetFont(Turbine.UI.Lotro.Font.Verdana10)
+    self.metaLabel:SetFont(_G.Font(10))
     self.metaLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     self.metaLabel:SetForeColor(_G.Theme.DIM)
     self.metaLabel:SetText("")

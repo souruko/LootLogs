@@ -43,6 +43,10 @@ _G.Locale = {
         -- settings
         sectionActions    = "Actions",
         clearThisChar     = "Clear this character\39s logs",
+        fontSize          = "Font Size",
+        fontSmall         = "Small",
+        fontMedium        = "Medium",
+        fontLarge         = "Large",
         noServer          = "No Server Selected",
         selectServerTitle = "Select Server",
         selectServerText  = "Which server are you currently on?",
@@ -139,6 +143,10 @@ _G.Locale = {
         -- settings
         sectionActions    = "Aktionen",
         clearThisChar     = "Logs dieses Charakters leeren",
+        fontSize          = "Schriftgr\246\223e",
+        fontSmall         = "Klein",
+        fontMedium        = "Mittel",
+        fontLarge         = "Gro\223",
         noServer          = "Kein Server gew\228hlt",
         selectServerTitle = "Server w\228hlen",
         selectServerText  = "Auf welchem Server bist du gerade?",
@@ -229,6 +237,10 @@ _G.Locale = {
         -- settings
         sectionActions    = "Actions",
         clearThisChar     = "Vider les journaux de ce personnage",
+        fontSize          = "Taille du texte",
+        fontSmall         = "Petit",
+        fontMedium        = "Moyen",
+        fontLarge         = "Grand",
         noServer          = "Aucun serveur choisi",
         selectServerTitle = "Choisir un serveur",
         selectServerText  = "Sur quel serveur \234tes-vous ?",

@@ -6,18 +6,26 @@ import "LootLogs.UI.Window.SidebarItems.ContentItem"
 import "LootLogs.UI.Window.SidebarItems.ServerItem"
 
 -- sidebar geometry (docs/design/window-redesign/README.md, section 2)
-local BORDER     = 1
-local TAB_PAD    = 4
-local TAB_H      = 28
-local TAB_GAP    = 2
--- the handoff says 62, which assumed an inline text star; a real 16px icon needs more
-local PINNED_W   = 76
-local PAD        = 8
-local SEARCH_H   = 24
-local ICON       = 16
-local COLLAPSE_W = 78
-local SEARCH_TOP = TAB_PAD + TAB_H + TAB_PAD
-local LIST_TOP   = SEARCH_TOP + SEARCH_H + TAB_PAD
+local BORDER, TAB_PAD, TAB_H, TAB_GAP, PINNED_W, PAD, SEARCH_H, ICON, COLLAPSE_W,
+      SEARCH_TOP, LIST_TOP
+
+-- recomputed when the Font Size setting changes
+local function Metrics()
+    BORDER     = 1
+    TAB_GAP    = 2
+    ICON       = 16
+    TAB_PAD    = _G.Scaled(4)
+    TAB_H      = _G.Scaled(28)
+    -- the handoff says 62, which assumed an inline text star; a real 16px icon needs more
+    PINNED_W   = _G.Scaled(76)
+    PAD        = _G.Scaled(8)
+    SEARCH_H   = _G.Scaled(24)
+    COLLAPSE_W = _G.Scaled(78)
+    SEARCH_TOP = TAB_PAD + TAB_H + TAB_PAD
+    LIST_TOP   = SEARCH_TOP + SEARCH_H + TAB_PAD
+end
+
+_G.RegisterMetrics(Metrics)
 
 Sidebar = class(Turbine.UI.Control)
 -- window constructor --------------------------------------------------------------------------
@@ -645,7 +653,7 @@ function Sidebar:MakeTab(iconPath, onClick)
     label:SetParent(tab)
     label:SetHeight(TAB_H)
     label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
-    label:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    label:SetFont(_G.Font(12))
     label:SetFontStyle(_G.Theme.FONT_STYLE)
     label:SetMouseVisible(false)
 
@@ -739,7 +747,7 @@ function Sidebar:Build()
     self.filter = Turbine.UI.TextBox()
     self.filter:SetParent(self.searchBg)
     self.filter:SetHeight(SEARCH_H - 2 * BORDER - 2)
-    self.filter:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    self.filter:SetFont(_G.Font(12))
     self.filter:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     self.filter:SetMultiline(false)
     self.filter:SetBackColor(_G.Theme.BG)
@@ -753,7 +761,7 @@ function Sidebar:Build()
     self.placeholder:SetParent(self.searchBg)
     self.placeholder:SetHeight(SEARCH_H - 2 * BORDER)
     self.placeholder:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    self.placeholder:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    self.placeholder:SetFont(_G.Font(12))
     self.placeholder:SetFontStyle(_G.Theme.FONT_STYLE)
     self.placeholder:SetForeColor(_G.Theme.DIM)
     self.placeholder:SetText(_G.L("searchPlaceholder"))
@@ -794,7 +802,7 @@ function Sidebar:Build()
     self.collapseLabel:SetPosition(0, 0)
     self.collapseLabel:SetHeight(SEARCH_H - 2 * BORDER)
     self.collapseLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
-    self.collapseLabel:SetFont(Turbine.UI.Lotro.Font.Verdana10)
+    self.collapseLabel:SetFont(_G.Font(10))
     self.collapseLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     self.collapseLabel:SetForeColor(_G.Theme.DIM)
     self.collapseLabel:SetText(_G.L("collapseAll"))

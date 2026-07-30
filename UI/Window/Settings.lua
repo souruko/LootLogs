@@ -1,13 +1,20 @@
 
 -- settings panel geometry (docs/design/window-redesign/README.md, section 10)
-local BORDER     = 1
-local HEADER_H   = 44
-local PAD_X      = 14
-local COL_GAP    = 16
-local SECTION_H  = 26
-local RULE_STEPS = 6
-local CLOSE_SIZE = 22
-local THEME_H    = 26
+local BORDER, HEADER_H, PAD_X, COL_GAP, SECTION_H, RULE_STEPS, CLOSE_SIZE, THEME_H
+
+-- recomputed when the Font Size setting changes
+local function Metrics()
+    BORDER           = 1
+    HEADER_H         = _G.Scaled(44)
+    PAD_X            = _G.Scaled(14)
+    COL_GAP          = _G.Scaled(16)
+    SECTION_H        = _G.Scaled(26)
+    RULE_STEPS       = 6
+    CLOSE_SIZE       = 22
+    THEME_H          = _G.Scaled(26)
+end
+
+_G.RegisterMetrics(Metrics)
 
 local THEME_MODES = { "moria", "lorien", "mordor", "rivendell", "rohan", "wulf", "misty" }
 
@@ -47,7 +54,7 @@ function Settings:MakeSectionHeader(title)
     label:SetPosition(0, 0)
     label:SetHeight(SECTION_H - 1)
     label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    label:SetFont(Turbine.UI.Lotro.Font.Verdana10)
+    label:SetFont(_G.Font(10))
     label:SetFontStyle(_G.Theme.FONT_STYLE)
     label:SetForeColor(_G.Theme.DIM2)
     label:SetText(_G.Upper(title))
@@ -109,7 +116,7 @@ function Settings:MakeActionRow(text, destructive, onClick)
     label:SetPosition(0, 0)
     label:SetHeight(20)
     label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
-    label:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    label:SetFont(_G.Font(12))
     label:SetFontStyle(_G.Theme.FONT_STYLE)
     label:SetForeColor(destructive and _G.Theme.CHIP_USED_TEXT or _G.Theme.DIM2)
     label:SetText(text)
@@ -158,7 +165,7 @@ function Settings:MakeToggleRow(labelText, settingKey, onChanged)
     nameLabel:SetPosition(12, 0)
     nameLabel:SetHeight(34)
     nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana14)
+    nameLabel:SetFont(_G.Font(14))
     nameLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     nameLabel:SetForeColor(_G.Theme.TEXT)
     nameLabel:SetText(labelText)
@@ -183,7 +190,7 @@ function Settings:MakeToggleRow(labelText, settingKey, onChanged)
     toggleLabel:SetParent(toggleBg)
     toggleLabel:SetSize(TOGGLE_W, TOGGLE_H)
     toggleLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
-    toggleLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    toggleLabel:SetFont(_G.Font(12))
     toggleLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     toggleLabel:SetMouseVisible(false)
 
@@ -246,7 +253,7 @@ function Settings:MakeTimezoneRow()
     nameLabel:SetPosition(12, 0)
     nameLabel:SetHeight(34)
     nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana14)
+    nameLabel:SetFont(_G.Font(14))
     nameLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     nameLabel:SetForeColor(_G.Theme.TEXT)
     nameLabel:SetText(_G.L("timezone"))
@@ -267,7 +274,7 @@ function Settings:MakeTimezoneRow()
     valLabel:SetParent(valBg)
     valLabel:SetSize(VAL_W, BTN_H)
     valLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
-    valLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    valLabel:SetFont(_G.Font(12))
     valLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     valLabel:SetForeColor(_G.Theme.ACCENT)
     valLabel:SetMouseVisible(false)
@@ -299,7 +306,7 @@ function Settings:MakeTimezoneRow()
         lbl:SetParent(bg)
         lbl:SetSize(BTN_W, BTN_H)
         lbl:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
-        lbl:SetFont(Turbine.UI.Lotro.Font.Verdana14)
+        lbl:SetFont(_G.Font(14))
         lbl:SetFontStyle(_G.Theme.FONT_STYLE)
         lbl:SetForeColor(_G.Theme.TEXT)
         lbl:SetText(sign)
@@ -373,7 +380,7 @@ function Settings:MakeQuickLaunchSizeRow()
     nameLabel:SetPosition(12, 0)
     nameLabel:SetHeight(34)
     nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana14)
+    nameLabel:SetFont(_G.Font(14))
     nameLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     nameLabel:SetForeColor(_G.Theme.TEXT)
     nameLabel:SetText(_G.L("quickLaunchSize"))
@@ -395,7 +402,7 @@ function Settings:MakeQuickLaunchSizeRow()
     valLabel:SetParent(valBg)
     valLabel:SetSize(VAL_W, BTN_H)
     valLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
-    valLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    valLabel:SetFont(_G.Font(12))
     valLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     valLabel:SetForeColor(_G.Theme.ACCENT)
     valLabel:SetMouseVisible(false)
@@ -422,7 +429,7 @@ function Settings:MakeQuickLaunchSizeRow()
         lbl:SetParent(bg)
         lbl:SetSize(BTN_W, BTN_H)
         lbl:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
-        lbl:SetFont(Turbine.UI.Lotro.Font.Verdana14)
+        lbl:SetFont(_G.Font(14))
         lbl:SetFontStyle(_G.Theme.FONT_STYLE)
         lbl:SetForeColor(_G.Theme.TEXT)
         lbl:SetText(sign)
@@ -516,7 +523,7 @@ function Settings:MakeServerRow(serverName)
     label:SetPosition(12, 0)
     label:SetHeight(34)
     label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    label:SetFont(Turbine.UI.Lotro.Font.Verdana14)
+    label:SetFont(_G.Font(14))
     label:SetFontStyle(_G.Theme.FONT_STYLE)
     label:SetForeColor(GetTextColor())
     label:SetText(serverName)
@@ -577,7 +584,7 @@ function Settings:MakeTimeDisplayRow()
     nameLabel:SetPosition(12, 0)
     nameLabel:SetHeight(34)
     nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana14)
+    nameLabel:SetFont(_G.Font(14))
     nameLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     nameLabel:SetForeColor(_G.Theme.TEXT)
     nameLabel:SetText(_G.L("timeDisplay"))
@@ -618,7 +625,7 @@ function Settings:MakeTimeDisplayRow()
         lbl:SetParent(bg)
         lbl:SetSize(BTN_W, BTN_H)
         lbl:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
-        lbl:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+        lbl:SetFont(_G.Font(12))
         lbl:SetFontStyle(_G.Theme.FONT_STYLE)
         lbl:SetForeColor(_G.Theme.DIM)
         lbl:SetText(LABELS[i])
@@ -670,6 +677,130 @@ end
 
 -- ------------------------------------------------------------------------------------------------
 
+-- ------------------------------------------------------------------------------------------------
+
+-- Everything in the UI is authored at its smallest; each step moves the whole thing one
+-- rung up the font ladder and grows the rows with it.
+function Settings:MakeFontSizeRow()
+
+    local row = Turbine.UI.Control()
+    row:SetHeight(34)
+    row:SetBackColor(_G.Theme.PANEL)
+    row:SetMouseVisible(false)
+
+    local nameLabel = Turbine.UI.Label()
+    nameLabel:SetMultiline(false)
+    nameLabel:SetParent(row)
+    nameLabel:SetPosition(12, 0)
+    nameLabel:SetHeight(34)
+    nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+    nameLabel:SetFont(_G.Font(14))
+    nameLabel:SetFontStyle(_G.Theme.FONT_STYLE)
+    nameLabel:SetForeColor(_G.Theme.TEXT)
+    nameLabel:SetText(_G.L("fontSize"))
+    nameLabel:SetMouseVisible(false)
+
+    local STEPS  = { 0, 1, 2 }
+    local LABELS = { _G.L("fontSmall"), _G.L("fontMedium"), _G.L("fontLarge") }
+    local BTN_W  = 56
+    local BTN_H  = 22
+    local buttons = {}
+
+    local function RefreshButtons()
+        for i, step in ipairs(STEPS) do
+            if (_G.Settings.fontScale or 0) == step then
+                buttons[i].frame:SetBackColor(_G.Theme.HOVER)
+                buttons[i].label:SetForeColor(_G.Theme.ACCENT)
+            else
+                buttons[i].frame:SetBackColor(_G.Theme.FRAME)
+                buttons[i].label:SetForeColor(_G.Theme.DIM2)
+            end
+            buttons[i].bg:SetBackColor(_G.Theme.BG)
+        end
+    end
+
+    for i, step in ipairs(STEPS) do
+        local frame = Turbine.UI.Control()
+        frame:SetParent(row)
+        frame:SetSize(BTN_W + 2, BTN_H + 2)
+        frame:SetBackColor(_G.Theme.FRAME)
+
+        local bg = Turbine.UI.Control()
+        bg:SetParent(frame)
+        bg:SetPosition(1, 1)
+        bg:SetSize(BTN_W, BTN_H)
+        bg:SetBackColor(_G.Theme.BG)
+
+        local label = Turbine.UI.Label()
+        label:SetMultiline(false)
+        label:SetParent(bg)
+        label:SetSize(BTN_W, BTN_H)
+        label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
+        label:SetFont(_G.Font(12))
+        label:SetFontStyle(_G.Theme.FONT_STYLE)
+        label:SetForeColor(_G.Theme.DIM2)
+        label:SetText(LABELS[i])
+        label:SetMouseVisible(false)
+
+        buttons[i] = { frame = frame, bg = bg, label = label }
+
+        local hover = false
+        bg.MouseEnter = function()
+            hover = true
+            frame:SetBackColor(_G.Theme.HOVER)
+        end
+        bg.MouseLeave = function()
+            hover = false
+            RefreshButtons()
+        end
+        bg.MouseDown = function()
+            bg:SetBackColor(_G.Theme.PRESS)
+        end
+        bg.MouseUp = function()
+            if hover and (_G.Settings.fontScale or 0) ~= step then
+                _G.Settings.fontScale = step
+                _G.SaveSettings()
+
+                -- every control caches its font and every row its height at build time,
+                -- so the window is rebuilt, exactly as a theme change does
+                _G.ApplyFontScale()
+
+                local old = _G.Window
+                _G.Window = nil
+                if old then old:SetVisible(false) end
+
+                local reloader = Turbine.UI.Control()
+                reloader.Update = function()
+                    reloader:SetWantsUpdates(false)
+                    _G.Window = _G.LLWindow()
+                    _G.Window:SetVisible(true)
+                    _G.Window:ToggleSettings()
+                end
+                reloader:SetWantsUpdates(true)
+            else
+                RefreshButtons()
+            end
+        end
+    end
+
+    RefreshButtons()
+
+    row.SizeChanged = function()
+        local w     = row:GetWidth()
+        local top   = math.floor((34 - BTN_H - 2) / 2)
+        local right = w - 10
+        for i = #STEPS, 1, -1 do
+            buttons[i].frame:SetLeft(right - (BTN_W + 2))
+            buttons[i].frame:SetTop(top)
+            right = right - (BTN_W + 2) - 4
+        end
+        nameLabel:SetWidth(math.max(0, right - 12))
+    end
+
+    return row
+
+end
+
 function Settings:MakeLanguageRow()
 
     local row = Turbine.UI.Control()
@@ -683,7 +814,7 @@ function Settings:MakeLanguageRow()
     nameLabel:SetPosition(12, 0)
     nameLabel:SetHeight(34)
     nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana14)
+    nameLabel:SetFont(_G.Font(14))
     nameLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     nameLabel:SetForeColor(_G.Theme.TEXT)
     nameLabel:SetText(_G.L("sectionLanguage"))
@@ -724,7 +855,7 @@ function Settings:MakeLanguageRow()
         lbl:SetParent(bg)
         lbl:SetSize(BTN_W, BTN_H)
         lbl:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
-        lbl:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+        lbl:SetFont(_G.Font(12))
         lbl:SetFontStyle(_G.Theme.FONT_STYLE)
         lbl:SetForeColor(_G.Theme.DIM)
         lbl:SetText(LABELS[i])
@@ -831,7 +962,7 @@ function Settings:MakeThemeRow(mode, label)
     name:SetPosition(44, 0)
     name:SetHeight(THEME_H)
     name:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    name:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    name:SetFont(_G.Font(12))
     name:SetFontStyle(_G.Theme.FONT_STYLE)
     name:SetForeColor(active and _G.Theme.ACCENT or _G.Theme.TEXT)
     name:SetText(label)
@@ -912,6 +1043,7 @@ function Settings:BuildRows()
     left(self:MakeQuickLaunchSizeRow())
     left(self:MakeTimezoneRow())
     left(self:MakeTimeDisplayRow())
+    left(self:MakeFontSizeRow())
 
     -- right column: how it looks, where it is, and the destructive bit ---------------------
     right(self:MakeSectionHeader(_G.L("sectionLanguage")))
@@ -1038,7 +1170,7 @@ function Settings:Build()
     self.headerName:SetPosition(PAD_X, 0)
     self.headerName:SetHeight(HEADER_H)
     self.headerName:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    self.headerName:SetFont(Turbine.UI.Lotro.Font.Verdana16)
+    self.headerName:SetFont(_G.Font(16))
     self.headerName:SetFontStyle(_G.Theme.FONT_STYLE)
     self.headerName:SetForeColor(_G.Theme.ACCENT)
     self.headerName:SetText(_G.L("settingsTitle"))

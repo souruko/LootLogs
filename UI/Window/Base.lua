@@ -8,19 +8,25 @@ import "LootLogs.UI.Window.Sidebar"
 import "LootLogs.UI.Window.ContentView"
 import "LootLogs.UI.Window.ServerSelect"
 
-local SEP_W      = 1
-local PAD        = 8
-local GAP        = 8
-local BTN_SIZE   = 22
-local DIV_H      = 16
-local TITLE_H    = 30
-
 -- body geometry (docs/design/window-redesign/README.md, section 1)
-local SIDEBAR_W  = 262
-local LEGEND_H   = 24
+local SEP_W, PAD, GAP, BTN_SIZE, DIV_H, TITLE_H, SIDEBAR_W, LEGEND_H
 
 local MIN_WIDTH  = 1000
 local MIN_HEIGHT = 200
+
+-- recomputed when the Font Size setting changes
+local function Metrics()
+    SEP_W      = 1
+    BTN_SIZE   = 22
+    DIV_H      = 16
+    PAD        = _G.Scaled(8)
+    GAP        = _G.Scaled(8)
+    TITLE_H    = _G.Scaled(30)
+    SIDEBAR_W  = _G.Scaled(262)
+    LEGEND_H   = _G.Scaled(24)
+end
+
+_G.RegisterMetrics(Metrics)
 
 _G.LLWindow = class(_G.PanelWindow)
 -- window constructor --------------------------------------------------------------------------
@@ -83,7 +89,7 @@ function _G.LLWindow:Constructor()
     self.sidebarLegendLabel:SetPosition(8 + _G.TierSquaresWidth(3) + 8, 0)
     self.sidebarLegendLabel:SetHeight(LEGEND_H - 2 * SEP_W)
     self.sidebarLegendLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    self.sidebarLegendLabel:SetFont(Turbine.UI.Lotro.Font.Verdana10)
+    self.sidebarLegendLabel:SetFont(_G.Font(10))
     self.sidebarLegendLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     self.sidebarLegendLabel:SetForeColor(_G.Theme.DIM)
     self.sidebarLegendLabel:SetText(_G.L("tierLegend"))

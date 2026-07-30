@@ -12,13 +12,20 @@
 -- This mirrors Gibberish3's OPTIONS2/ELEMENTS/PanelWindow.lua so both plugins
 -- share one window language; only the colours are swapped for _G.Theme roles.
 
-local BORDER   = 1
-local TITLE_H  = 30
-local PAD      = 8
-local GAP      = 8
-local BTN_SIZE = 22
-local BTN_ICON = 16
-local GRIP     = 14
+local BORDER, TITLE_H, PAD, GAP, BTN_SIZE, BTN_ICON, GRIP
+
+-- recomputed when the Font Size setting changes
+local function Metrics()
+    BORDER           = 1
+    TITLE_H          = _G.Scaled(30)
+    PAD              = _G.Scaled(8)
+    GAP              = _G.Scaled(8)
+    BTN_SIZE         = 22
+    BTN_ICON         = 16
+    GRIP             = 14
+end
+
+_G.RegisterMetrics(Metrics)
 
 _G.PanelWindow = class(Turbine.UI.Window)
 
@@ -73,7 +80,7 @@ function _G.PanelWindow:Constructor(config)
     self.title_label:SetParent(self.titlebar)
     self.title_label:SetPosition(PAD, 0)
     self.title_label:SetHeight(TITLE_H)
-    self.title_label:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    self.title_label:SetFont(_G.Font(12))
     self.title_label:SetFontStyle(_G.Theme.FONT_STYLE)
     self.title_label:SetForeColor(_G.Theme.TEXT)
     self.title_label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)

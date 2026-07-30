@@ -15,6 +15,7 @@ content update the build targets, and the last number counts fixes and changes w
 - Trackers that carry over instead of resetting when you don't finish them are now marked
 - Instances in a content pack, and packs and instances in the character view, can be collapsed; a collapsed instance shows a one-line summary with its next reset
 - Settings can now clear the logs of the character you're playing
+- Font Size setting with three steps, so the smaller labels can be made readable; rows and columns grow with the text
 
 ### Changed
 - The window has been redrawn from scratch: its own slim frame, a compact title bar, and panels that match across every view

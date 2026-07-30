@@ -2,11 +2,18 @@
 -- One instance row in the Content tab: name, pin marker, and a bar of per-tier
 -- squares summarising the current character's logs for that instance.
 
-local ROW_H     = 24
-local INDENT    = 22
-local PAD_RIGHT = 10
-local MARK_W    = 2
-local PIN       = 10
+local ROW_H, INDENT, PAD_RIGHT, MARK_W, PIN
+
+-- recomputed when the Font Size setting changes
+local function Metrics()
+    ROW_H            = _G.Scaled(24)
+    INDENT           = _G.Scaled(22)
+    PAD_RIGHT        = _G.Scaled(10)
+    MARK_W           = 2
+    PIN              = 10
+end
+
+_G.RegisterMetrics(Metrics)
 
 InstanceItem = class(Turbine.UI.Control)
 function InstanceItem:Constructor(id, instance, sidebar)
@@ -176,7 +183,7 @@ function InstanceItem:Build()
     self.nameLabel:SetHeight(ROW_H)
     self.nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     self.nameLabel:SetFontStyle(_G.Theme.FONT_STYLE)
-    self.nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    self.nameLabel:SetFont(_G.Font(12))
     self.nameLabel:SetText(self.name)
     self.nameLabel:SetForeColor(_G.Theme.TEXT)
     self.nameLabel:SetMouseVisible(false)

@@ -66,8 +66,6 @@ function _G.Truncate(text, pixels, charWidth)
 
 end
 
--- rough average glyph widths for the Verdana sizes the plugin uses
-_G.CharWidth = { [10] = 5.4, [12] = 6.4, [14] = 7.6, [16] = 8.6 }
 
 -- A colour between two theme roles. Turbine has no gradients, so the fading section
 -- rules in the settings panel are drawn as a few segments stepped with this.
@@ -83,6 +81,90 @@ function _G.MixColor(roleA, roleB, t)
         a[2] + (b[2] - a[2]) * t,
         a[3] + (b[3] - a[3]) * t)
 
+end
+
+-- font scale -------------------------------------------------------------------------------------
+--
+-- Every size in the UI is written at its smallest, and the Font Size setting steps the
+-- whole thing up together: the font moves one rung up Turbine's Verdana ladder per step,
+-- and the row heights and text columns grow with it so nothing clips.
+--
+-- Icon sizes deliberately do NOT scale. Turbine clips a .tga to its control rather than
+-- resizing it, so a scaled icon box would just crop the art.
+
+-- built from the fonts the client actually exposes, so a missing rung cannot produce nil
+local FontLadder = {}
+-- even rungs only: an odd one would make a step barely visible
+for _, size in ipairs({ 10, 12, 14, 16, 18, 20, 22, 24 }) do
+    if Turbine.UI.Lotro.Font["Verdana" .. size] ~= nil then
+        FontLadder[#FontLadder + 1] = size
+    end
+end
+
+local ScaleFactor = { [0] = 1.00, [1] = 1.15, [2] = 1.30 }
+
+local function ScaleStep()
+    local step = _G.Settings and _G.Settings.fontScale or 0
+    if ScaleFactor[step] == nil then return 0 end
+    return step
+end
+
+-- The Verdana the given base size becomes at the current setting.
+function _G.Font(base)
+
+    local step  = ScaleStep()
+    local index = nil
+    for i, size in ipairs(FontLadder) do
+        if size == base then index = i break end
+    end
+
+    if index == nil then
+        return Turbine.UI.Lotro.Font["Verdana" .. base] or Turbine.UI.Lotro.Font.Verdana12
+    end
+
+    index = math.min(#FontLadder, index + step)
+    return Turbine.UI.Lotro.Font["Verdana" .. FontLadder[index]]
+
+end
+
+-- A height, width or padding at the current setting.
+function _G.Scaled(pixels)
+    return math.floor(pixels * ScaleFactor[ScaleStep()] + 0.5)
+end
+
+-- Rough average glyph width for a base size, measured at whatever the Font Size setting
+-- has actually promoted it to. Verdana runs close to 0.535 of its nominal size.
+function _G.GlyphWidth(base)
+
+    local step  = ScaleStep()
+    local index = nil
+    for i, size in ipairs(FontLadder) do
+        if size == base then index = i break end
+    end
+
+    local actual = base
+    if index ~= nil then
+        actual = FontLadder[math.min(#FontLadder, index + step)]
+    end
+
+    return actual * 0.535
+
+end
+
+-- Geometry lives in file-scope locals so it stays cheap to read. Each module registers a
+-- function that recomputes its own, and changing the setting runs all of them before the
+-- window is rebuilt.
+local metricsHooks = {}
+
+function _G.RegisterMetrics(refresh)
+    metricsHooks[#metricsHooks + 1] = refresh
+    refresh()
+end
+
+function _G.ApplyFontScale()
+    for _, refresh in ipairs(metricsHooks) do
+        refresh()
+    end
 end
 
 -- per-tier squares -------------------------------------------------------------------------------

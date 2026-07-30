@@ -6,14 +6,21 @@
 -- scaling it, and stretching inside a ListBox that has a scrollbar draws the image
 -- outside the list.
 
-local ROW_H     = 28
-local INDENT    = 20
-local PAD_RIGHT = 10
-local MARK_W    = 2
-local PORTRAIT  = 20
-local TAG_W     = 54
-local TAG_H     = 14
-local LEVEL_W   = 42
+local ROW_H, INDENT, PAD_RIGHT, MARK_W, PORTRAIT, TAG_W, TAG_H, LEVEL_W
+
+-- recomputed when the Font Size setting changes
+local function Metrics()
+    ROW_H            = _G.Scaled(28)
+    INDENT           = _G.Scaled(20)
+    PAD_RIGHT        = _G.Scaled(10)
+    MARK_W           = 2
+    PORTRAIT         = 20
+    TAG_W            = _G.Scaled(54)
+    TAG_H            = _G.Scaled(14)
+    LEVEL_W          = _G.Scaled(42)
+end
+
+_G.RegisterMetrics(Metrics)
 
 CharacterItem = class(Turbine.UI.Control)
 function CharacterItem:Constructor(id, character, sidebar)
@@ -149,7 +156,7 @@ function CharacterItem:Build()
     self.nameLabel:SetHeight(ROW_H)
     self.nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     self.nameLabel:SetFontStyle(_G.Theme.FONT_STYLE)
-    self.nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    self.nameLabel:SetFont(_G.Font(12))
     self.nameLabel:SetText(self.name)
     self.nameLabel:SetForeColor(_G.Theme.TEXT)
     self.nameLabel:SetMouseVisible(false)
@@ -175,7 +182,7 @@ function CharacterItem:Build()
     self.tagLabel:SetParent(self.tagBg)
     self.tagLabel:SetSize(TAG_W - 2, TAG_H - 2)
     self.tagLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
-    self.tagLabel:SetFont(Turbine.UI.Lotro.Font.Verdana10)
+    self.tagLabel:SetFont(_G.Font(10))
     self.tagLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     self.tagLabel:SetForeColor(_G.Theme.ACCENT)
     self.tagLabel:SetText(_G.L("currentTag"))
@@ -188,7 +195,7 @@ function CharacterItem:Build()
     self.levelLabel:SetHeight(ROW_H)
     self.levelLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
     self.levelLabel:SetFontStyle(_G.Theme.FONT_STYLE)
-    self.levelLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    self.levelLabel:SetFont(_G.Font(12))
     self.levelLabel:SetText(self.character.level and ("Lv " .. self.character.level) or "")
     self.levelLabel:SetForeColor(_G.Theme.DIM)
     self.levelLabel:SetMouseVisible(false)

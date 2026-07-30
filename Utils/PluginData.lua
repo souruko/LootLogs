@@ -205,6 +205,11 @@ if _G.Settings.printAlerts == nil then
 end
 _G.Settings.PrintAlerts = nil
 
+-- 0 smallest (the sizes everything is authored at), 1 and 2 step the whole UI up
+if _G.Settings.fontScale == nil then
+    _G.Settings.fontScale = 0
+end
+
 -- collapse state of each instance block in the content pack view
 if _G.Settings.packInstances == nil then
     _G.Settings.packInstances = {}
