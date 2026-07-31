@@ -118,8 +118,8 @@ function _G.LLWindow:Constructor()
         end
     end
 
-    -- a Turbine.UI.Window starts hidden, unlike the Lotro window this replaced
-    self:SetVisible(true)
+    -- always start closed; the quick launch icon opens it
+    self:SetVisible(false)
 
     if _G.Server == nil then
         self.serverSelectPopup = ServerSelectPopup(function()
