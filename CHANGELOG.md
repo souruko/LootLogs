@@ -3,6 +3,11 @@
 Versions are `3.<lotro update>.<release>`. The leading 3 is fixed, the middle number is the LOTRO
 content update the build targets, and the last number counts fixes and changes within it.
 
+## [3.49.1] - 2026-07-31
+
+### Changed
+- The plugin now always starts with its window closed — open it from the quickslot icon when you want it
+
 ## [3.49.0] - 2026-07-30
 
 ### Added
