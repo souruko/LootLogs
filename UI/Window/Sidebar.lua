@@ -6,7 +6,7 @@ import "LootLogs.UI.Window.SidebarItems.ContentItem"
 import "LootLogs.UI.Window.SidebarItems.ServerItem"
 
 -- sidebar geometry (docs/design/window-redesign/README.md, section 2)
-local BORDER, TAB_PAD, TAB_H, TAB_GAP, PINNED_W, PAD, SEARCH_H, ICON, COLLAPSE_W,
+local BORDER, TAB_PAD, TAB_H, TAB_GAP, PINNED_W, PAD, SEARCH_H, ICON, TAB_ICON, COLLAPSE_W,
       SEARCH_TOP, LIST_TOP
 
 -- recomputed when the Font Size setting changes
@@ -14,10 +14,14 @@ local function Metrics()
     BORDER     = 1
     TAB_GAP    = 2
     ICON       = 16
+    -- the star reads as a mark next to the tab name rather than a button of its own, so
+    -- it sits a size below the 16px icons (a .tga is clipped, not scaled, so this picks
+    -- the 12px artwork rather than shrinking the box around the 16px one)
+    TAB_ICON   = 12
     TAB_PAD    = _G.Scaled(4)
     TAB_H      = _G.Scaled(28)
-    -- the handoff says 62, which assumed an inline text star; a real 16px icon needs more
-    PINNED_W   = _G.Scaled(76)
+    -- the handoff says 62, which assumed an inline text star; a real icon needs more
+    PINNED_W   = _G.Scaled(72)
     PAD        = _G.Scaled(8)
     SEARCH_H   = _G.Scaled(24)
     COLLAPSE_W = _G.Scaled(78)
@@ -589,7 +593,7 @@ function Sidebar:SizeChanged()
 
     self.pinnedTab:SetPosition(TAB_PAD + contentW + TAB_GAP + charW + TAB_GAP, TAB_PAD)
     self.pinnedTab:SetWidth(pinnedW)
-    self.pinnedTab.label:SetWidth(math.max(0, pinnedW - ICON - 10))
+    self.pinnedTab.label:SetWidth(math.max(0, pinnedW - TAB_ICON - 10))
 
     -- search row ------------------------------------------------------------------------------
     local searchW = iw - 2 * PAD
@@ -660,12 +664,12 @@ function Sidebar:MakeTab(iconPath, onClick)
     if iconPath ~= nil then
         local icon = Turbine.UI.Control()
         icon:SetParent(tab)
-        icon:SetSize(ICON, ICON)
-        icon:SetPosition(6, math.floor((TAB_H - ICON) / 2))
+        icon:SetSize(TAB_ICON, TAB_ICON)
+        icon:SetPosition(6, math.floor((TAB_H - TAB_ICON) / 2))
         icon:SetBackground(iconPath)
         icon:SetBlendMode(Turbine.UI.BlendMode.Overlay)
         icon:SetMouseVisible(false)
-        label:SetPosition(ICON + 8, 0)
+        label:SetPosition(TAB_ICON + 8, 0)
         label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
         tab.icon = icon
     end
@@ -721,7 +725,7 @@ function Sidebar:Build()
     end)
     self.charactersTab.label:SetText(_G.L("charactersBtn"))
 
-    self.pinnedTab = self:MakeTab("LootLogs/Ressources/star_fill.tga", function()
+    self.pinnedTab = self:MakeTab("LootLogs/Ressources/star_on.tga", function()
         self:UpdateSelection(true, false, false)
     end)
     self.pinnedTab.label:SetText(_G.L("pinnedBtn"))

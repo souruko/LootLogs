@@ -2,7 +2,7 @@
 <PluginConfig xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
   <Id>1076</Id>
   <Name>LootLogs</Name>
-  <Version>3.49.1</Version>
+  <Version>3.49.2</Version>
   <Author>Souru Fluw</Author>
   <InfoUrl>https://www.lotrointerface.com/downloads/info1076-LootLogs.html</InfoUrl>
   <DownloadUrl>https://www.lotrointerface.com/downloads/download1076-LootLogs</DownloadUrl>

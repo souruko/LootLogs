@@ -32,10 +32,10 @@ Every icon in this folder is derived from [Phosphor Icons](https://phosphoricons
 | `arrow_right.tga` | `caret-right` | regular | 12×12 | white | collapsed group in the sidebar |
 | `collaps.tga` | `caret-up` | regular | 16×16 | white | collapse-all button |
 | `search.tga` | `magnifying-glass` | regular | 16×16 | white | sidebar search field |
-| `star_on.tga` | `star` | fill | 12×12 | white | pinned tier band |
+| `star_on.tga` | `star` | fill | 12×12 | white | pinned tier band, Pinned tab |
 | `star_off.tga` | `star` | regular | 12×12 | white | unpinned tier band |
-| `star_fill.tga` | `star` | fill | 16×16 | white | Pinned tab |
-| `star_pin.tga` | `star` | fill | 10×10 | white | pinned marker on a sidebar row |
+| `star_fill.tga` | `star` | fill | 16×16 | white | unused since the Pinned tab dropped to 12px |
+| `star_pin.tga` | `star` | fill | 10×10 | white | pinned marker on a sidebar row, legend |
 | `check.tga` | `check` | bold | 10×10 | white | tick in the "done" status chip |
 | `carryover.tga` | `arrows-clockwise` | bold | 10×10 | white | carry-over marker on a tier |
 | `badge_dot.tga` | `circle` | fill | 20×20 | `#B4141E` | quicklaunch unread counter |

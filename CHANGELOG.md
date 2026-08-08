@@ -3,6 +3,14 @@
 Versions are `3.<lotro update>.<release>`. The leading 3 is fixed, the middle number is the LOTRO
 content update the build targets, and the last number counts fixes and changes within it.
 
+## [3.49.2] - 2026-08-08
+
+### Changed
+- Instance names in the Pinned view now stand clearly apart from the tiers beneath them: each instance starts a new block with a gap above it and a brighter bar, and its tiers are stepped in underneath
+- A thin line under every tier row stops two tiers listed back to back from running together
+- Character names line up under the tier they belong to
+- The star on the Pinned tab and in the legend along the bottom is smaller, so it reads as a mark rather than a button
+
 ## [3.49.1] - 2026-07-31
 
 ### Changed

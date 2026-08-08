@@ -6,7 +6,7 @@ local BORDER, HEADER_H, LEGEND_H, PILL_W, PILL_H, TYPE_W, ACT_H, ACT_CLEAR_W, AC
 local PAD_X, NAME_W, COL_LEFT, COL_GAP, TIME_W, CHIP_W, CHIP_W_C, CHIP_H, COMPACT_AT,
       COL_LEFT_C, TICK, CARRY, COLHEAD_H, COLHEAD_NESTED_H, TIER_H, TIER_NESTED_H,
       BLOCK_H, COLLAPSED_H, GROUP_H, INSTANCE_INDENT, TIER_INDENT, TIER_LABEL_W,
-      ROW_H, STAR, CARET, MARK_W, AMBER_AFTER
+      ROW_H, STAR, CARET, MARK_W, AMBER_AFTER, GROUP_GAP, SUB_INDENT
 
 -- recomputed when the Font Size setting changes. Icon boxes (TICK, CARRY, STAR, CARET)
 -- stay fixed: Turbine clips a .tga rather than resizing it.
@@ -56,6 +56,8 @@ local function Metrics()
     INSTANCE_INDENT  = _G.Scaled(20)
     TIER_INDENT      = _G.Scaled(30)
     TIER_LABEL_W     = _G.Scaled(64)
+    GROUP_GAP        = _G.Scaled(6)    -- empty strip above a top-level group band
+    SUB_INDENT       = _G.Scaled(14)   -- a tier band sitting under an instance header
 
 end
 
@@ -498,7 +500,9 @@ function ContentView:_AddInstanceTierRows(instanceId, chars, currentTime, listWi
             renderedTiers = renderedTiers + 1
             local tierData = tiers[tierName]
 
-            addRow(self:MakeTierHeaderRow(instanceId, tierName, nested))
+            -- only the instance view heads its own table with tier bands; everywhere
+            -- else they hang off an instance header and step in under it
+            addRow(self:MakeTierHeaderRow(instanceId, tierName, nested, not fullTable))
 
             if perTierColumns then
                 addRow(self:MakeBossColumnHeaderRow(tierBossNames(tierName), nested))
@@ -542,8 +546,11 @@ function ContentView:_AddInstanceTierRows(instanceId, chars, currentTime, listWi
                     rowIndex     = rowIndex + 1
                     local timeRemaining = math.max(0, minTimeOfDeath - currentTime)
                     local timeText      = FormatTimeRemaining(timeRemaining, minTimeOfDeath)
+                    -- the names line up under the tier band they belong to, which steps
+                    -- in wherever an instance header sits above it
                     addRow(self:MakeInstanceCharacterRow(character, bossValues, bossNames,
-                                                         timeText, rowIndex, timeRemaining))
+                                                         timeText, rowIndex, timeRemaining,
+                                                         fullTable and PAD_X or (PAD_X + SUB_INDENT)))
                 end
             end
 
@@ -1058,11 +1065,71 @@ end
 
 -- ------------------------------------------------------------------------------------------------
 
-function ContentView:MakeTierHeaderRow(instanceId, tierName, nested)
+-- Whatever a view calls its top level — a character in the server view, an instance in
+-- the pinned view, a pack in the character view — gets the same chrome: a gap above it
+-- so the group reads as detached from the one before, the brightest fill in the list, a
+-- full-height stripe and a rule closing the band off from the rows it owns. Everything
+-- below that level keeps the quieter SECTION fill, so two neighbouring levels never
+-- look alike.
+-- Returns the list row and the band inside it; children go on the band, and a caller
+-- that has to reflow sets row.OnResize rather than row.SizeChanged.
+function ContentView:MakeTopBand(height, interactive)
+
+    local row = Turbine.UI.Control()
+    row:SetHeight(GROUP_GAP + height)
+    row:SetBackColor(_G.Theme.PANEL)   -- the gap strip, matching the listbox behind it
+
+    local band = Turbine.UI.Control()
+    band:SetParent(row)
+    band:SetPosition(0, GROUP_GAP)
+    band:SetHeight(height)
+    band:SetBackColor(_G.Theme.SEL_BG)
+
+    if interactive then
+        band.MouseEnter = function() band:SetBackColor(_G.Theme.PRESS) end
+        band.MouseLeave = function() band:SetBackColor(_G.Theme.SEL_BG) end
+    else
+        row:SetMouseVisible(false)
+        band:SetMouseVisible(false)
+    end
+
+    local stripe = Turbine.UI.Control()
+    stripe:SetParent(band)
+    stripe:SetPosition(0, 0)
+    stripe:SetSize(3, height)
+    stripe:SetBackColor(_G.Theme.HOVER)
+    stripe:SetMouseVisible(false)
+
+    local rule = Turbine.UI.Control()
+    rule:SetParent(band)
+    rule:SetPosition(0, height - 1)
+    rule:SetHeight(1)
+    rule:SetBackColor(_G.Theme.FRAME)
+    rule:SetMouseVisible(false)
+
+    row.SizeChanged = function()
+        local width = row:GetWidth()
+        band:SetWidth(width)
+        rule:SetWidth(width)
+        if row.OnResize ~= nil then row.OnResize(width) end
+    end
+
+    return row, band
+
+end
+
+-- ------------------------------------------------------------------------------------------------
+
+function ContentView:MakeTierHeaderRow(instanceId, tierName, nested, sub)
 
     -- nested in the pack view the instance header carries the context, so the band is
     -- shorter and drops the reset caption
     local height = nested and TIER_NESTED_H or TIER_H
+
+    -- sub: the band hangs off an instance header rather than heading the table itself,
+    -- so it steps in and trades the full-height mark for a short notch — the stripe at
+    -- the very edge belongs to the header above it
+    local indent = sub and (PAD_X + SUB_INDENT) or PAD_X
 
     local row = Turbine.UI.Control()
     row:SetHeight(height)
@@ -1071,15 +1138,30 @@ function ContentView:MakeTierHeaderRow(instanceId, tierName, nested)
 
     local mark = Turbine.UI.Control()
     mark:SetParent(row)
-    mark:SetPosition(0, 0)
-    mark:SetSize(MARK_W, height)
+    if sub then
+        local notch = math.max(8, math.floor(height / 2))
+        mark:SetPosition(indent - 10, math.floor((height - notch) / 2))
+        mark:SetSize(MARK_W, notch)
+    else
+        mark:SetPosition(0, 0)
+        mark:SetSize(MARK_W, height)
+    end
     mark:SetBackColor(_G.Theme.ACCENT)
     mark:SetMouseVisible(false)
+
+    -- closes the band off from the rows under it, and keeps two tiers stacked back to
+    -- back from reading as one block
+    local rule = Turbine.UI.Control()
+    rule:SetParent(row)
+    rule:SetPosition(0, height - 1)
+    rule:SetHeight(1)
+    rule:SetBackColor(_G.Theme.OUTER)
+    rule:SetMouseVisible(false)
 
     local label = Turbine.UI.Label()
     label:SetMultiline(false)
     label:SetParent(row)
-    label:SetPosition(PAD_X, 0)
+    label:SetPosition(indent, 0)
     label:SetSize(TIER_LABEL_W, height)
     label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     label:SetFont(_G.Font(12))
@@ -1091,7 +1173,7 @@ function ContentView:MakeTierHeaderRow(instanceId, tierName, nested)
     local schedule = Turbine.UI.Label()
     schedule:SetMultiline(false)
     schedule:SetParent(row)
-    schedule:SetPosition(PAD_X + TIER_LABEL_W, 0)
+    schedule:SetPosition(indent + TIER_LABEL_W, 0)
     schedule:SetHeight(height)
     schedule:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     schedule:SetFont(_G.Font(10))
@@ -1101,7 +1183,7 @@ function ContentView:MakeTierHeaderRow(instanceId, tierName, nested)
     schedule:SetMouseVisible(false)
 
     if TierCarriesOver(instanceId, tierName) then
-        AddCarryOverMarker(row, PAD_X, tierName, height, 12)
+        AddCarryOverMarker(row, indent, tierName, height, 12)
     end
 
     -- pin toggle: this instance+tier goes in the Pinned tab
@@ -1141,8 +1223,9 @@ function ContentView:MakeTierHeaderRow(instanceId, tierName, nested)
 
     row.SizeChanged = function()
         local width = row:GetWidth()
+        rule:SetWidth(width)
         star:SetLeft(width - PAD_X - STAR)
-        schedule:SetWidth(math.max(0, width - PAD_X - TIER_LABEL_W - PAD_X - STAR - 8))
+        schedule:SetWidth(math.max(0, width - indent - TIER_LABEL_W - PAD_X - STAR - 8))
     end
 
     return row
@@ -1247,11 +1330,11 @@ function ContentView:MakeValueRow(labelText, bossValues, timeText, index, remain
 
 end
 
-function ContentView:MakeInstanceCharacterRow(character, bossValues, bossNames, timeText, index, remaining)
+function ContentView:MakeInstanceCharacterRow(character, bossValues, bossNames, timeText, index, remaining, indent)
 
     local isCurrent = (character.name == _G.name)
     return self:MakeValueRow(character.name, bossValues, timeText, index, remaining,
-        { marker = isCurrent, accent = isCurrent })
+        { marker = isCurrent, accent = isCurrent, indent = indent })
 
 end
 
@@ -1320,23 +1403,13 @@ end
 -- Header of one instance block in the content pack view.
 function ContentView:MakeInstanceBlockHeaderRow(instanceId, instance, collapsed, onToggle)
 
-    local row = Turbine.UI.Control()
-    row:SetHeight(BLOCK_H)
-    row:SetBackColor(_G.Theme.SECTION)
-    row.MouseEnter = function() row:SetBackColor(_G.Theme.SEL_BG) end
-    row.MouseLeave = function() row:SetBackColor(_G.Theme.SECTION) end
-    row.MouseClick = function() onToggle() end
-
-    local mark = Turbine.UI.Control()
-    mark:SetParent(row)
-    mark:SetPosition(0, 0)
-    mark:SetSize(3, BLOCK_H)
-    mark:SetBackColor(_G.Theme.ACCENT)
-    mark:SetMouseVisible(false)
+    local row, band = self:MakeTopBand(BLOCK_H, true)
+    row.MouseClick  = function() onToggle() end
+    band.MouseClick = function() onToggle() end
 
     local name = Turbine.UI.Label()
     name:SetMultiline(false)
-    name:SetParent(row)
+    name:SetParent(band)
     name:SetPosition(PAD_X, 0)
     name:SetHeight(BLOCK_H)
     name:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
@@ -1348,7 +1421,7 @@ function ContentView:MakeInstanceBlockHeaderRow(instanceId, instance, collapsed,
 
     local chests = Turbine.UI.Label()
     chests:SetMultiline(false)
-    chests:SetParent(row)
+    chests:SetParent(band)
     chests:SetHeight(BLOCK_H)
     chests:SetWidth(90)
     chests:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
@@ -1359,7 +1432,7 @@ function ContentView:MakeInstanceBlockHeaderRow(instanceId, instance, collapsed,
     chests:SetMouseVisible(false)
 
     local caret = Turbine.UI.Control()
-    caret:SetParent(row)
+    caret:SetParent(band)
     caret:SetSize(CARET, CARET)
     caret:SetTop(math.floor((BLOCK_H - CARET) / 2))
     caret:SetBackground(collapsed and "LootLogs/Ressources/arrow_right.tga"
@@ -1367,8 +1440,7 @@ function ContentView:MakeInstanceBlockHeaderRow(instanceId, instance, collapsed,
     caret:SetBlendMode(Turbine.UI.BlendMode.Overlay)
     caret:SetMouseVisible(false)
 
-    row.SizeChanged = function()
-        local width = row:GetWidth()
+    row.OnResize = function(width)
         caret:SetLeft(width - PAD_X - CARET)
         chests:SetLeft(width - PAD_X - CARET - 8 - 90)
         name:SetWidth(math.max(0, width - PAD_X - CARET - 8 - 90 - 8 - PAD_X))
@@ -1544,25 +1616,26 @@ end
 -- and an uppercase name; the instance level is indented under it.
 function ContentView:MakeGroupHeaderRow(text, collapsed, indent, accentMark, upper, onToggle)
 
-    local row = Turbine.UI.Control()
-    row:SetHeight(GROUP_H)
-    row:SetBackColor(_G.Theme.SECTION)
-    row.MouseEnter = function() row:SetBackColor(_G.Theme.SEL_BG) end
-    row.MouseLeave = function() row:SetBackColor(_G.Theme.SECTION) end
-    row.MouseClick = function() onToggle() end
-
+    -- accentMark marks the pack level, which is the top level of the character view; the
+    -- instance level under it keeps the quiet fill so the two never look alike
+    local row, band
     if accentMark then
-        local mark = Turbine.UI.Control()
-        mark:SetParent(row)
-        mark:SetPosition(0, 0)
-        mark:SetSize(3, GROUP_H)
-        mark:SetBackColor(_G.Theme.ACCENT)
-        mark:SetMouseVisible(false)
+        row, band = self:MakeTopBand(GROUP_H, true)
+    else
+        row = Turbine.UI.Control()
+        row:SetHeight(GROUP_H)
+        row:SetBackColor(_G.Theme.SECTION)
+        row.MouseEnter = function() row:SetBackColor(_G.Theme.SEL_BG) end
+        row.MouseLeave = function() row:SetBackColor(_G.Theme.SECTION) end
+        band = row
     end
+
+    row.MouseClick  = function() onToggle() end
+    band.MouseClick = function() onToggle() end
 
     local label = Turbine.UI.Label()
     label:SetMultiline(false)
-    label:SetParent(row)
+    label:SetParent(band)
     label:SetPosition(indent, 0)
     label:SetHeight(GROUP_H)
     label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
@@ -1573,7 +1646,7 @@ function ContentView:MakeGroupHeaderRow(text, collapsed, indent, accentMark, upp
     label:SetMouseVisible(false)
 
     local caret = Turbine.UI.Control()
-    caret:SetParent(row)
+    caret:SetParent(band)
     caret:SetSize(CARET, CARET)
     caret:SetTop(math.floor((GROUP_H - CARET) / 2))
     caret:SetBackground(collapsed and "LootLogs/Ressources/arrow_right.tga"
@@ -1581,10 +1654,15 @@ function ContentView:MakeGroupHeaderRow(text, collapsed, indent, accentMark, upp
     caret:SetBlendMode(Turbine.UI.BlendMode.Overlay)
     caret:SetMouseVisible(false)
 
-    row.SizeChanged = function()
-        local width = row:GetWidth()
+    local function reflow(width)
         caret:SetLeft(width - PAD_X - CARET)
         label:SetWidth(math.max(0, width - indent - PAD_X - CARET - 8))
+    end
+
+    if accentMark then
+        row.OnResize = reflow
+    else
+        row.SizeChanged = function() reflow(row:GetWidth()) end
     end
 
     return row
@@ -1790,24 +1868,13 @@ end
 
 function ContentView:MakeCharacterHeaderRow(character)
 
-    local row = Turbine.UI.Control()
-    row:SetHeight(34)
-    row:SetBackColor(_G.Theme.SECTION)
-    row.MouseEnter = function() row:SetBackColor(_G.Theme.PRESS) end
-    row.MouseLeave = function() row:SetBackColor(_G.Theme.SECTION) end
-
-    local accent = Turbine.UI.Control()
-    accent:SetParent(row)
-    accent:SetPosition(0, 0)
-    accent:SetSize(3, 34)
-    accent:SetBackColor(_G.Theme.HOVER)
-    accent:SetMouseVisible(false)
+    local row, band = self:MakeTopBand(34)
 
     -- native 20x20 (Turbine clips instead of scaling), and AlphaBlend rather than
     -- Overlay, which is for the white glyph .tga files and renders a full-colour game
     -- icon invisible against the dark panel
     local classIcon = Turbine.UI.Control()
-    classIcon:SetParent(row)
+    classIcon:SetParent(band)
     classIcon:SetPosition(10, 7)
     classIcon:SetSize(20, 20)
     classIcon:SetBlendMode(Turbine.UI.BlendMode.AlphaBlend)
@@ -1818,7 +1885,7 @@ function ContentView:MakeCharacterHeaderRow(character)
 
     local nameLabel = Turbine.UI.Label()
     nameLabel:SetMultiline(false)
-    nameLabel:SetParent(row)
+    nameLabel:SetParent(band)
     nameLabel:SetPosition(36, 0)
     nameLabel:SetHeight(34)
     nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
@@ -1828,8 +1895,8 @@ function ContentView:MakeCharacterHeaderRow(character)
     nameLabel:SetText(character.name)
     nameLabel:SetMouseVisible(false)
 
-    row.SizeChanged = function()
-        nameLabel:SetWidth(math.max(0, row:GetWidth() - 46))
+    row.OnResize = function(width)
+        nameLabel:SetWidth(math.max(0, width - 46))
     end
 
     return row
@@ -1891,16 +1958,15 @@ end
 
 function ContentView:MakeInstanceRow(instance, indented)
 
-    local row = Turbine.UI.Control()
-
     if indented then
+        -- the server view, where the character band above is the top level
+        local row = Turbine.UI.Control()
         row:SetHeight(28)
         row:SetBackColor(_G.Theme.SECTION)
         row.MouseEnter = function() row:SetBackColor(_G.Theme.PRESS) end
         row.MouseLeave = function() row:SetBackColor(_G.Theme.SECTION) end
 
-        -- Full-height left stripe (matching the non-indented instance row below) so this reads as
-        -- a header a level above the tier rows nested under it, which use a small floating notch instead.
+        -- inset stripe: the one at the very edge belongs to the character band above
         local accent = Turbine.UI.Control()
         accent:SetParent(row)
         accent:SetPosition(10, 0)
@@ -1908,13 +1974,15 @@ function ContentView:MakeInstanceRow(instance, indented)
         accent:SetBackColor(_G.Theme.HOVER)
         accent:SetMouseVisible(false)
 
+        -- a level below the character band above it, so it stays on the quiet fill and
+        -- takes a smaller name
         local label = Turbine.UI.Label()
         label:SetMultiline(false)
         label:SetParent(row)
         label:SetPosition(22, 0)
         label:SetHeight(28)
         label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-        label:SetFont(_G.Font(16))
+        label:SetFont(_G.Font(14))
         label:SetFontStyle(_G.Theme.FONT_STYLE)
         label:SetForeColor(_G.Theme.ACCENT)
         label:SetText(instance.name)
@@ -1923,34 +1991,27 @@ function ContentView:MakeInstanceRow(instance, indented)
         row.SizeChanged = function()
             label:SetWidth(row:GetWidth() - 22)
         end
-    else
-        row:SetHeight(30)
-        row:SetBackColor(_G.Theme.SECTION)
-        row.MouseEnter = function() row:SetBackColor(_G.Theme.PRESS) end
-        row.MouseLeave = function() row:SetBackColor(_G.Theme.SECTION) end
 
-        local accent = Turbine.UI.Control()
-        accent:SetParent(row)
-        accent:SetPosition(0, 0)
-        accent:SetSize(3, 30)
-        accent:SetBackColor(_G.Theme.HOVER)
-        accent:SetMouseVisible(false)
+        return row
+    end
 
-        local label = Turbine.UI.Label()
-        label:SetMultiline(false)
-        label:SetParent(row)
-        label:SetPosition(12, 0)
-        label:SetHeight(30)
-        label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-        label:SetFont(_G.Font(16))
-        label:SetFontStyle(_G.Theme.FONT_STYLE)
-        label:SetForeColor(_G.Theme.ACCENT)
-        label:SetText(instance.name)
-        label:SetMouseVisible(false)
+    -- the pinned view: the instance is the top level, with tier bands hanging off it
+    local row, band = self:MakeTopBand(30)
 
-        row.SizeChanged = function()
-            label:SetWidth(row:GetWidth() - 12)
-        end
+    local label = Turbine.UI.Label()
+    label:SetMultiline(false)
+    label:SetParent(band)
+    label:SetPosition(12, 0)
+    label:SetHeight(30)
+    label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+    label:SetFont(_G.Font(16))
+    label:SetFontStyle(_G.Theme.FONT_STYLE)
+    label:SetForeColor(_G.Theme.ACCENT)
+    label:SetText(instance.name)
+    label:SetMouseVisible(false)
+
+    row.OnResize = function(width)
+        label:SetWidth(math.max(0, width - 12))
     end
 
     return row
@@ -2118,14 +2179,16 @@ function ContentView:BuildLegend()
 
     label("legendNothing", "legendNothing", 92, 92)
 
+    -- the 10px artwork, matching the carry-over marker beside it; the legend glyphs are
+    -- captions, not buttons
     local star = Turbine.UI.Control()
     star:SetParent(self.legend)
-    star:SetTop(math.floor((LEGEND_H - 16) / 2))
-    star:SetSize(16, 16)
-    star:SetBackground("LootLogs/Ressources/star_fill.tga")
+    star:SetTop(math.floor((LEGEND_H - 10) / 2))
+    star:SetSize(10, 10)
+    star:SetBackground("LootLogs/Ressources/star_pin.tga")
     star:SetBlendMode(Turbine.UI.BlendMode.Overlay)
     star:SetMouseVisible(false)
-    add(star, 5, 16)
+    add(star, 5, 10)
 
     label("legendPinned", "legendPinned", 60, 60)
 
