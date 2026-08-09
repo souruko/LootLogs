@@ -167,6 +167,89 @@ function _G.ApplyFontScale()
     end
 end
 
+-- Every control caches its font, its colour and its height at build time, so a change to
+-- either setting means rebuilding the windows rather than repainting them. Reconstruction has
+-- to happen on the NEXT tick: doing it inside the click handler destroys the control the click
+-- is still being dispatched to.
+--
+-- This exists as one function because there are now four windows and two settings that
+-- trigger it, and the two call sites had already drifted from a copy of each other.
+--
+-- _G.QuickLaunchBtn is deliberately NOT rebuilt. Its badge is a top-level window that is never
+-- parented to it, so a rebuild would leave the old badge drawn on screen with nothing owning
+-- it. The badge digit is the only thing on it that scales, and it is just re-fonted in place.
+function _G.RebuildWindows(after)
+
+    -- what has to survive the rebuild
+    local mainVisible    = _G.Window ~= nil and _G.Window:IsVisible()
+    local popupVisible   = _G.LootPopupWindow ~= nil and _G.LootPopupWindow:IsVisible()
+    local popupChest     = _G.LootPopupWindow ~= nil and _G.LootPopupWindow.chest or nil
+    local popupSelected  = _G.LootPopupWindow ~= nil and _G.LootPopupWindow.selected or nil
+    local browserVisible = _G.LootBrowserWindow ~= nil and _G.LootBrowserWindow:IsVisible()
+
+    local browserState = nil
+    if _G.LootBrowserWindow ~= nil then
+        browserState = {
+            instance = _G.LootBrowserWindow.selectedInstance,
+            event    = _G.LootBrowserWindow.selectedEvent,
+            tier     = _G.LootBrowserWindow.selectedTier,
+        }
+    end
+
+    local oldWindow  = _G.Window
+    local oldPopup   = _G.LootPopupWindow
+    local oldBrowser = _G.LootBrowserWindow
+
+    _G.Window            = nil
+    _G.LootPopupWindow   = nil
+    _G.LootBrowserWindow = nil
+
+    if oldWindow  then oldWindow:SetVisible(false)  end
+    if oldPopup   then oldPopup:SetVisible(false)   end
+    if oldBrowser then oldBrowser:SetVisible(false) end
+
+    if _G.QuickLaunchBtn ~= nil and _G.QuickLaunchBtn.badgeLabel ~= nil then
+        _G.QuickLaunchBtn.badgeLabel:SetFont(_G.Font(12))
+    end
+
+    local reloader = Turbine.UI.Control()
+    reloader.Update = function()
+
+        reloader:SetWantsUpdates(false)
+
+        _G.Window = _G.LLWindow()
+        _G.Window:SetVisible(mainVisible)
+
+        _G.LootPopupWindow = _G.LootPopup()
+        if popupVisible and popupChest ~= nil then
+            _G.LootPopupWindow:ShowChest(popupChest)
+            -- ShowChest resets the selection to the chest that opened it, so the boss chip the
+            -- player was actually looking at is put back afterwards
+            if popupSelected ~= nil then
+                _G.LootPopupWindow.selected = popupSelected
+                _G.LootPopupWindow:Rebuild()
+            end
+        end
+
+        _G.LootBrowserWindow = _G.LootBrowser()
+        if browserState ~= nil and browserState.instance ~= nil then
+            _G.LootBrowserWindow.selectedInstance = browserState.instance
+            _G.LootBrowserWindow.selectedEvent    = browserState.event
+            _G.LootBrowserWindow.selectedTier     = browserState.tier
+        end
+        if browserVisible then
+            _G.LootBrowserWindow:SetVisible(true)
+            _G.LootBrowserWindow:RebuildTree()
+            _G.LootBrowserWindow:RebuildTable()
+        end
+
+        if after ~= nil then after() end
+
+    end
+    reloader:SetWantsUpdates(true)
+
+end
+
 -- per-tier squares -------------------------------------------------------------------------------
 
 _G.TierSquare     = 6

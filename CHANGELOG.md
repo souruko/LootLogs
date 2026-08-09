@@ -1,7 +1,24 @@
 # Changelog
 
-Versions are `3.<lotro update>.<release>`. The leading 3 is fixed, the middle number is the LOTRO
-content update the build targets, and the last number counts fixes and changes within it.
+Versions are `<major>.<lotro update>.<release>`. The middle number is the LOTRO content update the
+build targets, and the last number counts fixes and changes within it, resetting when either of the
+numbers above it moves. The leading number moves only for a major overhaul of the plugin itself.
+
+## [4.49.0] - 2026-08-09
+
+### Added
+- A loot popup opens when you loot a chest, listing what dropped and who in the fellowship got it, with your own loot marked and the rows grouped by looter
+- Chips along the top of the popup switch between the bosses of the run, or show everything looted so far in one list
+- The popup stays quiet on purpose: only drops worth your attention appear in it, barter currency and filler stay out, and a chest that drops nothing notable opens no window at all
+- A loot browser, from the new chest icon in the window header or `/lootlogs drops` — every known drop per boss and tier, its chance, your own measured rate beside it, and a star to add it to your wishlist
+- Your wishlist is shared across all your characters, while what you have already collected is tracked per character, and a "Still needed" filter hides what this one already has
+- Items in both windows show their real icon and the game's own tooltip
+- Search in the loot browser looks across every instance, so it answers "where does this drop"
+- Commands: `/lootlogs` (or `/ll`) for the list, `/lootlogs drops` for the browser, `/lootlogs loot` to reopen the last chest's popup
+
+### Notes
+- Measured drop rates always show how many times you have opened that chest, and stay greyed until ten opens — a one-off "100%" next to a listed 12% is worse than no number
+- Loot messages must stay switched on in at least one chat tab, or the plugin never sees them and nothing is recorded
 
 ## [3.49.2] - 2026-08-08
 

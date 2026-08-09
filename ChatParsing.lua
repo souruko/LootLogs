@@ -16,10 +16,26 @@ function Turbine.Chat.Received(sender, args)
 
     end
 
+    -- Loot lines are the Loot Drops feature's only input. They can never match an _G.Events
+    -- entry, so they are handled here and go no further -- which is what the filter below did
+    -- with them before the feature existed. Wrapped, so a line the parser chokes on cannot
+    -- take the whole chat subscription down with it.
+    if (args.ChatType == Turbine.ChatType.SelfLoot
+        or args.ChatType == Turbine.ChatType.FellowLoot) then
+
+        if _G.LootDrops then
+            local ok, err = pcall(_G.LootDrops.HandleChat, args.ChatType, args.Message)
+            if not ok and _G.Settings.lootDebug then
+                Turbine.Shell.WriteLine("LL loot error: " .. tostring(err))
+            end
+        end
+
+        return
+
+    end
+
     -- filter chat types
-    if (args.ChatType == Turbine.ChatType.FellowLoot
-        or args.ChatType == Turbine.ChatType.SelfLoot
-        or args.ChatType == Turbine.ChatType.PlayerCombat
+    if (args.ChatType == Turbine.ChatType.PlayerCombat
         or args.ChatType == Turbine.ChatType.EnemyCombat) then
         return
 

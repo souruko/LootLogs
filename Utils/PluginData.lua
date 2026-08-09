@@ -227,6 +227,47 @@ if _G.Settings.showBadge == nil then
     _G.Settings.showBadge = true
 end
 
+-- Reports loot lines the parser chokes on, in ChatParsing. No UI: it is a developer switch,
+-- set by hand when a drops table is being built and a line is not being recognised.
+if _G.Settings.lootDebug == nil then
+    _G.Settings.lootDebug = false
+end
+
+-- How far either side of a chest message a loot line is taken to belong to that chest.
+--
+-- Stored in TENTHS, as integers. ConvertToEuro stringifies every number and ConvertFromEuro
+-- runs tonumber back over it -- exact for integers, but through the C locale's decimal point
+-- for fractions, on the very client whose disagreement about separators is why the Euro twin
+-- exists. Integers sidestep it entirely.
+--
+-- The two are not equal, and the measurements behind them are in
+-- docs/design/loot-drops/reference/chat-samples.txt: real chest loot arrived 2.9s AFTER the
+-- chest line, while quest-completion rewards arrive ~4.5s BEFORE it and must not be absorbed.
+if _G.Settings.lootWindowBackTenths == nil then
+    _G.Settings.lootWindowBackTenths = 10
+end
+if _G.Settings.lootWindowFwdTenths == nil then
+    _G.Settings.lootWindowFwdTenths = 40
+end
+
+-- the loot windows' own rects, saved with the rest of Settings
+if _G.Settings.lootPopup == nil then
+    _G.Settings.lootPopup = { left = 700, top = 300 }
+end
+
+if _G.Settings.lootBrowser == nil then
+    _G.Settings.lootBrowser = { left = 250, top = 250, width = 840, height = 430 }
+end
+
+if _G.Settings.showLootPopup == nil then
+    _G.Settings.showLootPopup = true
+end
+
+-- when true the popup only opens for a drop that is on the wishlist
+if _G.Settings.lootPopupWishOnly == nil then
+    _G.Settings.lootPopupWishOnly = false
+end
+
 -- custom list --------------------------------------------------------------------------------------
 
 function SaveCustomListCompleteHandler()
@@ -251,6 +292,52 @@ end
 if _G.CustomList == nil then
     _G.CustomList = {}
 end
+
+-- loot drops -----------------------------------------------------------------------------------
+-- Three Account-scope tables for the Loot Drops feature (docs/design/loot-drops/), each with the
+-- _Euro twin every saved key in this file carries.
+--
+--   _G.LootWishlist  { [itemName] = true }
+--   _G.LootObserved  [eventIndex] = { opens = n, items = { [itemName] = n } }
+--   _G.LootAcquired  [characterId][itemName] = { count, lastSeen }
+--
+-- Watch the Euro round trip: ConvertFromEuro runs tonumber over every key and value. The
+-- eventIndex keys must come back as numbers, and do. Item names come back as strings because
+-- no item name is numeric -- an item actually called "1000" would break this, and none is.
+
+local function LoadAccount(key)
+
+    local data
+
+    if IsEuroClient() then
+        local raw = Turbine.PluginData.Load(Turbine.DataScope.Account, key .. "_Euro")
+        if raw ~= nil then
+            data = ConvertFromEuro(raw)
+        else
+            data = Turbine.PluginData.Load(Turbine.DataScope.Account, key)
+        end
+    else
+        data = Turbine.PluginData.Load(Turbine.DataScope.Account, key)
+    end
+
+    if data == nil then data = {} end
+
+    return data
+
+end
+
+local function SaveAccount(key, value)
+    Turbine.PluginData.Save(Turbine.DataScope.Account, key, value)
+    Turbine.PluginData.Save(Turbine.DataScope.Account, key .. "_Euro", ConvertToEuro(value))
+end
+
+function _G.SaveLootWishlist() SaveAccount("LootWishlist", _G.LootWishlist) end
+function _G.SaveLootObserved() SaveAccount("LootObserved", _G.LootObserved) end
+function _G.SaveLootAcquired() SaveAccount("LootAcquired", _G.LootAcquired) end
+
+_G.LootWishlist = LoadAccount("LootWishlist")
+_G.LootObserved = LoadAccount("LootObserved")
+_G.LootAcquired = LoadAccount("LootAcquired")
 
 -- logs ---------------------------------------------------------------------------------------------
 -- structure

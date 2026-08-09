@@ -47,6 +47,12 @@ function _G.LLWindow:Constructor()
         self:ToggleSettings()
     end)
 
+    self.lootBtn = self:MakeTitleButton("LootLogs/Ressources/loot.tga", function()
+        if _G.LootBrowserWindow then
+            _G.LootBrowserWindow:Toggle()
+        end
+    end)
+
     _G.LootLogs_Shortcut = _G.L("quickslotCmd")
     self.quickslot = Turbine.UI.Lotro.Quickslot()
     self.quickslot:SetParent(self.titlebar)
@@ -167,6 +173,8 @@ function _G.LLWindow:OnLayout(width, height)
     self.quickslot:SetPosition(x, btn_top)
     x = x - GAP - BTN_SIZE
     self.settingsBtn:SetPosition(x, btn_top)
+    x = x - GAP - BTN_SIZE
+    self.lootBtn:SetPosition(x, btn_top)
 
     self.title_label:SetWidth(math.max(0, x - GAP - PAD))
 

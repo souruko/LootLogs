@@ -762,21 +762,13 @@ function Settings:MakeFontSizeRow()
                 _G.SaveSettings()
 
                 -- every control caches its font and every row its height at build time,
-                -- so the window is rebuilt, exactly as a theme change does
+                -- so the windows are rebuilt, exactly as a theme change does
                 _G.ApplyFontScale()
 
-                local old = _G.Window
-                _G.Window = nil
-                if old then old:SetVisible(false) end
-
-                local reloader = Turbine.UI.Control()
-                reloader.Update = function()
-                    reloader:SetWantsUpdates(false)
-                    _G.Window = _G.LLWindow()
+                _G.RebuildWindows(function()
                     _G.Window:SetVisible(true)
                     _G.Window:ToggleSettings()
-                end
-                reloader:SetWantsUpdates(true)
+                end)
             else
                 RefreshButtons()
             end
@@ -790,6 +782,116 @@ function Settings:MakeFontSizeRow()
         local top   = math.floor((34 - BTN_H - 2) / 2)
         local right = w - 10
         for i = #STEPS, 1, -1 do
+            buttons[i].frame:SetLeft(right - (BTN_W + 2))
+            buttons[i].frame:SetTop(top)
+            right = right - (BTN_W + 2) - 4
+        end
+        nameLabel:SetWidth(math.max(0, right - 12))
+    end
+
+    return row
+
+end
+
+-- A row of mutually exclusive buttons, in the same anatomy as the Font Size row above but
+-- driven by data, because that row is no longer the only one that needs it.
+--
+--   choices = { { value = 20, label = "2s" }, ... }
+--
+-- Unlike Font Size this does NOT rebuild the windows: it writes a number that is read when it
+-- is next used, so there is nothing cached to invalidate.
+function Settings:MakeChoiceRow(labelText, settingKey, choices, onChanged)
+
+    local row = Turbine.UI.Control()
+    row:SetHeight(34)
+    row:SetBackColor(_G.Theme.PANEL)
+    row:SetMouseVisible(false)
+
+    local nameLabel = Turbine.UI.Label()
+    nameLabel:SetMultiline(false)
+    nameLabel:SetParent(row)
+    nameLabel:SetPosition(12, 0)
+    nameLabel:SetHeight(34)
+    nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+    nameLabel:SetFont(_G.Font(14))
+    nameLabel:SetFontStyle(_G.Theme.FONT_STYLE)
+    nameLabel:SetForeColor(_G.Theme.TEXT)
+    nameLabel:SetText(labelText)
+    nameLabel:SetMouseVisible(false)
+
+    local BTN_W  = 40
+    local BTN_H  = 22
+    local buttons = {}
+
+    local function RefreshButtons()
+        for i, choice in ipairs(choices) do
+            if _G.Settings[settingKey] == choice.value then
+                buttons[i].frame:SetBackColor(_G.Theme.HOVER)
+                buttons[i].label:SetForeColor(_G.Theme.ACCENT)
+            else
+                buttons[i].frame:SetBackColor(_G.Theme.FRAME)
+                buttons[i].label:SetForeColor(_G.Theme.DIM2)
+            end
+            buttons[i].bg:SetBackColor(_G.Theme.BG)
+        end
+    end
+
+    for i, choice in ipairs(choices) do
+
+        local frame = Turbine.UI.Control()
+        frame:SetParent(row)
+        frame:SetSize(BTN_W + 2, BTN_H + 2)
+        frame:SetBackColor(_G.Theme.FRAME)
+
+        local bg = Turbine.UI.Control()
+        bg:SetParent(frame)
+        bg:SetPosition(1, 1)
+        bg:SetSize(BTN_W, BTN_H)
+        bg:SetBackColor(_G.Theme.BG)
+
+        local label = Turbine.UI.Label()
+        label:SetMultiline(false)
+        label:SetParent(bg)
+        label:SetSize(BTN_W, BTN_H)
+        label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
+        label:SetFont(_G.Font(12))
+        label:SetFontStyle(_G.Theme.FONT_STYLE)
+        label:SetForeColor(_G.Theme.DIM2)
+        label:SetText(choice.label)
+        label:SetMouseVisible(false)
+
+        buttons[i] = { frame = frame, bg = bg, label = label }
+
+        local hover = false
+        bg.MouseEnter = function()
+            hover = true
+            frame:SetBackColor(_G.Theme.HOVER)
+        end
+        bg.MouseLeave = function()
+            hover = false
+            RefreshButtons()
+        end
+        bg.MouseDown = function()
+            bg:SetBackColor(_G.Theme.PRESS)
+        end
+        bg.MouseUp = function()
+            if hover and _G.Settings[settingKey] ~= choice.value then
+                _G.Settings[settingKey] = choice.value
+                _G.SaveSettings()
+                if onChanged ~= nil then onChanged() end
+            end
+            RefreshButtons()
+        end
+
+    end
+
+    RefreshButtons()
+
+    row.SizeChanged = function()
+        local w     = row:GetWidth()
+        local top   = math.floor((34 - BTN_H - 2) / 2)
+        local right = w - 10
+        for i = #choices, 1, -1 do
             buttons[i].frame:SetLeft(right - (BTN_W + 2))
             buttons[i].frame:SetTop(top)
             right = right - (BTN_W + 2) - 4
@@ -984,19 +1086,11 @@ function Settings:MakeThemeRow(mode, label)
         _G.SaveSettings()
         _G.ApplyTheme(mode)
 
-        -- the whole window is rebuilt: every control cached a colour at build time
-        local old = _G.Window
-        _G.Window = nil
-        if old then old:SetVisible(false) end
-
-        local reloader = Turbine.UI.Control()
-        reloader.Update = function()
-            reloader:SetWantsUpdates(false)
-            _G.Window = _G.LLWindow()
+        -- every window is rebuilt: every control cached a colour at build time
+        _G.RebuildWindows(function()
             _G.Window:SetVisible(true)
             _G.Window:ToggleSettings()
-        end
-        reloader:SetWantsUpdates(true)
+        end)
     end
 
     row.SizeChanged = function()
@@ -1044,6 +1138,22 @@ function Settings:BuildRows()
     left(self:MakeTimezoneRow())
     left(self:MakeTimeDisplayRow())
     left(self:MakeFontSizeRow())
+
+    -- loot drops -------------------------------------------------------------------------
+    left(self:MakeSectionHeader(_G.L("sectionLoot")))
+    left(self:MakeToggleRow(_G.L("showLootPopup"), "showLootPopup", nil))
+    left(self:MakeToggleRow(_G.L("lootPopupWishOnly"), "lootPopupWishOnly", nil))
+
+    -- How long after the chest message a loot line still counts as that chest's. Measured on
+    -- a six-man run at 2.9s (docs/design/loot-drops/reference/chat-samples.txt), so the
+    -- default sits above it with room to spare. Whole seconds only: the value is stored in
+    -- tenths as an integer to survive the Euro save round-trip.
+    left(self:MakeChoiceRow(_G.L("lootWindow"), "lootWindowFwdTenths", {
+        { value = 20, label = "2s" },
+        { value = 30, label = "3s" },
+        { value = 40, label = "4s" },
+        { value = 60, label = "6s" },
+    }, nil))
 
     -- right column: how it looks, where it is, and the destructive bit ---------------------
     right(self:MakeSectionHeader(_G.L("sectionLanguage")))

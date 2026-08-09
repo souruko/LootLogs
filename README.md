@@ -1,6 +1,6 @@
 # LootLogs
 
-**Version:** 3.0.13 | **Author:** Souru
+**Version:** 4.49.0 | **Author:** Souru
 
 LootLogs is a Lord of the Rings Online plugin that automatically tracks your loot lockouts across instances and characters. When you open a chest in a raid or instance, LootLogs detects the chat message and records the lockout — no manual input needed. A countdown shows exactly when each lockout resets.
 
@@ -33,6 +33,8 @@ Lockouts are recorded per character and stored account-wide, so you can see all 
 - Sidebar lets you browse by content pack, instance, character, or server
 - Custom List to pin specific events you care about across characters
 - QuickLaunch icon with a badge showing how many new lockouts were recorded this session
+- A **loot popup** when a chest is opened, listing what dropped and who got it
+- A **loot browser** with the drop database per boss and tier, your own observed rates, and a wishlist
 - Localised UI in English, German, and French (auto-detected from game language)
 
 ---
@@ -107,8 +109,48 @@ Open via the gear icon in the main window header. Available options:
 | Show Badge | Show the lockout count badge on the QuickLaunch icon |
 | Timezone (UTC offset) | Your UTC offset, used to calculate reset times correctly (default: +1) |
 | Time Display | How reset times are shown: countdown (`13h 54m`), date stamp (`Wed 24.06`), or relative label (`Tomorrow`) |
+| Show Loot Popup | Show the loot popup when a chest is opened |
+| Popup only for wishlist | Only pop up when something you starred drops |
+| Loot window after chest | How long after the chest message a loot line still counts as that chest's (default 4s) |
 | Display Language | Override the UI language (English / Deutsch / Français) |
 | Server | Set which LOTRO server your character is on |
+
+---
+
+## Loot Drops
+
+When you open a chest, LootLogs reads the loot lines that follow it and shows a **loot popup**:
+what dropped, who in the fellowship got it, with your own loot highlighted. Chips along the top
+switch between the bosses of the run, or show the whole run at once.
+
+The popup is deliberately quiet. It only lists drops the database marks as worth showing, so
+barter currency and filler stay out of it, and a chest that drops nothing notable opens no
+window at all.
+
+The **loot browser** — the chest icon in the window header, or `/lootlogs drops` — lists the
+database itself: content pack → instance → boss on the left, and for the selected tier a table
+of every catalogued item with its drop chance, your own measured rate beside it, and a star to
+add it to your wishlist. The wishlist is shared across all your characters; what you have
+already collected is per character, and the **Still needed** filter uses it. Search finds an
+item across every instance, which answers "where does this drop".
+
+Measured rates always show their sample size, and are greyed until you have opened that chest
+ten times — a one-of-one drop reading "100%" next to a database value of 12% is worse than no
+number at all.
+
+### Keep loot messages visible
+
+LootLogs can only see what the chat system sends it. **Loot messages must stay enabled in at
+least one chat tab**, or the plugin never receives them and nothing is recorded. Standard chat
+timestamps are fine either way.
+
+### Commands
+
+| Command | What it does |
+|---|---|
+| `/lootlogs` | List the available commands (`/ll` also works) |
+| `/lootlogs drops` | Open or close the loot browser |
+| `/lootlogs loot` | Reopen the popup for the last chest you opened |
 
 ---
 

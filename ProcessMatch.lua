@@ -79,6 +79,13 @@ function ProcessMatch(message, log, logIndex)
         if _G.QuickLaunchBtn then
             _G.QuickLaunchBtn:IncrementBadge()
         end
+
+        -- Hand the identified chest to the loot feature. logIndex is all it needs:
+        -- _G.Events[logIndex] carries boss, tier and instance, and _G.Drops[logIndex] is that
+        -- chest's loot table. Only fires for a chest that actually recorded something.
+        if _G.LootDrops then
+            _G.LootDrops.OnChestEvent(logIndex, message)
+        end
     end
 
     if _G.Window and _G.Window.contentView then
