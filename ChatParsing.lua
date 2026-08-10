@@ -41,6 +41,33 @@ function Turbine.Chat.Received(sender, args)
 
     end
 
+    -- Entering an instance. Every instance hands out a quest on entry, and that quest is
+    -- specific to the instance AND the tier -- so the line identifies both, and it is the only
+    -- thing that says a run BEGAN. A chest message only ever says one was looted.
+    --
+    -- MATCHED AGAINST DATA, never against "New Quest:" alone: the game hands out thousands of
+    -- quests, and treating any of them as an instance entry would reset the run every time the
+    -- player picked something up in a quest hub.
+    --
+    -- The prefix test is a cheap gate so the entry table is only walked for the handful of
+    -- lines that could possibly be one.
+    if _G.LootDrops and _G.InstanceEntries and _G.InstanceEntryPrefix
+        and string.find(args.Message, _G.InstanceEntryPrefix) then
+
+        for _, entry in ipairs(_G.InstanceEntries) do
+            if string.find(args.Message, entry.match) then
+                pcall(_G.LootDrops.OnRunStart, entry.instance, entry.tier)
+                break
+
+            end
+
+        end
+
+    end
+
+    -- deliberately does not return: quest trackers are matched below and some of them arrive
+    -- on this same chat type
+
     -- iterate logs and compare to the message
     for logIndex, log in ipairs(_G.Events) do
 

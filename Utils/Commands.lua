@@ -224,6 +224,72 @@ _G.RegisterCommand("loot", "reopen the loot popup  ('demo' fills it with catalog
 
     end)
 
+-- ------------------------------------------------------------------------------------------------
+-- icon probe
+--
+-- The layered icon is composed from ids the client hands back, and when it draws wrong there is
+-- nothing on screen to say WHICH layer misbehaved -- a missing item image and an opaque backing
+-- painted over it look identical. This prints the three ids so the next guess is not a guess.
+--
+-- Takes an item name from the drops table, or a raw hex id.
+_G.RegisterCommand("icon", "image ids for an item  (a catalogued name, or a hex id)",
+function(args)
+
+    local query = args and string.match(args, "^%s*(.-)%s*$") or ""
+
+    if query == "" then
+        Turbine.Shell.WriteLine(_G.CM("DIM")
+            .. "  /lootlogs icon <item name>   or   /lootlogs icon 700713ED" .. _G.CMR)
+        return
+    end
+
+    -- a bare hex id, or a name looked up in the drops table
+    local id, shown = nil, query
+
+    if string.match(query, "^0?[xX]?%x+$") and tonumber((string.gsub(query, "^0[xX]", "")), 16) then
+        id = query
+    else
+        for eventIndex, rows in pairs(_G.Drops or {}) do
+            for _, drop in ipairs(rows) do
+                if id == nil and drop.item == query and drop.id ~= nil then
+                    id, shown = drop.id, _G.LootDrops.DisplayName(drop, drop.item)
+                end
+            end
+        end
+    end
+
+    if id == nil then
+        Turbine.Shell.WriteLine(_G.CM("DIM")
+            .. "LootLogs: no catalogued item called " .. _G.CMR .. query
+            .. _G.CM("DIM") .. " with an id" .. _G.CMR)
+        return
+    end
+
+    local images = _G.LootItemImages(id)
+
+    Turbine.Shell.WriteLine(_G.CM("ACCENT") .. "LootLogs" .. _G.CMR
+        .. _G.CM("DIM") .. "  icon  " .. _G.CMR
+        .. _G.LootDrops.ItemLink({ item = shown, id = id })
+        .. _G.CM("DIM") .. "  0x" .. string.format("%08X", _G.LootDrops.ItemId(id)) .. _G.CMR)
+
+    if images == nil then
+        Turbine.Shell.WriteLine(_G.CM("DIM")
+            .. "  the id resolved to no item art at all -- the row falls back to a quality bar"
+            .. _G.CMR)
+        return
+    end
+
+    -- Drawn in THIS order, art last. A nil art id is the one that matters: the two backings
+    -- alone are an empty coloured tile, which is what a broken icon looks like.
+    Turbine.Shell.WriteLine(_G.CM("DIM") .. "  background  " .. _G.CMR
+        .. tostring(images.background))
+    Turbine.Shell.WriteLine(_G.CM("DIM") .. "  quality     " .. _G.CMR
+        .. tostring(images.quality))
+    Turbine.Shell.WriteLine(_G.CM("DIM") .. "  icon (art)  " .. _G.CMR
+        .. tostring(images.icon))
+
+end)
+
 _G.RegisterCommand("drops", "open the loot browser", function()
 
     if _G.LootBrowserWindow == nil then

@@ -10,11 +10,12 @@
 -- game font ever fails to draw it, this is the one line to change.
 _G.Sep = " \194\183 "
 
--- Shown in the title bar. Versioning is 3.<lotro update>.<release>: the leading 3 is
--- fixed, the middle number is the LOTRO content update this build targets, and the last
--- counts fixes and changes within it. Keep in step with LootLogs.plugin and
--- LootLogs.plugincompendium when releasing.
-_G.LootLogsVersion = "4.49.0"
+-- Shown in the title bar. Versioning is <major>.<lotro update>.<release>: the leading number
+-- moves only for a major overhaul of the plugin itself (3 -> 4 for Loot Drops), the middle
+-- one is the LOTRO content update this build targets and waits for the game rather than for a
+-- feature, and the last counts fixes and changes within that update. Keep in step with
+-- LootLogs.plugin, LootLogs.plugincompendium and the README header when releasing.
+_G.LootLogsVersion = "4.49.1"
 
 _G.localPlayer = Turbine.Gameplay.LocalPlayer.GetInstance()
 _G.name = _G.localPlayer:GetName()

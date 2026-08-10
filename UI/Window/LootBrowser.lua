@@ -7,12 +7,16 @@
 -- The tier pills are derived from the distinct tier values of the selected instance's events,
 -- ordered by _G.TierOrder -- so they are always right per instance, including the ones that
 -- carry Solo on top of T1-T5, with no list maintained here.
+--
+-- SEARCHING NARROWS THE SELECTION, it does not leave it. Either search box filters the chest and
+-- tier already on screen, and it does it without building anything: BuildRows() makes the rows
+-- of the selection once, ApplyFilter() decides which of them the list shows.
 
 import "LootLogs.UI.Window.PanelWindow"
 import "LootLogs.UI.Window.LootRow"
 
 local PAD, GAP, SEP_W, ROW_H, TREE_ROW_H, HEAD_H, TREE_W, PILL_H, PILL_GAP, SEARCH_H
-local STAR, INDENT, SLOT, NAME_X
+local STAR, INDENT, SLOT, NAME_X, ICON, FIND
 local COL_SLOT, COL_DB, COL_YOURS, COL_STAR
 local MIN_WIDTH, MIN_HEIGHT
 
@@ -33,6 +37,10 @@ local function Metrics()
     TREE_W     = _G.Scaled(212)
     INDENT     = _G.Scaled(12)
     STAR       = 12
+    -- the .tga is clipped to its control rather than scaled, so the glyph stays 16px at every
+    -- font size and only the button around it has room to spare (Ressources/ICONS.md)
+    ICON       = 16
+    FIND       = 18
     COL_SLOT   = _G.Scaled(88)
     COL_DB     = _G.Scaled(52)
     COL_YOURS  = _G.Scaled(78)
@@ -62,6 +70,8 @@ function _G.LootBrowser:Constructor()
     self.selectedEvent    = nil     -- nil = whole instance, grouped by boss
     self.selectedTier     = nil
     self.search           = ""
+    self.searchText       = ""      -- as typed; self.search is the lowered form matched against
+    self.headSearchOpen   = false
     self.pills            = {}
     self.neededOnly       = false
 
@@ -103,10 +113,7 @@ function _G.LootBrowser:Constructor()
     self.searchHint:SetMouseVisible(false)
 
     self.searchBox.TextChanged = function()
-        self.search = string.lower(self.searchBox:GetText() or "")
-        self.searchHint:SetVisible(self.search == "")
-        self:RebuildTree()
-        self:RebuildTable()
+        self:SetSearch(self.searchBox:GetText())
     end
 
     self.treeHost = Turbine.UI.ListBox()
@@ -198,6 +205,95 @@ function _G.LootBrowser:Constructor()
         label:SetText(_G.Spaced(_G.Upper(_G.L(spec[1]))))
         label:SetMouseVisible(false)
         self.headLabels[#self.headLabels + 1] = label
+    end
+
+    -- Search from the item column itself. It drives the same filter as the left-pane box --
+    -- one search, two ways in -- because "is this thing in here" is asked while reading the
+    -- item list, not while reading the tree. The button is mouse-visible inside a header that
+    -- is not; a child is hit-tested on its own, the same way the tier pills are.
+    self.headSearchBtn = Turbine.UI.Control()
+    self.headSearchBtn:SetParent(self.tableHead)
+    self.headSearchBtn:SetSize(FIND, FIND)
+    self.headSearchBtn:SetBackColor(_G.Theme.HEADER)
+    self.headSearchBtn:SetMouseVisible(true)
+
+    local findIcon = Turbine.UI.Control()
+    findIcon:SetParent(self.headSearchBtn)
+    findIcon:SetSize(ICON, ICON)
+    findIcon:SetPosition(math.floor((FIND - ICON) / 2), math.floor((FIND - ICON) / 2))
+    findIcon:SetBlendMode(Turbine.UI.BlendMode.Overlay)
+    findIcon:SetBackground("LootLogs/Ressources/search.tga")
+    findIcon:SetMouseVisible(false)
+
+    self.headSearchBtn.MouseEnter = function()
+        self.headSearchBtn:SetBackColor(_G.Theme.FRAME)
+    end
+    self.headSearchBtn.MouseLeave = function()
+        self.headSearchBtn:SetBackColor(_G.Theme.HEADER)
+    end
+    self.headSearchBtn.MouseClick = function() self:ShowHeadSearch(true) end
+
+    -- the field takes the item column's place in the header while it is open
+    self.headSearchBg = Turbine.UI.Control()
+    self.headSearchBg:SetParent(self.tableHead)
+    self.headSearchBg:SetBackColor(_G.Theme.BG)
+    self.headSearchBg:SetVisible(false)
+
+    self.headSearchIcon = Turbine.UI.Control()
+    self.headSearchIcon:SetParent(self.headSearchBg)
+    self.headSearchIcon:SetSize(ICON, ICON)
+    self.headSearchIcon:SetBlendMode(Turbine.UI.BlendMode.Overlay)
+    self.headSearchIcon:SetBackground("LootLogs/Ressources/search.tga")
+    self.headSearchIcon:SetMouseVisible(false)
+
+    self.headSearchBox = Turbine.UI.TextBox()
+    self.headSearchBox:SetParent(self.headSearchBg)
+    self.headSearchBox:SetMultiline(false)
+    self.headSearchBox:SetFont(_G.Font(12))
+    self.headSearchBox:SetBackColor(_G.Theme.BG)
+    self.headSearchBox:SetForeColor(_G.Theme.TEXT)
+    self.headSearchBox:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+    self.headSearchBox:SetText("")
+
+    self.headSearchHint = Turbine.UI.Label()
+    self.headSearchHint:SetParent(self.headSearchBg)
+    self.headSearchHint:SetMultiline(false)
+    self.headSearchHint:SetFont(_G.Font(12))
+    self.headSearchHint:SetFontStyle(_G.Theme.FONT_STYLE)
+    self.headSearchHint:SetForeColor(_G.Theme.DIM)
+    self.headSearchHint:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+    self.headSearchHint:SetText(_G.L("searchPlaceholder"))
+    self.headSearchHint:SetMouseVisible(false)
+
+    self.headSearchBox.TextChanged = function()
+        self:SetSearch(self.headSearchBox:GetText())
+    end
+
+    -- Closing clears: a filter still running behind a folded-away field would read as a table
+    -- that has lost half its rows for no reason.
+    self.headSearchClear = Turbine.UI.Control()
+    self.headSearchClear:SetParent(self.headSearchBg)
+    self.headSearchClear:SetSize(FIND, FIND)
+    self.headSearchClear:SetBackColor(_G.Theme.BG)
+    self.headSearchClear:SetMouseVisible(true)
+
+    local clearIcon = Turbine.UI.Control()
+    clearIcon:SetParent(self.headSearchClear)
+    clearIcon:SetSize(ICON, ICON)
+    clearIcon:SetPosition(math.floor((FIND - ICON) / 2), math.floor((FIND - ICON) / 2))
+    clearIcon:SetBlendMode(Turbine.UI.BlendMode.Overlay)
+    clearIcon:SetBackground("LootLogs/Ressources/cross.tga")
+    clearIcon:SetMouseVisible(false)
+
+    self.headSearchClear.MouseEnter = function()
+        self.headSearchClear:SetBackColor(_G.Theme.FRAME)
+    end
+    self.headSearchClear.MouseLeave = function()
+        self.headSearchClear:SetBackColor(_G.Theme.BG)
+    end
+    self.headSearchClear.MouseClick = function()
+        self:SetSearch("")
+        self:ShowHeadSearch(false)
     end
 
     self.tableHost = Turbine.UI.ListBox()
@@ -337,44 +433,57 @@ function _G.LootBrowser:BossesFor(instanceId, tier)
 
 end
 
-local function Matches(search, text)
-    return search == "" or string.find(string.lower(text), search, 1, true) ~= nil
+-- ------------------------------------------------------------------------------------------------
+-- search
+
+-- One filter, two fields. Either box may be typed in and the other is set to match: two search
+-- fields showing different text while a single filter runs would be worse than having one.
+--
+-- Typing does NOT rebuild the table. The rows of the current selection are already built and
+-- kept (see BuildRows); a keystroke only decides which of them the list shows, which is why
+-- searching stays instant on a chest with a few hundred catalogued rows.
+function _G.LootBrowser:SetSearch(text)
+
+    -- setting the other box below fires its own TextChanged; this makes that arrival a no-op
+    if self._syncing then return end
+
+    text = text or ""
+    if text == self.searchText then return end
+
+    self.searchText = text
+    self.search     = string.lower(text)
+
+    self._syncing = true
+    if self.searchBox:GetText() ~= text     then self.searchBox:SetText(text)     end
+    if self.headSearchBox:GetText() ~= text then self.headSearchBox:SetText(text) end
+    self._syncing = false
+
+    self.searchHint:SetVisible(self.search == "")
+    self.headSearchHint:SetVisible(self.search == "")
+
+    -- typing in the left box opens the header field, so the column always shows what is
+    -- filtering it. Emptying it does not close it -- the field must not vanish out from
+    -- under whoever is backspacing in it.
+    if self.search ~= "" then self:ShowHeadSearch(true) end
+
+    -- the tree lists instances and their catalogued totals, neither of which the search touches
+    self:ApplyFilter()
+
 end
 
--- An item is findable under the name the client prints AND under its label, because whoever is
--- searching knows it by one or the other and has no way to tell which this build stores.
-local function MatchesDrop(search, drop)
-    return Matches(search, drop.item)
-        or (drop.label ~= nil and Matches(search, drop.label))
-end
+function _G.LootBrowser:ShowHeadSearch(open)
 
--- Every catalogued row, flattened, for the search path. Searching has to reach across
--- instances -- "where does this drop" is the question the box exists to answer.
-function _G.LootBrowser:SearchRows()
+    if self.headSearchOpen == open then return end
+    self.headSearchOpen = open
 
-    local rows = {}
+    self.headSearchBg:SetVisible(open)
+    self.headSearchBtn:SetVisible(not open)
+    self.headLabels[1]:SetVisible(not open)
 
-    if _G.Drops == nil then return rows end
-
-    for eventIndex, drops in pairs(_G.Drops) do
-        local event = _G.Events[eventIndex]
-        if event ~= nil then
-            for _, drop in ipairs(drops) do
-                if MatchesDrop(self.search, drop) then
-                    rows[#rows + 1] = { index = eventIndex, event = event, drop = drop }
-                end
-            end
-        end
+    -- clicking the magnifier should leave the caret in the field, not one click away from it
+    if open and self.headSearchBox.Focus ~= nil then
+        self.headSearchBox:Focus()
     end
-
-    table.sort(rows, function(a, b)
-        local nameA = _G.LootDrops.DisplayName(a.drop, a.drop.item)
-        local nameB = _G.LootDrops.DisplayName(b.drop, b.drop.item)
-        if nameA ~= nameB then return nameA < nameB end
-        return a.index < b.index
-    end)
-
-    return rows
 
 end
 
@@ -610,12 +719,16 @@ function _G.LootBrowser:MakeGroupHeader(text)
     rule:SetBackColor(_G.Theme.FRAME)
     rule:SetMouseVisible(false)
 
-    row.SizeChanged = function()
+    -- named for the same reason as the item row's: AddRow drives it directly, because a
+    -- rebuilt row that happens to match the list's width never fires SizeChanged
+    row.Layout = function()
         local labelW = math.floor(#text * _G.GlyphWidth(10) * 2) + _G.Scaled(8)
         label:SetWidth(labelW)
         rule:SetPosition(PAD + labelW + GAP, math.floor(HEAD_H / 2))
         rule:SetWidth(math.max(0, row:GetWidth() - PAD * 2 - labelW - GAP))
     end
+
+    row.SizeChanged = row.Layout
 
     return row
 
@@ -631,23 +744,97 @@ function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
 
     local wished = _G.LootStats ~= nil and _G.LootStats.IsWished(drop.item)
 
+    -- A group row is a HEADING over items, not an item, so it takes the header ground the
+    -- table's own column strip uses and stays out of the striping. That band, the fixed mark
+    -- where the art goes and the accent name are three signals saying the same thing: what is
+    -- named here is a category, and the rate beside it is the category's.
     local function Ground()
-        return wished and _G.Theme.CHIP_FAV_BG or (alt and _G.Theme.ROW_ALT or _G.Theme.BG)
+        if wished then return _G.Theme.CHIP_FAV_BG end
+        if drop.isGroup then return _G.Theme.HEADER end
+        return alt and _G.Theme.ROW_ALT or _G.Theme.BG
     end
     row:SetBackColor(Ground())
 
-    -- quality bar; the quickslot sits beside it, so rarity stays readable at a glance
-    local bar = Turbine.UI.Control()
-    bar:SetParent(row)
-    bar:SetSize(3, SLOT)
-    bar:SetPosition(PAD, math.floor((ROW_H - SLOT) / 2))
-    bar:SetBackColor(_G.LootQualityColor(drop.quality))
-    bar:SetMouseVisible(false)
+    -- Which side of the stripe a row falls on depends on what is above it, and the search
+    -- changes that without rebuilding anything. So the row can be restriped in place rather
+    -- than thrown away and built again for a colour.
+    row.SetAlt = function(value)
+        alt = value
+        row:SetBackColor(Ground())
+    end
 
-    -- the item's own icon and tooltip, from its catalogued id; see UI/Window/LootRow.lua
-    local slot = _G.MakeItemQuickslot(row, drop.item)
-    _G.ApplyItemShortcut(slot, drop)
-    slot:SetPosition(PAD + 3 + math.floor(GAP / 2), math.floor((ROW_H - SLOT) / 2))
+    -- A child of an open fold is stepped in as a whole -- bar, icon and name together. Moving
+    -- the name alone would leave the art in a column of its own and read as a separate list.
+    local indent = drop.child and INDENT or 0
+
+    -- The fold marker takes the quality bar's place on an expandable group row, because a
+    -- group has no one quality to show and the two would fight for the same 3px.
+    local expandable = drop.isGroup and drop.expandable
+
+    if expandable then
+
+        local caret = Turbine.UI.Control()
+        caret:SetParent(row)
+        caret:SetSize(STAR, STAR)
+        caret:SetPosition(PAD - 4, math.floor((ROW_H - STAR) / 2))
+        -- No SetForeColor here: that is a Label method, and calling it on a Control throws --
+        -- which killed the whole row and took every grouped line off the table with it. An
+        -- Overlay glyph is tinted by the ground BEHIND it, never by a fore colour of its own
+        -- (Ressources/ICONS.md).
+        caret:SetBlendMode(Turbine.UI.BlendMode.Overlay)
+        caret:SetBackground(drop.open and "LootLogs/Ressources/arrow_down.tga"
+                                      or  "LootLogs/Ressources/arrow_right.tga")
+        caret:SetMouseVisible(false)
+
+    else
+
+        -- quality bar; the icon sits beside it, so rarity stays readable at a glance. A group
+        -- that does not fold has no one quality either, so it gets the accent strip instead of
+        -- a colour borrowed from whichever member happened to be listed first.
+        local bar = Turbine.UI.Control()
+        bar:SetParent(row)
+        bar:SetSize(3, SLOT)
+        bar:SetPosition(PAD + indent, math.floor((ROW_H - SLOT) / 2))
+        bar:SetBackColor(drop.isGroup and _G.Theme.STRIP or _G.LootQualityColor(drop.quality))
+        bar:SetMouseVisible(false)
+
+    end
+
+    -- The item's own art, composed from its catalogued id. Images rather than a quickslot, so
+    -- no stack count from your bags is painted over a listing about the world -- the tooltip
+    -- that used to justify the slot now comes from the name link. See UI/Window/LootRow.lua.
+    local iconHost = Turbine.UI.Control()
+    iconHost:SetParent(row)
+    iconHost:SetSize(SLOT, SLOT)
+    iconHost:SetPosition(PAD + 3 + math.floor(GAP / 2) + indent,
+        math.floor((ROW_H - SLOT) / 2))
+    iconHost:SetMouseVisible(false)
+
+    if drop.isGroup then
+
+        -- A GROUP HAS NO ART OF ITS OWN. It used to borrow the first member's, which put a
+        -- random pair of gloves against a name meaning every piece in the set -- and made the
+        -- row look like the one item it is not. A fixed mark instead: a plugin glyph, Overlay
+        -- over the row's ground the same as every other one (Ressources/ICONS.md).
+        local mark = Turbine.UI.Control()
+        mark:SetParent(iconHost)
+        mark:SetSize(SLOT, SLOT)
+        mark:SetBlendMode(Turbine.UI.BlendMode.Overlay)
+        mark:SetBackground("LootLogs/Ressources/group.tga")
+        mark:SetMouseVisible(false)
+
+    else
+        _G.MakeItemIcon(iconHost, drop.id, SLOT)
+    end
+
+    -- The whole row toggles the fold, not just the caret: a 12px arrow is a small target for
+    -- something the entire row is about. The star and the name link keep their own clicks,
+    -- because they are mouse-visible and take the event first.
+    if expandable then
+        row.MouseClick = function()
+            self:ToggleGroup(eventIndex, drop.group)
+        end
+    end
 
     local nameLabel = Turbine.UI.Label()
     nameLabel:SetParent(row)
@@ -655,9 +842,26 @@ function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
     nameLabel:SetHeight(ROW_H)
     nameLabel:SetFont(_G.Font(12))
     nameLabel:SetFontStyle(_G.Theme.FONT_STYLE)
-    nameLabel:SetForeColor(_G.LootQualityColor(drop.quality))
     nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    nameLabel:SetMouseVisible(false)
+
+    if drop.isGroup then
+
+        -- NOT A LINK. A group name is the plugin's own word for a set -- editable in the drops
+        -- data, and answering to no item id -- so linking it would examine whichever member the
+        -- row borrowed, which is not what the name says. Plain text, in the accent the other
+        -- headings use, and markup stays OFF: a "<" in a hand-written group name would be eaten
+        -- as a tag.
+        nameLabel:SetForeColor(_G.Theme.ACCENT)
+        nameLabel:SetMouseVisible(false)
+
+    else
+
+        -- an item link: markup to draw it, the mouse to click it. See UI/Window/LootRow.lua.
+        nameLabel:SetForeColor(_G.LootQualityColor(drop.quality))
+        nameLabel:SetMarkupEnabled(true)
+        nameLabel:SetMouseVisible(true)
+
+    end
 
     local slotLabel = Turbine.UI.Label()
     slotLabel:SetParent(row)
@@ -680,9 +884,12 @@ function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
     dbLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     dbLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
     dbLabel:SetMouseVisible(false)
-    if drop.chance ~= nil then
+    -- the category's own rate wins over any one member's, on a group row
+    local shownChance = drop.bucketChance or drop.chance
+
+    if shownChance ~= nil then
         dbLabel:SetForeColor(_G.Theme.TEXT)
-        dbLabel:SetText(math.floor(drop.chance * 100 + 0.5) .. "%")
+        dbLabel:SetText(math.floor(shownChance * 100 + 0.5) .. "%")
     else
         dbLabel:SetForeColor(_G.Theme.DASH)
         dbLabel:SetText("\226\128\148")                     -- em dash
@@ -710,7 +917,16 @@ function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
 
     local count, opens = 0, 0
     if _G.LootStats ~= nil then
-        count, opens = _G.LootStats.Observed(eventIndex, drop.item)
+        if drop.isGroup then
+            -- any member is the same event, so the counts add
+            for _, member in ipairs(drop.members) do
+                local memberCount, memberOpens = _G.LootStats.Observed(eventIndex, member.item)
+                count = count + memberCount
+                opens = math.max(opens, memberOpens)
+            end
+        else
+            count, opens = _G.LootStats.Observed(eventIndex, drop.item)
+        end
     end
 
     if opens > 0 then
@@ -744,23 +960,47 @@ function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
     row.MouseEnter = function() row:SetBackColor(_G.Theme.FRAME) end
     row.MouseLeave = function() row:SetBackColor(Ground()) end
 
-    row.SizeChanged = function()
+    -- An item's name label takes the mouse so its link can be clicked, which means the row stops
+    -- seeing the pointer the moment it crosses the name -- and the row highlight would drop out
+    -- exactly where you are looking. So the label drives the same highlight. A group's name is
+    -- mouse-invisible and never intercepts it in the first place.
+    nameLabel.MouseEnter = row.MouseEnter
+    nameLabel.MouseLeave = row.MouseLeave
+
+    -- Named, because a rebuilt row cannot rely on SizeChanged alone: a fresh row whose width
+    -- already matches the list never fires one, and then it draws with every column at zero.
+    -- RebuildTable calls this directly once the row is in the list and sized.
+    row.Layout = function()
 
         local width  = row:GetWidth()
         local starX  = width - PAD - COL_STAR + math.floor((COL_STAR - STAR) / 2)
         local yoursX = width - PAD - COL_STAR - COL_YOURS
         local dbX    = yoursX - COL_DB
         local slotX  = dbX - COL_SLOT
-        local nameX  = NAME_X
+        local nameX = NAME_X + indent
 
         nameLabel:SetPosition(nameX, 0)
         nameLabel:SetWidth(math.max(0, slotX - nameX - GAP))
-        nameLabel:SetText(_G.Truncate(_G.LootDrops.DisplayName(drop, drop.item),
-            nameLabel:GetWidth(), _G.GlyphWidth(12)))
+
+        local glyph = _G.GlyphWidth(12)
+        local shown = _G.LootDrops.DisplayName(drop, drop.item)
+
+        if drop.isGroup then
+            -- plain text, so the full width is the text's own -- no brackets to pay for
+            nameLabel:SetText(_G.Truncate(shown, nameLabel:GetWidth(), glyph))
+        else
+            -- truncate the visible name, then wrap it; the tag is markup and has no width, the
+            -- brackets do
+            nameLabel:SetText(_G.LootDrops.ItemLink(drop,
+                _G.Truncate(shown, nameLabel:GetWidth() - glyph * 2, glyph)))
+        end
 
         slotLabel:SetPosition(slotX, 0)
         slotLabel:SetWidth(COL_SLOT)
-        slotLabel:SetText(_G.Truncate(drop.slot or "", COL_SLOT - GAP, _G.GlyphWidth(10)))
+        -- a group has no slot of its own; the column says how many things it stands for
+        slotLabel:SetText(_G.Truncate(
+            drop.isGroup and (#drop.members .. " " .. _G.L("groupKinds")) or (drop.slot or ""),
+            COL_SLOT - GAP, _G.GlyphWidth(10)))
 
         dbLabel:SetPosition(dbX, 0)
         dbLabel:SetWidth(COL_DB)
@@ -776,6 +1016,8 @@ function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
         star:SetPosition(starX, math.floor((ROW_H - STAR) / 2))
 
     end
+
+    row.SizeChanged = row.Layout
 
     return row
 
@@ -800,93 +1042,278 @@ function _G.LootBrowser:Filtered(drop)
 
 end
 
-function _G.LootBrowser:RebuildTable()
+-- Is this group's fold open? Keyed per CHEST as well as per group, so opening "Fallen armour"
+-- at Tier 3 does not silently open it at Solo, where a different set of pieces drops.
+function _G.LootBrowser:GroupKey(eventIndex, group)
+    return tostring(eventIndex) .. "\0" .. tostring(group)
+end
+
+function _G.LootBrowser:GroupOpen(eventIndex, group)
+    return self.openGroups ~= nil and self.openGroups[self:GroupKey(eventIndex, group)] == true
+end
+
+function _G.LootBrowser:ToggleGroup(eventIndex, group)
+
+    self.openGroups = self.openGroups or {}
+
+    local key = self:GroupKey(eventIndex, group)
+    self.openGroups[key] = not self.openGroups[key] or nil
+
+    self:RebuildTable()
+
+end
+
+-- One row per group, the rest untouched. The group row carries the members' combined observed
+-- count, because any member dropping is the event "one of these dropped" -- which is the only
+-- rate that means anything for a class-specific roll.
+--
+-- An "expand" group keeps its members and hands them back as CHILD rows when the fold is open.
+-- A "collapse" group never does: its members are placeholder names and listing them is the
+-- thing grouping exists to stop. See _G.LootDrops.GroupMode.
+function _G.LootBrowser:Collapse(eventIndex, rows)
+
+    local out, groups = {}, {}
+
+    for _, drop in ipairs(rows) do
+
+        local group = drop.group
+
+        if group == nil or group == "" then
+            out[#out + 1] = drop
+        else
+            local seen = groups[group]
+            if seen == nil then
+                -- No id and no quality: a group is not an item and must not borrow one member's
+                -- identity. The row draws it with the fixed group mark instead, and its name is
+                -- text rather than a link -- see MakeItemRow.
+                seen = {
+                    item    = group,        -- the KEY: what the wishlist and the stats are on
+                    label   = _G.LootDrops.GroupLabel(group),   -- and what is drawn instead
+                    slot    = drop.slot,
+                    chance  = drop.chance,
+                    group   = group,
+                    members = { drop },
+                    isGroup = true,
+                }
+                -- A BUCKET ROW IS THE CATEGORY, NOT A MEMBER OF IT. The chart gives one rate for
+                -- "Fallen armour" without naming a single piece; that rate belongs on the group
+                -- line and the row carrying it must not also be listed inside its own fold.
+                if drop.bucket then seen.bucketChance = drop.chance end
+                seen.expandable = _G.LootDrops.GroupExpands(group)
+                seen.open       = seen.expandable and self:GroupOpen(eventIndex, group)
+                seen.bucket     = nil       -- the group row is never itself a bucket row
+                groups[group]   = seen
+                out[#out + 1]   = seen
+            else
+                seen.members[#seen.members + 1] = drop
+                if seen.chance == nil then seen.chance = drop.chance end
+                if drop.bucket then seen.bucketChance = drop.chance end
+            end
+        end
+
+    end
+
+    -- Second pass, because a group's members are only all known once the first pass is done.
+    -- An open fold emits its members straight after their parent, marked as children so the
+    -- row draws them stepped in and without a fold of their own.
+    local expanded = {}
+
+    for _, drop in ipairs(out) do
+
+        expanded[#expanded + 1] = drop
+
+        if drop.isGroup and drop.open then
+
+            table.sort(drop.members, function(a, b)
+                return _G.LootDrops.DisplayName(a, a.item) < _G.LootDrops.DisplayName(b, b.item)
+            end)
+
+            for _, member in ipairs(drop.members) do
+                if not member.bucket then
+                    expanded[#expanded + 1] = {
+                        item = member.item, plural = member.plural, label = member.label,
+                        quality = member.quality, slot = member.slot, chance = member.chance,
+                        popup = member.popup, id = member.id, group = member.group,
+                        child = true,
+                    }
+                end
+            end
+
+        end
+
+    end
+
+    return expanded
+
+end
+
+-- Add a row and lay it out NOW.
+--
+-- A ListBox sizes its items, but only ever tells a row about it through SizeChanged -- and a
+-- freshly built row whose width already matches the list never gets one. Nothing then positions
+-- its columns, so it draws with everything stacked at zero. That is why switching tier or boss
+-- left rows looking unsized: it depended on whether the new row happened to differ in width from
+-- the default.
+--
+-- Setting the width explicitly and calling the layout makes it deterministic either way.
+function _G.LootBrowser:AddRow(row)
+
+    self.tableHost:AddItem(row)
+
+    local width = self.tableHost:GetWidth()
+    if width ~= nil and width > 0 then
+        row:SetWidth(width)
+    end
+
+    if row.Layout ~= nil then
+        row.Layout()
+    end
+
+    return row
+
+end
+
+-- The rows of the CURRENT SELECTION, built once and kept in self.rows.
+--
+-- Building is the expensive half: every item row resolves its art through a shortcut lookup into
+-- the client's own item table. None of that depends on the search text, so it happens when the
+-- selection changes -- instance, tier, boss, the still-needed filter, a fold opening -- and not
+-- when a key is pressed. ApplyFilter then decides which of these rows the list shows.
+--
+-- Each entry carries what the search needs to judge it, lowered here rather than per keystroke.
+-- The shape and the rule are _G.LootDrops.SearchFilter's, which is where the entry fields --
+-- text, memberText, parent, header -- are documented.
+function _G.LootBrowser:BuildRows()
+
+    self.rows = {}
+
+    local instance = self.selectedInstance and _G.Instances[self.selectedInstance]
+    self.instanceLabel:SetText(instance and instance.name or "")
+
+    local bosses = self:BossesFor(self.selectedInstance, self.selectedTier)
+    self.bossCount = #bosses
+
+    for _, boss in ipairs(bosses) do
+        if self.selectedEvent == nil or self.selectedEvent == boss.index then
+
+            -- Which of this boss's rows survive the still-needed filter, decided before the
+            -- header is emitted -- a group header over nothing is worse than no header. That
+            -- filter is not the search: it changes what EXISTS here, so it belongs in the build.
+            local visible = {}
+            for _, drop in ipairs(_G.Drops[boss.index] or {}) do
+                if not self:Filtered(drop) then
+                    visible[#visible + 1] = drop
+                end
+            end
+
+            -- Collapse grouped rows into one. Six traceries listed separately each look
+            -- like a rare drop; as one line they read as what they are.
+            visible = self:Collapse(boss.index, visible)
+
+            if #visible > 0 then
+
+                -- the header only earns its line when more than one boss is on screen
+                local header = nil
+                if self.selectedEvent == nil then
+                    header = { kind = "header", row = self:MakeGroupHeader(boss.event.name) }
+                    self.rows[#self.rows + 1] = header
+                    header.index = #self.rows   -- where the filter reaches back to light it up
+                end
+
+                local alt   = false
+                local group = nil
+
+                for _, drop in ipairs(visible) do
+
+                    local entry = {
+                        kind    = "item",
+                        row     = self:MakeItemRow(boss.index, drop, alt),
+                        drop    = drop,
+                        header  = header and header.index or nil,
+                        isGroup = drop.isGroup == true,
+                        text    = _G.LootDrops.SearchText(drop),
+                    }
+
+                    self.rows[#self.rows + 1] = entry
+                    alt = not alt
+
+                    if drop.isGroup then
+                        local names = {}
+                        for _, member in ipairs(drop.members) do
+                            names[#names + 1] = _G.LootDrops.SearchText(member)
+                        end
+                        entry.memberText = table.concat(names, "\0")
+                        group = #self.rows
+                    elseif drop.child then
+                        entry.parent = group        -- Collapse emits children after their group
+                    else
+                        group = nil
+                    end
+
+                end
+
+            end
+
+        end
+    end
+
+end
+
+-- Show the rows the search leaves standing. No control is built here -- the list is emptied and
+-- refilled from rows that already exist, which is what makes typing cheap.
+function _G.LootBrowser:ApplyFilter()
+
+    if self.rows == nil then return self:RebuildTable() end
+
+    local search = self.search
+    local show   = _G.LootDrops.SearchFilter(self.rows, search)
 
     self.tableHost:ClearItems()
-    self:RebuildPills()
 
     local shown, starred = 0, 0
     local alt = false
 
-    if self.search ~= "" then
-
-        -- search mode ignores the tree selection entirely: the question is where an item
-        -- drops, and answering it inside one instance would be answering a different one
-        local rows = self:SearchRows()
-        local lastEvent = nil
-
-        for _, entry in ipairs(rows) do
-            if not self:Filtered(entry.drop) then
-                if entry.index ~= lastEvent then
-                    lastEvent = entry.index
-                    local instance = _G.Instances[entry.event.instance]
-                    self.tableHost:AddItem(self:MakeGroupHeader(
-                        (instance and instance.name or "?") .. _G.Sep
-                        .. entry.event.name .. _G.Sep .. tostring(entry.event.tier)))
-                    alt = false
-                end
-                self.tableHost:AddItem(self:MakeItemRow(entry.index, entry.drop, alt))
+    for index, entry in ipairs(self.rows) do
+        if show[index] then
+            if entry.kind == "header" then
+                alt = false
+                self:AddRow(entry.row)
+            else
+                -- restripe: which side of the stripe a row lands on depends on what the
+                -- search left above it
+                if entry.row.SetAlt ~= nil then entry.row.SetAlt(alt) end
                 alt = not alt
+                self:AddRow(entry.row)
                 shown = shown + 1
                 if _G.LootStats ~= nil and _G.LootStats.IsWished(entry.drop.item) then
                     starred = starred + 1
                 end
             end
         end
+    end
 
-        self.instanceLabel:SetText(_G.L("searchItems"))
-        self.countLabel:SetText(shown .. " " .. _G.L("items"))
-
-    else
-
-        local instance = self.selectedInstance and _G.Instances[self.selectedInstance]
-        self.instanceLabel:SetText(instance and instance.name or "")
-
-        local bosses = self:BossesFor(self.selectedInstance, self.selectedTier)
-
-        for _, boss in ipairs(bosses) do
-            if self.selectedEvent == nil or self.selectedEvent == boss.index then
-
-                -- Which of this boss's rows survive the filter, decided before the header is
-                -- emitted -- a group header over nothing is worse than no header.
-                local visible = {}
-                for _, drop in ipairs(_G.Drops[boss.index] or {}) do
-                    if not self:Filtered(drop) then
-                        visible[#visible + 1] = drop
-                    end
-                end
-
-                if #visible > 0 then
-
-                    -- the header only earns its line when more than one boss is on screen
-                    if self.selectedEvent == nil then
-                        self.tableHost:AddItem(self:MakeGroupHeader(boss.event.name))
-                        alt = false
-                    end
-
-                    for _, drop in ipairs(visible) do
-                        self.tableHost:AddItem(self:MakeItemRow(boss.index, drop, alt))
-                        alt = not alt
-                        shown = shown + 1
-                        if _G.LootStats ~= nil and _G.LootStats.IsWished(drop.item) then
-                            starred = starred + 1
-                        end
-                    end
-
-                end
-
-            end
-        end
-
-        self.countLabel:SetText(#bosses .. " " .. _G.L("bosses")
+    if search == "" then
+        self.countLabel:SetText((self.bossCount or 0) .. " " .. _G.L("bosses")
             .. _G.Sep .. shown .. " " .. _G.L("catalogued"))
-
+    else
+        self.countLabel:SetText(_G.L("searchItems")
+            .. _G.Sep .. shown .. " " .. _G.L("items"))
     end
 
     self.footLabel:SetText(shown .. " " .. _G.L("items")
         .. _G.Sep .. starred .. " " .. _G.L("starred"))
 
     self:LayoutRows()
+
+end
+
+-- Build the selection, then show what matches. Every caller that changes WHAT IS IN the table
+-- goes through here; the search goes straight to ApplyFilter.
+function _G.LootBrowser:RebuildTable()
+
+    self:RebuildPills()
+    self:BuildRows()
+    self:ApplyFilter()
 
 end
 
@@ -967,8 +1394,26 @@ function _G.LootBrowser:OnLayout(width, height)
     local dbX    = yoursX - COL_DB
     local slotX  = dbX - COL_SLOT
 
-    self.headLabels[1]:SetPosition(NAME_X, 0)
-    self.headLabels[1]:SetWidth(math.max(0, slotX - PAD - GAP))
+    -- the item column runs from the name to the slot column, and the search button sits at its
+    -- right edge -- so the header text stops short of it rather than running underneath
+    local itemX  = NAME_X
+    local itemW  = math.max(0, slotX - GAP - itemX)
+    local findY  = math.floor((HEAD_H - FIND) / 2)
+
+    self.headLabels[1]:SetPosition(itemX, 0)
+    self.headLabels[1]:SetWidth(math.max(0, itemW - FIND - GAP))
+
+    self.headSearchBtn:SetPosition(itemX + math.max(0, itemW - FIND), findY)
+
+    self.headSearchBg:SetPosition(itemX, 0)
+    self.headSearchBg:SetSize(itemW, HEAD_H)
+    self.headSearchIcon:SetPosition(2, math.floor((HEAD_H - ICON) / 2))
+    self.headSearchBox:SetPosition(ICON + 6, 1)
+    self.headSearchBox:SetSize(math.max(0, itemW - ICON - 6 - FIND - 2), HEAD_H - 2)
+    self.headSearchHint:SetPosition(ICON + 6, 0)
+    self.headSearchHint:SetSize(math.max(0, itemW - ICON - 6 - FIND - 2), HEAD_H)
+    self.headSearchClear:SetPosition(math.max(0, itemW - FIND), findY)
+
     self.headLabels[2]:SetPosition(slotX, 0)
     self.headLabels[2]:SetWidth(COL_SLOT)
     self.headLabels[3]:SetPosition(dbX, 0)

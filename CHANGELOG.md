@@ -4,6 +4,33 @@ Versions are `<major>.<lotro update>.<release>`. The middle number is the LOTRO 
 build targets, and the last number counts fixes and changes within it, resetting when either of the
 numbers above it moves. The leading number moves only for a major overhaul of the plugin itself.
 
+## [4.49.1] - 2026-08-10
+
+### Added
+- Traceries now count as one thing. Everyone gets one from a chest but the name is class-specific, so the popup lists "Tracery" once per person instead of six differently-named rare drops, and the browser shows one row whose measured rate is how often a tracery drops at all
+- Armour categories fold instead. "Fallen armour" is one row in the browser carrying the category's chance, and clicking it opens the list of pieces underneath — and when a piece actually drops, the popup names the piece, not the category
+- Pagru-kirít is catalogued from the game's own loot tables: all three chests on Solo, Tier 1, Tier 2 and Tier 3, 1,369 drops with an exact chance on every one. Not estimates and not community figures — the rates the server actually rolls
+- Nearly every one of those carries its item id, so the browser and the popup show real icons and real tooltips throughout, and every item is a clickable link
+- Each roll a chest makes is its own foldable row showing that roll's chance, with what it can give underneath. A chest makes several, so an item can appear more than once — Badge of Forgotten Rank at Sudûgul Tier 3 drops on its own 70% of the time *and* comes up inside another roll, and those are two separate chances, not one
+- Rolls from a repeat run are marked as such, so the second table a chest uses once its lock is spent is not mistaken for a duplicate of the first
+- Groups can be given a real name. The loot tables export them as "Group 1" through "Group 11", and a `label` in the group declaration renames one wherever it appears without touching the rows underneath it
+- The loot browser's Item column has a search button of its own. Click the magnifier in the column header and type where you are already looking, instead of reaching back to the box beside the tree — the two are the same search, so whichever you type in, both show it
+- Searching narrows what you are looking at rather than sending you somewhere else: it filters the chest and tier you have open, and typing filters rows that are already drawn instead of rebuilding the table on every keystroke, so it keeps up with you
+- A search that matches something inside a group shows the group as well. A folded "Fallen Armour" is the only row standing in for the pieces underneath it, so searching for a helm still finds the chest that drops it
+- Every item the plugin names is a proper item link now — in the popup, in the loot browser and in chat. Bracketed and clickable, the same as the ones the game prints, so you can examine a drop or link it to your fellowship straight from the window
+
+### Changed
+- A grouped row in the loot browser now looks like the heading it is. It used to borrow the first item of the group — that item's icon, that item's colour, and a link that examined it — so a row meaning "any piece of this set" looked exactly like one pair of gloves. It now sits on a band of its own with a fixed group mark where the art was, and its name is plain text rather than an item link, because that name is a category and answers to no item
+- Wishlisted drops sort to the top of the loot popup, above your own loot. The window opens on its own and is read in a second — the one thing it should never do is put what you have been waiting for below the fold
+- The loot popup has a ceiling now. It grows to fit what dropped up to eight rows and then scrolls, instead of running off the screen when a chest gives out a lot — it opens on its own, so it should never be the biggest thing on screen
+- Item icons no longer carry a stack count. They used to be drawn as quickslots, which paint how many you happen to be carrying over the art — a number that means nothing next to a drop chance about the world. The icon is now just the item's picture, and the tooltip comes from the name link beside it
+- Looting a chest no longer lists every drop in chat as well as in the popup — the game already prints each loot line itself, so chat now gets one summary line and the popup does the rest. The full list still goes to chat when no popup opens, so a chest is never silently unreported
+
+### Fixed
+- Window titles are no longer cut off. "Loot Browser" lost its last letters to a title bar that never sized its text to the bar
+- Running the same instance twice no longer mixes the two together: entering starts a fresh run, so the popup's boss chips show this clear's loot and not the previous one's
+- Stacks of a thousand or more are counted correctly — a "1,000" stack was read as a single item, and its name was not recognised at all
+
 ## [4.49.0] - 2026-08-09
 
 ### Added

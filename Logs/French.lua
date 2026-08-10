@@ -912,3 +912,11 @@ _G.Events = {
     [1] = { name = "Storvâgûn", match = "Minuscule cassette à babioles de Storvâgûn",    instance = 1, tier = "T2", order = 1, type = _G.EventTypes.Done, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
 
 }
+
+-- instance entry quests -----------------------------------------------------------------------
+-- See Logs/English.lua for what these are and why they are data rather than a pattern.
+-- Awaiting capture on a French client: the prefix and every entry string are language-specific.
+-- Empty is the correct interim state -- runs simply are not separated until they are authored.
+_G.InstanceEntryPrefix = nil
+
+_G.InstanceEntries = {}

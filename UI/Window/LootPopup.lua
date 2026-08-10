@@ -11,6 +11,7 @@ import "LootLogs.UI.Window.PanelWindow"
 import "LootLogs.UI.Window.LootRow"
 
 local PAD, GAP, ROW_H, CHIP_H, CHIP_GAP, POPUP_W, FOOT_H, SEP_W, TITLE_H, MIN_ROWS
+local MAX_ROWS, SCROLL_W
 
 local function Metrics()
     SEP_W    = 1
@@ -25,6 +26,17 @@ local function Metrics()
     TITLE_H  = _G.Scaled(30)
     POPUP_W  = _G.Scaled(320)
     MIN_ROWS = 3
+
+    -- The ceiling. The window used to grow to fit whatever dropped, which was fine when the
+    -- catalogue was a handful of hand-written rows; against the game's own loot tables a good
+    -- chest can flag a dozen items and the popup would run off the screen -- and it opens
+    -- UNBIDDEN, so it must never be the biggest thing on it.
+    --
+    -- Counted in ROWS rather than pixels so it holds at any font size: eight rows is roughly
+    -- half the height of the loot browser, and past that you are reading a list, not glancing
+    -- at an alert.
+    MAX_ROWS = 8
+    SCROLL_W = 10
 end
 
 _G.RegisterMetrics(Metrics)
@@ -48,12 +60,26 @@ function _G.LootPopup:Constructor()
     self.chipStrip:SetParent(self.client)
     self.chipStrip:SetMouseVisible(false)
 
-    self.rowHost = Turbine.UI.Control()
+    -- A ListBox rather than a plain Control, so the rows can scroll once there are more than
+    -- the window is allowed to show. It still owns the rows it is given, which is what keeps
+    -- them reusable across chests.
+    self.rowHost = Turbine.UI.ListBox()
     self.rowHost:SetParent(self.client)
-    self.rowHost:SetMouseVisible(false)
+    -- takes the mouse, so the wheel scrolls the list; a list you can only move with the bar is
+    -- half a scrollbar
+    self.rowHost:SetMouseVisible(true)
 
+    self.rowScroll = Turbine.UI.Lotro.ScrollBar()
+    self.rowScroll:SetOrientation(Turbine.UI.Orientation.Vertical)
+    self.rowScroll:SetParent(self.client)
+    self.rowScroll:SetWidth(SCROLL_W)
+    self.rowScroll:SetVisible(false)
+    self.rowHost:SetVerticalScrollBar(self.rowScroll)
+
+    -- On the client, not on rowHost: a ListBox draws the items it was given and nothing else,
+    -- so a label parented to it would never appear.
     self.emptyLabel = Turbine.UI.Label()
-    self.emptyLabel:SetParent(self.rowHost)
+    self.emptyLabel:SetParent(self.client)
     self.emptyLabel:SetMultiline(true)
     self.emptyLabel:SetFont(_G.Font(10))
     self.emptyLabel:SetFontStyle(_G.Theme.FONT_STYLE)
@@ -240,19 +266,63 @@ function _G.LootPopup:SelectedItems()
 
     if run == nil then return items end
 
+    -- Grouped drops collapse to one entry per looter. Six differently-named traceries from one
+    -- chest are six lines saying the same thing; "Tracery" once, per person, is the fact.
+    --
+    -- ONLY "collapse" GROUPS. An "expand" group buckets real, wantable items -- armour pieces --
+    -- and nobody looted "Fallen armour": they looted a pair of boots, and that is what the
+    -- window has to say. The bucket is a browser convenience, not a thing that drops.
+    local grouped = {}
+
     for _, chest in ipairs(run.chests) do
         if self.selected == "full" or chest.logIndex == self.selected then
             for _, item in ipairs(chest.items) do
                 -- only what the drops data flagged as worth interrupting for; the rest was
                 -- still recorded, it just does not belong in a window that pops up unbidden
                 if _G.LootDrops.IsPopupItem(chest.logIndex, item.base) then
-                    items[#items + 1] = { item = item, logIndex = chest.logIndex }
+
+                    local group = _G.LootDrops.GroupOf(chest.logIndex, item.base)
+                    if group ~= nil and _G.LootDrops.GroupExpands(group) then
+                        group = nil
+                    end
+
+                    if group == nil then
+                        items[#items + 1] = { item = item, logIndex = chest.logIndex }
+                    else
+                        local key  = group .. "\0" .. tostring(item.player)
+                        local seen = grouped[key]
+                        if seen == nil then
+                            -- a copy, so the group name is shown without renaming the capture
+                            local shown = {
+                                base     = group,
+                                level    = item.level,
+                                quantity = item.quantity or 1,
+                                player   = item.player,
+                                isSelf   = item.isSelf,
+                            }
+                            grouped[key] = shown
+                            items[#items + 1] = { item = shown, logIndex = chest.logIndex,
+                                                  grouped = true }
+                        else
+                            seen.quantity = (seen.quantity or 1) + (item.quantity or 1)
+                        end
+                    end
+
                 end
             end
         end
     end
 
     table.sort(items, function(a, b)
+
+        -- WISHLISTED FIRST, above even your own loot. The popup opens on its own and is read in
+        -- a second; the one thing it must never do is put what you have been waiting for below
+        -- the fold. Everything else is tidiness.
+        local wishA = _G.LootDrops.IsWished(a.logIndex, a.item.base)
+        local wishB = _G.LootDrops.IsWished(b.logIndex, b.item.base)
+        if wishA ~= wishB then
+            return wishA
+        end
 
         if a.item.isSelf ~= b.item.isSelf then
             return a.item.isSelf
@@ -290,25 +360,39 @@ function _G.LootPopup:Rebuild()
     -- The width the rows will have, computed rather than read back off rowHost: on the first
     -- Rebuild the host has not been laid out yet, and a row sized from it would cut its name
     -- to fit a width that no longer exists a moment later.
-    local rowWidth = math.max(0, POPUP_W - 2 * PAD)
+    -- Whether the bar is there changes how wide a row is, and the rows are built before the
+    -- window is laid out -- so the decision is made here, from the count, rather than read
+    -- back off a control that has not been sized yet.
+    local scrolling = #items > MAX_ROWS
+    local rowWidth  = math.max(0, POPUP_W - 2 * PAD
+        - (scrolling and (SCROLL_W + math.floor(GAP / 2)) or 0))
 
     -- Rows are reused, not rebuilt: Turbine has no destructor, so rebuilding on every chest
-    -- would pile up orphaned controls for as long as the session lasts.
+    -- would pile up orphaned controls for as long as the session lasts. ClearItems only lets
+    -- go of them; the same objects go straight back in.
+    self.rowHost:ClearItems()
+
     for index, entry in ipairs(items) do
+
         local row = self.rows[index]
         if row == nil then
             row = _G.LootRow(self.rowHost)
             self.rows[index] = row
         end
+
         row:SetVisible(true)
-        row:SetPosition(0, (index - 1) * ROW_H)
         row:SetSize(rowWidth, ROW_H)
-        row:SetLoot(entry.item, _G.LootDrops.DropRow(entry.logIndex, entry.item.base))
+        self.rowHost:AddItem(row)
+
+        -- after AddItem, because the list may have resized the row -- and the width is what
+        -- the name is truncated against
+        row:SetWidth(rowWidth)
+        row:SetLoot(entry.item, _G.LootDrops.DropRow(entry.logIndex, entry.item.base),
+            entry.logIndex)
+
     end
 
-    for index = #items + 1, #self.rows do
-        self.rows[index]:SetVisible(false)
-    end
+    -- rows past the end are simply not in the list any more, so nothing draws them
 
     local mine = 0
     for _, entry in ipairs(items) do
@@ -327,15 +411,22 @@ function _G.LootPopup:Rebuild()
 
 end
 
--- Auto-height: the window grows to fit its rows, so it never scrolls.
+-- The window grows to fit its rows, up to MAX_ROWS; past that it stops growing and the list
+-- scrolls. The scrollbar only appears when it is needed -- a permanent one on a three-row
+-- popup is a bar of furniture doing nothing.
 function _G.LootPopup:Layout(rowCount)
 
-    rowCount = math.max(rowCount or 0, MIN_ROWS)
+    rowCount = rowCount or 0
 
+    self.scrolling = rowCount > MAX_ROWS
+
+    local shown  = math.max(math.min(rowCount, MAX_ROWS), MIN_ROWS)
     local height = TITLE_H + SEP_W
                  + PAD + CHIP_H + GAP
-                 + rowCount * ROW_H
+                 + shown * ROW_H
                  + GAP + SEP_W + FOOT_H + PAD
+
+    self.rowScroll:SetVisible(self.scrolling)
 
     self:SetSize(POPUP_W, height)
 
@@ -353,15 +444,22 @@ function _G.LootPopup:OnLayout(width, height)
     local rowTop  = PAD + CHIP_H + GAP
     local footTop = height - PAD - FOOT_H
 
+    -- the scrollbar takes its width out of the rows, so a name is never cut by the bar
+    local rowsW  = inner - (self.scrolling and (SCROLL_W + math.floor(GAP / 2)) or 0)
+    local rowsH  = math.max(0, footTop - GAP - SEP_W - rowTop)
+
     self.rowHost:SetPosition(PAD, rowTop)
-    self.rowHost:SetSize(inner, math.max(0, footTop - GAP - SEP_W - rowTop))
+    self.rowHost:SetSize(rowsW, rowsH)
+
+    self.rowScroll:SetPosition(PAD + rowsW + math.floor(GAP / 2), rowTop)
+    self.rowScroll:SetSize(SCROLL_W, rowsH)
 
     for _, row in ipairs(self.rows) do
-        row:SetWidth(inner)
+        row:SetWidth(rowsW)
     end
 
-    self.emptyLabel:SetPosition(0, 0)
-    self.emptyLabel:SetSize(self.rowHost:GetWidth(), self.rowHost:GetHeight())
+    self.emptyLabel:SetPosition(PAD, rowTop)
+    self.emptyLabel:SetSize(inner, rowsH)
 
     self.footSep:SetPosition(PAD, math.max(0, footTop - GAP))
     self.footSep:SetWidth(inner)

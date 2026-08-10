@@ -8,13 +8,9 @@
 -- Rows are built once and re-driven through SetLoot, because a popup that rebuilds its
 -- controls on every chest leaks them -- Turbine has no destructor, only reparenting to nil.
 
--- A quickslot draws its art at 32px and CANNOT be scaled down -- SetStretchMode does not take
--- on it, whatever order it is called in. So the row is built around the slot rather than the
--- slot squeezed into the row: 32px icon box, and a row tall enough to seat it.
---
--- Like every other icon here it does not scale with the Font Size setting, because Turbine
--- clips art to its control instead of resizing it. The row height does scale, and is floored
--- so the slot always fits.
+-- Item art is 32px. Like every other icon here it does not scale with the Font Size setting --
+-- Turbine clips art to its control instead of resizing it, so a scaled box would crop the
+-- picture. The row height does scale, and is floored so the icon always fits.
 _G.LootSlotSize = 32
 
 local PAD, ROW_H, ICON, RULE_W, GAP, META_W, STAR
@@ -51,55 +47,104 @@ end
 _G.LootQualityColor = QualityColor
 
 -- ================================================================================================
--- Item quickslot -- the icon and tooltip route
+-- Item icon
 -- ================================================================================================
--- Every place an item is named gets a quickslot, and a catalogued item's shortcut is put into it
--- from its id alone (_G.LootDrops.ShortcutData). That is what gives these windows real item
--- icons and the game's own tooltips, for items nobody in the group owns.
+-- Drawn as layered IMAGES, not as a quickslot.
 --
--- It is READ-ONLY. Dropping is off, so a slot cannot be overwritten by a stray drag and these
--- windows never touch the player's own quickslots or bags. The shortcut it carries comes from
--- the drops data and nowhere else.
+-- A quickslot works and was what this used at first, but it paints the live stack count from
+-- your bags over the art. In a listing about the world that number is meaningless at best and
+-- misleading at worst: it says how many YOU are carrying, next to a drop chance that has nothing
+-- to do with you.
 --
--- `base` is kept on the control rather than captured, because popup rows are reused across
--- chests and a name captured at construction is wrong by the second chest.
-function _G.MakeItemQuickslot(parent, base)
+-- What kept the quickslot around was its tooltip. That is no longer a reason: the row's NAME is
+-- an item link now (see _G.LootDrops.ItemLink), and a link carries the game's own tooltip and a
+-- click of its own. So the icon only has to be a picture, and a picture is all this draws.
+--
+-- The way in is Shortcut:GetItem(), which turns an item shortcut into an Item without any slot
+-- being involved. Its ItemInfo carries the image ids the client itself composes an icon from:
+--
+--     background   the slot backing
+--     quality      the rarity backing -- OPAQUE, so it goes UNDER the art, not over it
+--     icon         the item art itself, and therefore LAST
+--
+-- back to front. The order is the whole trick and it is not the order the getters are named in:
+-- drawing quality last paints a flat coloured square over the item, which is exactly what the
+-- first attempt did -- an olive green tile where a pair of boots should have been. Turbine draws
+-- children in the order they are added, so the art is added last and nothing can cover it.
+--
+-- Everything is pcall'd and every layer is optional:
+-- an id that resolves to nothing returns nil and leaves the caller to fall back, which is no
+-- worse than the coloured bar this replaced.
+local function ImageIds(id)
 
-    local slot = Turbine.UI.Lotro.Quickslot()
-    slot:SetParent(parent)
+    local number = _G.LootDrops.ItemId(id)
+    if number == nil then return nil end
 
-    -- Always 32. A quickslot ignores SetStretchMode, so there is no smaller size available and
-    -- pretending otherwise just draws a full-size slot over the top of the row.
-    slot:SetSize(_G.LootSlotSize, _G.LootSlotSize)
+    local built, shortcut = pcall(function()
+        return Turbine.UI.Lotro.Shortcut(_G.LootDrops.SHORTCUT_ITEM,
+            string.format("0x%016X,0x%08X", 0, number))
+    end)
+    if not built or shortcut == nil then return nil end
 
-    slot:SetAllowDrop(false)
-    slot.base = base
+    local gotItem, item = pcall(function() return shortcut:GetItem() end)
+    if not gotItem or item == nil then return nil end
 
-    -- a listing is for reading; a stray click must not fire the item it is showing
-    pcall(function() slot:SetUseOnRightClick(false) end)
+    local gotInfo, info = pcall(function() return item:GetItemInfo() end)
+    if not gotInfo or info == nil then return nil end
 
-    return slot
+    local function Try(getter)
+        local ok, value = pcall(function() return info[getter](info) end)
+        if ok and value ~= nil and value ~= 0 then return value end
+        return nil
+    end
+
+    -- no art id, no icon: the other two layers alone would draw an empty frame
+    local icon = Try("GetIconImageID")
+    if icon == nil then return nil end
+
+    return {
+        icon       = icon,
+        background = Try("GetBackgroundImageID"),
+        quality    = Try("GetQualityImageID"),
+    }
 
 end
 
--- Put the drops table's shortcut into a slot, which is the only way one ever gets there.
---
--- Silent on failure by design: a row whose item has no catalogued id simply shows an empty
--- slot, which is no worse than the bar it used to show.
-function _G.ApplyItemShortcut(slot, drop)
+_G.LootItemImages = ImageIds
 
-    if slot == nil then return false end
+-- Builds the layered icon into `parent` and returns it, or nil if the id resolves to nothing.
+-- Mouse-invisible: the picture has no tooltip of its own and must not steal the row's hover
+-- or the name link's click.
+function _G.MakeItemIcon(parent, id, size)
 
-    local data = _G.LootDrops.ShortcutData(drop)
-    if data == nil then return false end
+    local images = ImageIds(id)
+    if images == nil then return nil end
 
-    local built, shortcut = pcall(function()
-        return Turbine.UI.Lotro.Shortcut(_G.LootDrops.SHORTCUT_ITEM, data)
-    end)
+    local host = Turbine.UI.Control()
+    host:SetParent(parent)
+    host:SetSize(size, size)
+    host:SetMouseVisible(false)
 
-    if not built or shortcut == nil then return false end
+    -- ALPHABLEND, NOT THE DEFAULT. These are full-colour game images, and left on the default
+    -- mode their alpha punches a hole straight through the window behind them. The same rule
+    -- already applies to the class portraits in SidebarItems/CharacterItem.lua; Overlay is for
+    -- the plugin's own white-on-transparent glyph .tga files and would render a game icon
+    -- invisible (Ressources/ICONS.md).
+    local function Layer(imageId)
+        if imageId == nil then return end
+        local layer = Turbine.UI.Control()
+        layer:SetParent(host)
+        layer:SetSize(size, size)
+        layer:SetMouseVisible(false)
+        layer:SetBlendMode(Turbine.UI.BlendMode.AlphaBlend)
+        pcall(function() layer:SetBackground(imageId) end)
+    end
 
-    return pcall(function() slot:SetShortcut(shortcut) end)
+    Layer(images.background)
+    Layer(images.quality)
+    Layer(images.icon)      -- last, so the item is on top of both backings
+
+    return host
 
 end
 
@@ -120,10 +165,13 @@ function _G.LootRow:Constructor(parent)
     self.rule:SetSize(RULE_W, ROW_H)
     self.rule:SetMouseVisible(false)
 
-    -- the icon: a read-only quickslot carrying the item's own shortcut, so the row shows the
-    -- real art and the game's own tooltip
-    self.quickslot = _G.MakeItemQuickslot(self, nil)
-    self.quickslot:SetPosition(RULE_W + GAP, math.floor((ROW_H - ICON) / 2))
+    -- The icon lives in here and is rebuilt per item, because it is composed of that item's own
+    -- images. The host stays put so the layout never has to move.
+    self.iconHost = Turbine.UI.Control()
+    self.iconHost:SetParent(self)
+    self.iconHost:SetSize(ICON, ICON)
+    self.iconHost:SetPosition(RULE_W + GAP, math.floor((ROW_H - ICON) / 2))
+    self.iconHost:SetMouseVisible(false)
 
     -- Wishlist marker. Art, not a glyph: Ressources/ICONS.md records that Turbine's font
     -- cannot be relied on to draw U+2605, which is why star_on.tga exists at all.
@@ -142,7 +190,17 @@ function _G.LootRow:Constructor(parent)
     self.nameLabel:SetFont(_G.Font(12))
     self.nameLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     self.nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    self.nameLabel:SetMouseVisible(false)
+
+    -- The name is an ITEM LINK, so this label parses markup and takes the mouse. Both are
+    -- required: without markup the <Examine> tag prints as text, and without the mouse the
+    -- click never reaches the link. Every other label on the row stays mouse-invisible so the
+    -- row keeps its own hover.
+    --
+    -- Markup on means a "<" in the text would be swallowed as a tag. Item names do not contain
+    -- one, and the text is built here rather than echoed from chat, so there is nothing to
+    -- escape -- but that is why it is enabled on THIS label and not on the whole row.
+    self.nameLabel:SetMarkupEnabled(true)
+    self.nameLabel:SetMouseVisible(true)
 
     self.metaLabel = Turbine.UI.Label()
     self.metaLabel:SetParent(self)
@@ -200,10 +258,16 @@ function _G.LootRow:RefreshText()
     local quantity = (item.quantity or 1) > 1 and (item.quantity .. "x ") or ""
     local shown    = _G.LootDrops.DisplayName(self.drop, item.base)
 
-    self.nameLabel:SetText(_G.Truncate(
+    -- TRUNCATE FIRST, THEN LINK. _G.Truncate counts glyphs, and the link's tag is markup the
+    -- label never draws -- measuring the wrapped string would cut the name to nothing. The two
+    -- brackets ARE drawn, so their width comes off the budget.
+    local glyph = _G.GlyphWidth(12)
+    local text  = _G.Truncate(
         quantity .. shown,
-        self.nameLabel:GetWidth(),
-        _G.GlyphWidth(12)))
+        self.nameLabel:GetWidth() - glyph * 2,
+        glyph)
+
+    self.nameLabel:SetText(_G.LootDrops.ItemLink(self.drop, text))
 
     local meta = item.player or ""
     if item.level then
@@ -213,14 +277,45 @@ function _G.LootRow:RefreshText()
 
 end
 
--- item: { base, level, quantity, player, isSelf }, drop: the _G.Drops row (may be nil)
-function _G.LootRow:SetLoot(item, drop)
+-- The item's own art where its id resolves to some, and the quality bar where it does not --
+-- an uncatalogued id is common and is not an error.
+--
+-- Rebuilt rather than re-pointed, because the layers ARE the item. Turbine has no destructor,
+-- so the old one is reparented to nil and dropped.
+function _G.LootRow:SetIcon(drop)
 
-    self.item = item
-    self.drop = drop
+    if self.icon ~= nil then
+        self.icon:SetParent(nil)
+        self.icon = nil
+    end
 
-    -- LootStats may not be loaded yet; the row must not require it
-    local wished = _G.LootStats ~= nil and _G.LootStats.IsWished(item.base) or false
+    self.icon = _G.MakeItemIcon(self.iconHost, drop and drop.id, ICON)
+
+    if self.icon == nil then
+        local bar = Turbine.UI.Control()
+        bar:SetParent(self.iconHost)
+        bar:SetPosition(math.floor((ICON - 3) / 2), 0)
+        bar:SetSize(3, ICON)
+        bar:SetBackColor(QualityColor(drop and drop.quality))
+        bar:SetMouseVisible(false)
+        self.icon = bar
+    end
+
+end
+
+-- item:       { base, level, quantity, player, isSelf }
+-- drop:       the _G.Drops row, or nil for an item not in the catalogue
+-- eventIndex: which chest, needed to ask whether the item's GROUP is wishlisted
+function _G.LootRow:SetLoot(item, drop, eventIndex)
+
+    self.item       = item
+    self.drop       = drop
+    self.eventIndex = eventIndex
+
+    -- The same test the popup sorts on, and the same one that decides whether the popup opens
+    -- at all -- including the group, so a starred "Tracery" stars every tracery row. Asking it
+    -- three different ways is how a row ends up unstarred in a window it was the reason for.
+    local wished = _G.LootDrops.IsWished(eventIndex, item.base)
 
     -- set before RefreshText, because the star's presence decides where the name starts
     self.star:SetVisible(wished)
@@ -237,11 +332,7 @@ function _G.LootRow:SetLoot(item, drop)
         self.metaLabel:SetForeColor(_G.Theme.DIM2)
     end
 
-    -- rows are reused across chests, so the slot is re-pointed rather than rebuilt
-    if self.quickslot ~= nil then
-        self.quickslot.base = item.base
-        _G.ApplyItemShortcut(self.quickslot, drop)
-    end
+    self:SetIcon(drop)
 
     self:RefreshText()
 

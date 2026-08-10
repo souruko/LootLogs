@@ -912,3 +912,27 @@ _G.Events = {
     [1] = { name = "Storvâgûn", match = "Storvâgûn's Tiny Trinket Box",   instance = 1, tier = "T2", order = 1, type = _G.EventTypes.Done, reset = { days = Daily, time = 8 }, onlyResetIfDone = false },
 
 }
+
+-- instance entry quests -----------------------------------------------------------------------
+--
+-- Every instance hands out a quest on entry, and the quest is specific to the instance AND the
+-- tier -- "…-- Tier 1" is a different quest from "…-- Solo/Duo". So one matched line identifies
+-- both, which is what makes it usable as "a run started here".
+--
+-- WHY THIS IS DATA AND NOT A PATTERN. The obvious shortcut is to treat any "New Quest:" line as
+-- an instance entry. That is wrong: the game hands out thousands of quests, and a player
+-- picking one up in a quest hub would reset the loot run. Only these strings count.
+--
+-- `match` is a Lua pattern, same convention as _G.Events: every dash becomes "." so it absorbs
+-- whichever dash the client printed and is not read as a quantifier. Note the instance name
+-- here is the QUEST's spelling, which is not always the one in _G.Instances -- the quest says
+-- "The Garden of Corpses", the instance table says "the Garden of Corpses".
+--
+-- INCOMPLETE. Only the entries actually captured are here; the rest are for LootScribe to
+-- author. An absent instance simply means its runs are not separated -- the old behaviour.
+_G.InstanceEntryPrefix = "New Quest:"
+
+_G.InstanceEntries = {
+    { match = "New Quest: Pagru.kirít, The Garden of Corpses .. Tier 1", instance = 51, tier = "T1"   },
+    { match = "New Quest: Pagru.kirít, The Garden of Corpses .. Solo/Duo", instance = 51, tier = "Solo" },
+}

@@ -223,6 +223,11 @@ function _G.PanelWindow:SizeChanged()
     self.btn_close:SetPosition(close_left, math.floor((TITLE_H - BTN_SIZE) / 2))
     self._title_right = close_left - GAP
 
+    -- A Label never sizes itself to its text, so without this the title keeps the default
+    -- control width and every title longer than it is cut off mid-word. Subclasses that put
+    -- their own buttons in the bar narrow it again from OnLayout, which runs below.
+    self.title_label:SetWidth(math.max(0, self._title_right - PAD))
+
     local client_h = math.max(0, rh - TITLE_H - BORDER)
     self.client:SetSize(rw, client_h)
 

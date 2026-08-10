@@ -31,7 +31,8 @@ Every icon in this folder is derived from [Phosphor Icons](https://phosphoricons
 | `arrow_down.tga` | `caret-down` | regular | 12×12 | white | expanded group in the sidebar |
 | `arrow_right.tga` | `caret-right` | regular | 12×12 | white | collapsed group in the sidebar |
 | `collaps.tga` | `caret-up` | regular | 16×16 | white | collapse-all button |
-| `search.tga` | `magnifying-glass` | regular | 16×16 | white | sidebar search field |
+| `search.tga` | `magnifying-glass` | regular | 16×16 | white | sidebar search field, loot browser item column |
+| `group.tga` | `squares-four` | regular | 32×32 | white | grouped row in the loot browser, in place of item art |
 | `star_on.tga` | `star` | fill | 12×12 | white | pinned tier band, Pinned tab |
 | `star_off.tga` | `star` | regular | 12×12 | white | unpinned tier band |
 | `star_fill.tga` | `star` | fill | 16×16 | white | unused since the Pinned tab dropped to 12px |
@@ -55,6 +56,11 @@ the exception: `UI/QuickLaunch.lua` sets a stretch mode so the button can be res
 **Glyphs are white on transparent.** The UI tints them by drawing with `BlendMode.Overlay` over a
 themed ground, so the colour must not be baked in. `lootlogs_icon.tga` is the exception — it is a
 floating button with nothing behind it, so it carries its own ground, 1px frame and gold glyph.
+
+**Game images are not glyphs.** Anything drawn from a client image id — class portraits, and the
+layered item icons in `UI/Window/LootRow.lua` — is full-colour art and needs
+`BlendMode.AlphaBlend`. `Overlay` renders it invisible against a dark panel, and leaving the
+default mode makes its alpha see-through, punching a hole in the window behind it.
 
 ## Format
 
