@@ -18,7 +18,16 @@ import "LootLogs.UI.Window.LootRow"
 local PAD, GAP, SEP_W, ROW_H, TREE_ROW_H, HEAD_H, TREE_W, PILL_H, PILL_GAP, SEARCH_H
 local STAR, INDENT, SLOT, NAME_X, ICON, FIND
 local COL_SLOT, COL_DB, COL_YOURS, COL_STAR
+local PREVIEW_GAP, MORE_W
 local MIN_WIDTH, MIN_HEIGHT
+
+-- How many members a group row shows the art of. Most groups hold a handful, so five is
+-- usually all of them; the rest are counted in the "+N" that follows.
+local PREVIEW_MAX = 5
+
+-- ...but a group can hold fifty, and every candidate costs a lookup into the client's item
+-- table. Only so many are tried before the row settles for what it has.
+local PREVIEW_TRIES = 12
 
 local function Metrics()
     SEP_W      = 1
@@ -45,6 +54,10 @@ local function Metrics()
     COL_DB     = _G.Scaled(52)
     COL_YOURS  = _G.Scaled(78)
     COL_STAR   = _G.Scaled(24)
+    -- the gap between the icons of a group row's preview strip, and the room the "+N" after
+    -- them needs; both scale, unlike the 32px art itself
+    PREVIEW_GAP = _G.Scaled(4)
+    MORE_W      = _G.Scaled(30)
     MIN_WIDTH  = _G.Scaled(840)
     MIN_HEIGHT = _G.Scaled(430)
 end
@@ -800,28 +813,88 @@ function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
 
     end
 
+    -- Where the art column starts. A group's preview strip begins here too, so its first icon
+    -- sits exactly where a plain item's would.
+    local iconX = PAD + 3 + math.floor(GAP / 2) + indent
+
     -- The item's own art, composed from its catalogued id. Images rather than a quickslot, so
     -- no stack count from your bags is painted over a listing about the world -- the tooltip
     -- that used to justify the slot now comes from the name link. See UI/Window/LootRow.lua.
     local iconHost = Turbine.UI.Control()
     iconHost:SetParent(row)
     iconHost:SetSize(SLOT, SLOT)
-    iconHost:SetPosition(PAD + 3 + math.floor(GAP / 2) + indent,
-        math.floor((ROW_H - SLOT) / 2))
+    iconHost:SetPosition(iconX, math.floor((ROW_H - SLOT) / 2))
     iconHost:SetMouseVisible(false)
+
+    -- A GROUP SHOWS ITS MEMBERS, NOT A NAME. The export numbers its groups -- "Group 12" -- and
+    -- most of them are a set nobody has a word for, so the name column was printing a label that
+    -- said nothing where the useful thing, WHAT IS IN IT, was a fold away. So the row draws the
+    -- first few members' icons across the name column instead, and counts the rest as "+N".
+    --
+    -- Icons only, and mouse-invisible: they are a picture of the group, not rows of their own,
+    -- and the whole line stays one click that opens the fold. The members themselves, with their
+    -- names, links and rates, are what the fold is for.
+    --
+    -- previewCount is every member the group stands for, whether or not its art resolved, because
+    -- "+N" answers "how many more are in here" -- not "how many pictures were left out".
+    local preview, previewCount, moreLabel = nil, 0, nil
 
     if drop.isGroup then
 
-        -- A GROUP HAS NO ART OF ITS OWN. It used to borrow the first member's, which put a
-        -- random pair of gloves against a name meaning every piece in the set -- and made the
-        -- row look like the one item it is not. A fixed mark instead: a plugin glyph, Overlay
-        -- over the row's ground the same as every other one (Ressources/ICONS.md).
-        local mark = Turbine.UI.Control()
-        mark:SetParent(iconHost)
-        mark:SetSize(SLOT, SLOT)
-        mark:SetBlendMode(Turbine.UI.BlendMode.Overlay)
-        mark:SetBackground("LootLogs/Ressources/group.tga")
-        mark:SetMouseVisible(false)
+        preview = {}
+
+        local tries = 0
+
+        for _, member in ipairs(drop.members) do
+            -- the bucket row IS the group -- it carries the category's rate, has no id, and is
+            -- not one of the things in it
+            if not member.bucket then
+
+                previewCount = previewCount + 1
+
+                if #preview < PREVIEW_MAX and tries < PREVIEW_TRIES then
+                    tries = tries + 1
+                    local host = Turbine.UI.Control()
+                    host:SetParent(row)
+                    host:SetSize(SLOT, SLOT)
+                    host:SetMouseVisible(false)
+                    if _G.MakeItemIcon(host, member.id, SLOT) ~= nil then
+                        preview[#preview + 1] = host
+                    else
+                        -- an uncatalogued id draws nothing; drop the empty host and try the next
+                        host:SetParent(nil)
+                    end
+                end
+
+            end
+        end
+
+        if #preview == 0 then
+
+            -- Nothing resolved -- so the row falls back to what it was: the fixed group mark
+            -- (a plugin glyph, Overlay over the row's ground, Ressources/ICONS.md) and the
+            -- group's own name. A blank line is worse than a name that says little.
+            local mark = Turbine.UI.Control()
+            mark:SetParent(iconHost)
+            mark:SetSize(SLOT, SLOT)
+            mark:SetBlendMode(Turbine.UI.BlendMode.Overlay)
+            mark:SetBackground("LootLogs/Ressources/group.tga")
+            mark:SetMouseVisible(false)
+            preview = nil
+
+        else
+
+            moreLabel = Turbine.UI.Label()
+            moreLabel:SetParent(row)
+            moreLabel:SetMultiline(false)
+            moreLabel:SetHeight(ROW_H)
+            moreLabel:SetFont(_G.Font(12))
+            moreLabel:SetFontStyle(_G.Theme.FONT_STYLE)
+            moreLabel:SetForeColor(_G.Theme.ACCENT)
+            moreLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+            moreLabel:SetMouseVisible(false)
+
+        end
 
     else
         _G.MakeItemIcon(iconHost, drop.id, SLOT)
@@ -985,7 +1058,39 @@ function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
         local glyph = _G.GlyphWidth(12)
         local shown = _G.LootDrops.DisplayName(drop, drop.item)
 
-        if drop.isGroup then
+        if preview ~= nil then
+
+            -- The preview strip takes the name column, so the name is not drawn at all. How many
+            -- icons fit is decided HERE and not at build time: the window resizes, and a strip
+            -- that ran past the slot column would sit under it rather than be clipped.
+            local stride = SLOT + PREVIEW_GAP
+            local room   = math.max(0, slotX - GAP - iconX)
+
+            -- an overflow count needs its own space; work out the fit with that reserved, then
+            -- keep the reservation only if something is in fact left over
+            local fits = math.max(1, math.floor((room + PREVIEW_GAP) / stride))
+            if #preview > fits or previewCount > #preview then
+                fits = math.max(1, math.floor((room - MORE_W + PREVIEW_GAP) / stride))
+            end
+
+            local drawn = math.min(#preview, fits)
+
+            for index, host in ipairs(preview) do
+                host:SetVisible(index <= drawn)
+                host:SetPosition(iconX + (index - 1) * stride,
+                    math.floor((ROW_H - SLOT) / 2))
+            end
+
+            local hidden = previewCount - drawn
+
+            moreLabel:SetVisible(hidden > 0)
+            moreLabel:SetText("+" .. hidden)
+            moreLabel:SetPosition(iconX + drawn * stride, 0)
+            moreLabel:SetWidth(MORE_W)
+
+            nameLabel:SetVisible(false)
+
+        elseif drop.isGroup then
             -- plain text, so the full width is the text's own -- no brackets to pay for
             nameLabel:SetText(_G.Truncate(shown, nameLabel:GetWidth(), glyph))
         else
@@ -997,9 +1102,11 @@ function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
 
         slotLabel:SetPosition(slotX, 0)
         slotLabel:SetWidth(COL_SLOT)
-        -- a group has no slot of its own; the column says how many things it stands for
+        -- A group has no slot of its own; the column says how many things it stands for. That is
+        -- previewCount and not #drop.members, because the bucket row is the category itself and
+        -- counting it would put the column one ahead of the icons and the "+N" beside it.
         slotLabel:SetText(_G.Truncate(
-            drop.isGroup and (#drop.members .. " " .. _G.L("groupKinds")) or (drop.slot or ""),
+            drop.isGroup and (previewCount .. " " .. _G.L("groupKinds")) or (drop.slot or ""),
             COL_SLOT - GAP, _G.GlyphWidth(10)))
 
         dbLabel:SetPosition(dbX, 0)
