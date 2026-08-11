@@ -443,6 +443,170 @@ function _G.LootDrops.DisplayNameAt(eventIndex, base)
 
 end
 
+-- ------------------------------------------------------------------------------------------------
+-- item kinds
+
+-- WHAT SORT OF THING THIS IS, and the order the popup lists them in. The numbers ARE the sort
+-- order, which is why they are written out rather than left to ipairs over a list.
+_G.LootDrops.KIND = {
+    JEWELLERY = 1,
+    ARMOUR    = 2,
+    CURRENCY  = 3,
+    TRACERY   = 4,
+    RUNE      = 5,
+}
+
+local KIND = _G.LootDrops.KIND
+
+-- READ OFF THE NAME, because the drops data has no type column: `slot` is optional and the
+-- export fills it on nothing -- all 5254 rows carry `slot = nil`. The name is what there is.
+--
+-- Which makes this ENGLISH-SHAPED, and knowingly so. Item names are what the client prints, so
+-- they are language-specific (Logs/Drops/German.lua and French.lua exist to translate them, and
+-- are empty). A translated catalogue will need its own words here; until one exists, nothing
+-- regresses, because a client with no drops data opens no popup.
+--
+-- Matched on WHOLE WORDS, first one that is known wins, left to right. That is what keeps the
+-- suffixes out of it: "Blighted Gauntlets of Tempered Blades" is gauntlets, not blades, because
+-- the head noun comes first -- and it is why no word that only ever appears in a suffix
+-- ("guard", "storm", "hand") is listed, however armour-ish it sounds.
+--
+-- CURRENCY IS THE FALLBACK, not a list. Tokens, relics, coffers, essence boxes, trophies, worm
+-- hides, quest pieces -- everything a chest hands over that is not worn and not slotted lands
+-- here together, which is where a reader looks for it anyway.
+local KIND_WORDS = {
+
+    -- jewellery: the slots that are not armour
+    ring        = KIND.JEWELLERY, rings       = KIND.JEWELLERY,
+    necklace    = KIND.JEWELLERY, necklaces   = KIND.JEWELLERY,
+    earring     = KIND.JEWELLERY, earrings    = KIND.JEWELLERY,
+    bracelet    = KIND.JEWELLERY, bracelets   = KIND.JEWELLERY,
+    bauble      = KIND.JEWELLERY, baubles     = KIND.JEWELLERY,
+    amulet      = KIND.JEWELLERY, pendant     = KIND.JEWELLERY,
+    brooch      = KIND.JEWELLERY, choker      = KIND.JEWELLERY,
+    locket      = KIND.JEWELLERY, torc        = KIND.JEWELLERY,
+    band        = KIND.JEWELLERY,   -- "Oasis Ghost's Band" is a ring by another name
+
+    -- armour, and weapons with it: they are the same answer to "can I wear this", and a sword
+    -- filed under currency would read as a mistake where a sword among the gear does not
+    helm        = KIND.ARMOUR, helmet      = KIND.ARMOUR, hood      = KIND.ARMOUR,
+    mask        = KIND.ARMOUR, circlet     = KIND.ARMOUR, cap       = KIND.ARMOUR,
+    coat        = KIND.ARMOUR, shirt       = KIND.ARMOUR, robe      = KIND.ARMOUR,
+    jacket      = KIND.ARMOUR, hauberk     = KIND.ARMOUR, armour    = KIND.ARMOUR,
+    breastplate = KIND.ARMOUR, plate       = KIND.ARMOUR, harness   = KIND.ARMOUR,
+    leggings    = KIND.ARMOUR, greaves     = KIND.ARMOUR, trousers  = KIND.ARMOUR,
+    breeches    = KIND.ARMOUR, skirt       = KIND.ARMOUR, fauld     = KIND.ARMOUR,
+    boots       = KIND.ARMOUR, shoes       = KIND.ARMOUR, sandals   = KIND.ARMOUR,
+    gloves      = KIND.ARMOUR, gauntlets   = KIND.ARMOUR, mitts     = KIND.ARMOUR,
+    cuffs       = KIND.ARMOUR, bracers     = KIND.ARMOUR, vambraces = KIND.ARMOUR,
+    cops        = KIND.ARMOUR, pauldrons   = KIND.ARMOUR, spaulders = KIND.ARMOUR,
+    shoulder    = KIND.ARMOUR, shoulders   = KIND.ARMOUR, mantle    = KIND.ARMOUR,
+    cloak       = KIND.ARMOUR, cape        = KIND.ARMOUR, shield    = KIND.ARMOUR,
+    targe       = KIND.ARMOUR, buckler     = KIND.ARMOUR, belt      = KIND.ARMOUR,
+    sash        = KIND.ARMOUR, girdle      = KIND.ARMOUR,
+    sword       = KIND.ARMOUR, blade       = KIND.ARMOUR, axe       = KIND.ARMOUR,
+    hammer      = KIND.ARMOUR, mace        = KIND.ARMOUR, club      = KIND.ARMOUR,
+    dagger      = KIND.ARMOUR, spear       = KIND.ARMOUR, halberd   = KIND.ARMOUR,
+    javelin     = KIND.ARMOUR, bow         = KIND.ARMOUR, crossbow  = KIND.ARMOUR,
+    staff       = KIND.ARMOUR,
+
+    tracery     = KIND.TRACERY, traceries = KIND.TRACERY,
+
+    rune        = KIND.RUNE,    runes     = KIND.RUNE,
+
+}
+
+-- Names repeat across chests and the popup re-sorts on every rebuild, so the scan is done once
+-- per name. Keyed on the name itself: the table is bounded by the catalogue.
+local kindOf = {}
+
+-- The kind of one item, BY THE NAME THAT IS ON SCREEN. Given a group's name it answers for the
+-- group -- "Tracery" is a tracery -- which is what the popup needs, because a collapsed group
+-- is shown as one line under its own name.
+function _G.LootDrops.ItemKind(name)
+
+    if name == nil or name == "" then return KIND.CURRENCY end
+
+    local cached = kindOf[name]
+    if cached ~= nil then return cached end
+
+    local lowered = string.lower(name)
+    local kind    = nil
+
+    -- A rune-keeper's rune-stone is a weapon, and it is the one name where the word "rune"
+    -- means something other than the levelling item. Asked before the scan, because the scan
+    -- reads left to right and "rune" comes first.
+    if string.find(lowered, "rune%-stone") ~= nil then
+
+        kind = KIND.ARMOUR
+
+    else
+
+        for word in string.gmatch(lowered, "%a+") do
+            kind = KIND_WORDS[word]
+            if kind ~= nil then break end
+        end
+
+    end
+
+    kind = kind or KIND.CURRENCY
+
+    kindOf[name] = kind
+
+    return kind
+
+end
+
+-- HOW THE POPUP ORDERS ITS ROWS. Pure and testable, which is why it lives here rather than in
+-- the window: the rule is about what the items ARE, and the window only draws the result.
+--
+-- Sorted in place. Each entry is { item = { base, player, ... }, logIndex = <chest> }, the shape
+-- LootPopup:SelectedItems builds.
+--
+--   1. WISHLISTED FIRST. The popup opens on its own and is read in a second; the one thing it
+--      must never do is put what you have been waiting for below the fold.
+--   2. Then by kind, in _G.LootDrops.KIND order -- jewellery, armour, currency, tracery, rune.
+--      Chat order is arrival order, which is near-random within a frame and tells the reader
+--      nothing; kind is what the eye is scanning for.
+--   3. Then A-Z on the name as drawn, so the same chest reads the same way every time.
+--
+-- Sorting by kind is what replaced grouping by looter. Who has it is still on every row, and
+-- your own loot still colours its own -- but "what dropped" is the question the window is
+-- opened for, and six people's names interleaved was the wrong index into it.
+function _G.LootDrops.SortLoot(items)
+
+    -- Decorated first: the comparator runs O(n log n) times, and both the name and the kind are
+    -- lookups. Sorting on fields the entry already carries also keeps the comparator readable.
+    for _, entry in ipairs(items) do
+        entry.sortName = _G.LootDrops.DisplayNameAt(entry.logIndex, entry.item.base)
+        entry.sortKind = _G.LootDrops.ItemKind(entry.sortName)
+        entry.wished   = _G.LootDrops.IsWished(entry.logIndex, entry.item.base)
+    end
+
+    table.sort(items, function(a, b)
+
+        if a.wished ~= b.wished then
+            return a.wished
+        end
+
+        if a.sortKind ~= b.sortKind then
+            return a.sortKind < b.sortKind
+        end
+
+        if a.sortName ~= b.sortName then
+            return a.sortName < b.sortName
+        end
+
+        -- Two looters, one item: the names decide, so reopening the chest deals them in the
+        -- same order rather than however table.sort last happened to leave them.
+        return (a.item.player or "") < (b.item.player or "")
+
+    end)
+
+    return items
+
+end
+
 -- Is this drop worth showing in the popup? The `popup` flag lives in the drops data so the
 -- answer is per item per chest, and it is a DISPLAY filter only -- LootStats still counts
 -- every catalogued drop, so filtering here cannot skew an observed rate.

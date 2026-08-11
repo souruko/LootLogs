@@ -206,14 +206,19 @@ check("grouped count, millions", norm("1,000,000 Ancient Script"),  "Ancient Scr
 -- and a name that merely begins with a digit is NOT a count
 check("leading digit is not a count", norm("1st Age Symbol"),       "1st Age Symbol|nil|1")
 
--- the plural is resolved from the data, never by a rule: "Badges of Forgotten Rank" puts the
--- plural on the head noun, so no trailing-s heuristic could work
--- The export carries no plural -- the game's table has no such column -- so a stacked drop is
--- only recognised once someone fills `plural` in from a capture. The singular still resolves.
+-- The plural is resolved from the DATA, never by a rule: "Badges of Forgotten Rank" puts the
+-- plural on the head noun, so no trailing-s heuristic could work. The export carries no plural
+-- column either, so a stacked drop is only recognised once someone fills one in from a capture
+-- (LootScribe's PLURALS table) -- and until they do, the whole line resolves to nothing and the
+-- drop is not even counted. That is what hid six Silver Serpents on 08/11.
 check("singular resolves to itself",
     _G.LootDrops.Canonical("Badge of Forgotten Rank"),  "Badge of Forgotten Rank")
+check("a filled-in plural resolves to the singular",
+    _G.LootDrops.Canonical("Badges of Forgotten Rank"), "Badge of Forgotten Rank")
+check("a stacked barter line resolves too",
+    _G.LootDrops.Canonical("Silver Serpents"),          "Silver Serpent")
 check("a plural nobody has filled in yet does NOT",
-    _G.LootDrops.Canonical("Badges of Forgotten Rank"), nil)
+    _G.LootDrops.Canonical("Sun-kissed Essence Boxes"), nil)
 check("uncatalogued item is unknown",
     _G.LootDrops.Canonical("Forgotten Traveller's Digit"),    nil)
 
@@ -624,6 +629,138 @@ check("and leaves everything else alone",
 
 -- put it back: the sections below run without LootStats, and a half-built stand-in left in
 -- place would be answered instead of skipped
+_G.LootWishlist = {}
+_G.LootStats    = nil
+
+-- ------------------------------------------------------------------------------------------------
+section("Item kinds  (read off the name, because the data has no type column)")
+
+local KIND = _G.LootDrops.KIND
+
+local function kind(name) return _G.LootDrops.ItemKind(name) end
+
+-- Every one of these is a real name out of Logs/Drops/English.lua.
+check("a ring is jewellery",      kind("Keen Conscript's Ring"),        KIND.JEWELLERY)
+check("so is a bauble",           kind("Ornate Conscript's Bauble"),    KIND.JEWELLERY)
+check("and an earring",           kind("Subtle Conscript's Earring"),   KIND.JEWELLERY)
+check("and a band, which is a ring by another name",
+    kind("Oasis Ghost's Band"), KIND.JEWELLERY)
+
+check("a coat is armour",         kind("Ordâkhai Explorer's Coat"),     KIND.ARMOUR)
+check("so is a hooded helm",      kind("Fallen Sage's Hooded Helm"),    KIND.ARMOUR)
+check("and a shoulder-guard",     kind("Ordâkhai Explorer's Shoulder-guard"), KIND.ARMOUR)
+check("and a cloak",              kind("Gate-warden's Cloak"),          KIND.ARMOUR)
+check("and a targe, which is a shield",
+    kind("Skald's Targe"), KIND.ARMOUR)
+
+check("a tracery is a tracery",   kind("Cracked Mûrai Tracery"),        KIND.TRACERY)
+check("including the odd one out",
+    kind("Tracery, Lvl 151 Legendary"), KIND.TRACERY)
+check("and the group's own name, which is what a collapsed row is shown as",
+    kind("Tracery"), KIND.TRACERY)
+
+check("an enhancement rune is a rune", kind("Enhancement Rune +1"),     KIND.RUNE)
+
+-- CURRENCY IS THE FALLBACK. Tokens, coffers, trophies and anything unrecognised land together,
+-- which is the bucket a reader looks in for them anyway.
+check("a coffer is currency",     kind("Decorated Coffer of Ancient Script"), KIND.CURRENCY)
+check("so is a token",            kind("Blighted Skull Token"),         KIND.CURRENCY)
+check("and a trophy",             kind("The Blighted Cold-worm Hide"),  KIND.CURRENCY)
+check("and something nobody has catalogued",
+    kind("Some Item Nobody Named"), KIND.CURRENCY)
+check("and nothing at all",       kind(nil),                            KIND.CURRENCY)
+
+-- THE SUFFIX IS NOT THE ITEM. Names run "<what it is> of <what it does>", so the first known
+-- word wins -- otherwise "of Tempered Blades" would file a pair of gauntlets under weapons.
+check("the head noun wins over the suffix",
+    kind("Blighted Gauntlets of Tempered Blades"), KIND.ARMOUR)
+check("even when the suffix is a slot word",
+    kind("Blighted Gauntlets of the Royal Guard"), KIND.ARMOUR)
+
+-- ------------------------------------------------------------------------------------------------
+section("Popup sort  (wishlisted, then kind, then A-Z)")
+
+local function loose(names)
+
+    local items = {}
+
+    for index, name in ipairs(names) do
+        items[#items + 1] = {
+            item     = { base = name, player = "Player" .. index },
+            logIndex = 544,
+        }
+    end
+
+    return items
+end
+
+local function ordered(items)
+
+    local names = {}
+
+    for _, entry in ipairs(_G.LootDrops.SortLoot(items)) do
+        names[#names + 1] = entry.item.base
+    end
+
+    return table.concat(names, ", ")
+end
+
+-- Chat order in, kind order out. One of each, deliberately shuffled.
+check("kinds come out in order",
+    ordered(loose({
+        "Enhancement Rune +1",
+        "Ordâkhai Explorer's Coat",
+        "Cracked Mûrai Tracery",
+        "Decorated Coffer of Ancient Script",
+        "Keen Conscript's Ring",
+    })),
+    "Keen Conscript's Ring, Ordâkhai Explorer's Coat, "
+    .. "Decorated Coffer of Ancient Script, Cracked Mûrai Tracery, Enhancement Rune +1")
+
+-- inside a kind, A-Z -- so the same chest reads the same way every time it is reopened
+check("and A-Z inside a kind",
+    ordered(loose({
+        "Sturdy Conscript's Ring",
+        "Bright Conscript's Ring",
+        "Keen Conscript's Ring",
+    })),
+    "Bright Conscript's Ring, Keen Conscript's Ring, Sturdy Conscript's Ring")
+
+-- A COLLAPSED GROUP IS ONE ROW UNDER THE GROUP'S NAME, so the group's name is what has to be
+-- placed -- there is no item there to ask. "Tracery" is a tracery.
+check("a collapsed group sorts as its own name",
+    ordered(loose({
+        "Enhancement Rune +1",
+        "Tracery",
+        "Keen Conscript's Ring",
+    })),
+    "Keen Conscript's Ring, Tracery, Enhancement Rune +1")
+
+-- two looters, one item: the names decide, so reopening deals them the same way round
+check("same item, looters in order",
+    (function()
+        local items = {
+            { item = { base = "Keen Conscript's Ring", player = "Wren" }, logIndex = 544 },
+            { item = { base = "Keen Conscript's Ring", player = "Ada"  }, logIndex = 544 },
+        }
+        _G.LootDrops.SortLoot(items)
+        return items[1].item.player .. ", " .. items[2].item.player
+    end)(),
+    "Ada, Wren")
+
+-- WISHLISTED FIRST, above the kind order and everything else. The popup opens unbidden and is
+-- read in a second; what you have been waiting for must never be below the fold.
+_G.LootStats    = { IsWished = function(name) return _G.LootWishlist[name] == true end }
+_G.LootWishlist = { ["Enhancement Rune +1"] = true }
+
+check("a wished item comes first whatever its kind",
+    ordered(loose({
+        "Keen Conscript's Ring",
+        "Enhancement Rune +1",
+        "Ordâkhai Explorer's Coat",
+    })),
+    "Enhancement Rune +1, Keen Conscript's Ring, Ordâkhai Explorer's Coat")
+
 _G.LootWishlist = {}
 _G.LootStats    = nil
 

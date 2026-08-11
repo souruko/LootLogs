@@ -250,15 +250,12 @@ function _G.LootPopup:BuildChips()
 
 end
 
--- The loot to show for the current selection, grouped by looter.
+-- The loot to show for the current selection, ordered by _G.LootDrops.SortLoot: wishlisted
+-- first, then by kind -- jewellery, armour, currency, tracery, rune -- then A-Z.
 --
--- Chat order is arrival order, which is near-random within a frame and tells the reader
--- nothing. Grouping by player answers the question the popup is actually opened for -- "what
--- did we get, and who has it" -- and sorting the names inside each group keeps a chest's rows
--- in the same order every time it is reopened.
---
--- You come first regardless of your name. Your own loot is what the window emphasises
--- everywhere else, and hunting for yourself alphabetically undoes that.
+-- The ORDER is that function's, not this one's, and deliberately: it is a rule about what the
+-- items are, it is the same question the browser asks, and it is tested. This one only decides
+-- WHICH items there are.
 function _G.LootPopup:SelectedItems()
 
     local items = {}
@@ -313,34 +310,7 @@ function _G.LootPopup:SelectedItems()
         end
     end
 
-    table.sort(items, function(a, b)
-
-        -- WISHLISTED FIRST, above even your own loot. The popup opens on its own and is read in
-        -- a second; the one thing it must never do is put what you have been waiting for below
-        -- the fold. Everything else is tidiness.
-        local wishA = _G.LootDrops.IsWished(a.logIndex, a.item.base)
-        local wishB = _G.LootDrops.IsWished(b.logIndex, b.item.base)
-        if wishA ~= wishB then
-            return wishA
-        end
-
-        if a.item.isSelf ~= b.item.isSelf then
-            return a.item.isSelf
-        end
-
-        local playerA = a.item.player or ""
-        local playerB = b.item.player or ""
-        if playerA ~= playerB then
-            return playerA < playerB
-        end
-
-        -- alphabetical by what is on screen, which is the label where one is set
-        return _G.LootDrops.DisplayNameAt(a.logIndex, a.item.base)
-             < _G.LootDrops.DisplayNameAt(b.logIndex, b.item.base)
-
-    end)
-
-    return items
+    return _G.LootDrops.SortLoot(items)
 
 end
 
