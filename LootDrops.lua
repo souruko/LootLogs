@@ -458,13 +458,119 @@ _G.LootDrops.KIND = {
 
 local KIND = _G.LootDrops.KIND
 
--- READ OFF THE NAME, because the drops data has no type column: `slot` is optional and the
--- export fills it on nothing -- all 5254 rows carry `slot = nil`. The name is what there is.
+-- THE CLIENT KNOWS WHAT SLOT AN ITEM IS FOR, and it is a better answer than any reading of the
+-- name: it is the game's own record, it does not care what language the name is in, and it does
+-- not care what the name says. A barter token called "Blighted Warding Charm" is category 178
+-- whatever a word list would make of "charm".
 --
--- Which makes this ENGLISH-SHAPED, and knowingly so. Item names are what the client prints, so
--- they are language-specific (Logs/Drops/German.lua and French.lua exist to translate them, and
--- are empty). A translated catalogue will need its own words here; until one exists, nothing
--- regresses, because a client with no drops data opens no popup.
+-- ItemInfo:GetCategory() is a number. The mapping of number to meaning is not in any published
+-- API doc; these come from PrimePlugins/Bags/ItemCategories.lua, which carries a full dump of
+-- them (its author's, read off a live client), and only the ones that land in one of OUR five
+-- kinds are listed. Anything else -- essences, lootboxes, quest pieces, crafting mats -- is left
+-- out ON PURPOSE and falls through to the name scan below, then to currency.
+local CATEGORY_KIND = {
+
+    [49]  = KIND.JEWELLERY,     -- Jewelry: ring, necklace, earring, bracelet, pocket
+
+    -- armour, by the slot it goes in
+    [3]   = KIND.ARMOUR,        -- Chest
+    [5]   = KIND.ARMOUR,        -- Hands
+    [6]   = KIND.ARMOUR,        -- Shoulders
+    [7]   = KIND.ARMOUR,        -- Head
+    [15]  = KIND.ARMOUR,        -- Legs
+    [18]  = KIND.ARMOUR,        -- Armor
+    [23]  = KIND.ARMOUR,        -- Feet
+    [33]  = KIND.ARMOUR,        -- Shield
+    [45]  = KIND.ARMOUR,        -- Back
+
+    -- weapons ride with armour: the same answer to "can I wear this", and a sword filed under
+    -- currency would read as a mistake where a sword among the gear does not
+    [1]   = KIND.ARMOUR,        -- Bow
+    [10]  = KIND.ARMOUR,        -- Dagger
+    [12]  = KIND.ARMOUR,        -- Axe
+    [24]  = KIND.ARMOUR,        -- Hammer
+    [29]  = KIND.ARMOUR,        -- Crossbow
+    [30]  = KIND.ARMOUR,        -- Mace
+    [34]  = KIND.ARMOUR,        -- Staff
+    [36]  = KIND.ARMOUR,        -- Halberd
+    [40]  = KIND.ARMOUR,        -- Club
+    [42]  = KIND.ARMOUR,        -- Weapon
+    [44]  = KIND.ARMOUR,        -- Sword
+    [46]  = KIND.ARMOUR,        -- Spear
+    [110] = KIND.ARMOUR,        -- Javelin
+
+    -- the class slot is worn too
+    [4]   = KIND.ARMOUR,        -- Minstrel
+    [13]  = KIND.ARMOUR,        -- Captain
+    [17]  = KIND.ARMOUR,        -- Hunter
+    [19]  = KIND.ARMOUR,        -- Loremaster
+    [22]  = KIND.ARMOUR,        -- Champion
+    [26]  = KIND.ARMOUR,        -- Guardian
+    [48]  = KIND.ARMOUR,        -- Burglar
+    [105] = KIND.ARMOUR,        -- Warden
+    [106] = KIND.ARMOUR,        -- Runekeeper
+    [288] = KIND.ARMOUR,        -- Brawler
+
+    [178] = KIND.CURRENCY,      -- Barter
+
+}
+
+_G.LootDrops.CATEGORY_KIND = CATEGORY_KIND
+
+-- The client's own record for a catalogued id, or nil.
+--
+-- Every step is pcall'd and every one of them may fail: an id may resolve to nothing, and OUT OF
+-- THE GAME (the test suite) there is no Turbine.UI.Lotro to build a shortcut with at all. Nil is
+-- the answer in every one of those cases, and every caller has a fallback, because an
+-- uncatalogued or unresolvable id is common and is not an error.
+--
+-- The way in is Shortcut:GetItem() with the instance half of the payload ZEROED -- see
+-- ShortcutData above -- which is what makes this work for an item nobody in the group owns.
+function _G.LootDrops.ClientInfo(id)
+
+    local number = _G.LootDrops.ItemId(id)
+    if number == nil then return nil end
+
+    local built, shortcut = pcall(function()
+        return Turbine.UI.Lotro.Shortcut(_G.LootDrops.SHORTCUT_ITEM,
+            string.format("0x%016X,0x%08X", 0, number))
+    end)
+    if not built or shortcut == nil then return nil end
+
+    local gotItem, item = pcall(function() return shortcut:GetItem() end)
+    if not gotItem or item == nil then return nil end
+
+    local gotInfo, info = pcall(function() return item:GetItemInfo() end)
+    if not gotInfo or info == nil then return nil end
+
+    return info
+
+end
+
+-- The client's category NUMBER for an id, or nil when it could not be asked. Nil means "no
+-- answer", never "no category" -- the difference decides whether a name-derived kind is worth
+-- caching, so the two must not be collapsed.
+local function CategoryOf(id)
+
+    local info = _G.LootDrops.ClientInfo(id)
+    if info == nil then return nil end
+
+    local got, category = pcall(function() return info:GetCategory() end)
+    if not got then return nil end
+
+    return category
+
+end
+
+-- WHEN THE CLIENT HAS NOTHING TO SAY, read the name. That is the case for a row with no id, for
+-- a group's own name (a group is not an item and has no id at all), and for anything the client
+-- files somewhere our five kinds do not reach.
+--
+-- Which makes this half ENGLISH-SHAPED, and knowingly so. Item names are what the client prints,
+-- so they are language-specific (Logs/Drops/German.lua and French.lua exist to translate them,
+-- and are empty). A translated catalogue will need its own words here; until one exists, nothing
+-- regresses, because a client with no drops data opens no popup -- and the category half above
+-- needs no translating at all, which is the other reason it goes first.
 --
 -- Matched on WHOLE WORDS, first one that is known wins, left to right. That is what keeps the
 -- suffixes out of it: "Blighted Gauntlets of Tempered Blades" is gauntlets, not blades, because
@@ -520,40 +626,68 @@ local KIND_WORDS = {
 -- per name. Keyed on the name itself: the table is bounded by the catalogue.
 local kindOf = {}
 
--- The kind of one item, BY THE NAME THAT IS ON SCREEN. Given a group's name it answers for the
--- group -- "Tracery" is a tracery -- which is what the popup needs, because a collapsed group
--- is shown as one line under its own name.
-function _G.LootDrops.ItemKind(name)
+-- The kind of one item: THE CLIENT'S SLOT FIRST, the name only when it has nothing to say.
+--
+-- `id` is the drops row's item id and is optional -- pass it whenever there is one, because it
+-- is the half that is actually authoritative. Given a group's NAME and no id it answers for the
+-- group ("Tracery" is a tracery), which is what the popup needs: a collapsed group is one line
+-- under its own name, and a group is not an item.
+function _G.LootDrops.ItemKind(name, id)
 
     if name == nil or name == "" then return KIND.CURRENCY end
 
     local cached = kindOf[name]
     if cached ~= nil then return cached end
 
-    local lowered = string.lower(name)
-    local kind    = nil
+    -- ASKED FIRST, and it wins outright. The client is describing the item; the words below are
+    -- describing the label on it.
+    local category = (id ~= nil) and CategoryOf(id) or nil
+    local kind     = (category ~= nil) and CATEGORY_KIND[category] or nil
 
-    -- A rune-keeper's rune-stone is a weapon, and it is the one name where the word "rune"
-    -- means something other than the levelling item. Asked before the scan, because the scan
-    -- reads left to right and "rune" comes first.
-    if string.find(lowered, "rune%-stone") ~= nil then
+    -- WHETHER THIS ANSWER IS WORTH KEEPING. An id the client could not answer for is not the
+    -- same as an item it places outside our kinds: the first can happen because the item table
+    -- is not ready yet -- early in a session -- and caching a name-derived kind then would keep
+    -- the wrong answer for the rest of the session.
+    local settled = (id == nil) or (category ~= nil)
 
-        kind = KIND.ARMOUR
+    if kind == nil then
 
-    else
+        local lowered = string.lower(name)
 
-        for word in string.gmatch(lowered, "%a+") do
-            kind = KIND_WORDS[word]
-            if kind ~= nil then break end
+        -- A rune-keeper's rune-stone is a weapon, and it is the one name where the word "rune"
+        -- means something other than the levelling item. Asked before the scan, because the scan
+        -- reads left to right and "rune" comes first.
+        if string.find(lowered, "rune%-stone") ~= nil then
+
+            kind = KIND.ARMOUR
+
+        else
+
+            for word in string.gmatch(lowered, "%a+") do
+                kind = KIND_WORDS[word]
+                if kind ~= nil then break end
+            end
+
         end
+
+        kind = kind or KIND.CURRENCY
 
     end
 
-    kind = kind or KIND.CURRENCY
-
-    kindOf[name] = kind
+    if settled then kindOf[name] = kind end
 
     return kind
+
+end
+
+-- The client's category number for an id, and the kind it maps to (nil where it maps to none).
+-- For the `kinds` probe, which is how the table above gets extended: the numbers are documented
+-- nowhere, so the only way to add one is to read it off a live client.
+function _G.LootDrops.ItemCategory(id)
+
+    local category = CategoryOf(id)
+
+    return category, category ~= nil and CATEGORY_KIND[category] or nil
 
 end
 
@@ -563,30 +697,86 @@ end
 -- Sorted in place. Each entry is { item = { base, player, ... }, logIndex = <chest> }, the shape
 -- LootPopup:SelectedItems builds.
 --
---   1. WISHLISTED FIRST. The popup opens on its own and is read in a second; the one thing it
---      must never do is put what you have been waiting for below the fold.
---   2. Then by kind, in _G.LootDrops.KIND order -- jewellery, armour, currency, tracery, rune.
---      Chat order is arrival order, which is near-random within a frame and tells the reader
---      nothing; kind is what the eye is scanning for.
---   3. Then A-Z on the name as drawn, so the same chest reads the same way every time.
+-- Three blocks, in this order, and inside every one of them the same two keys:
 --
--- Sorting by kind is what replaced grouping by looter. Who has it is still on every row, and
--- your own loot still colours its own -- but "what dropped" is the question the window is
--- opened for, and six people's names interleaved was the wrong index into it.
+--   1. WISHLISTED. The popup opens on its own and is read in a second; the one thing it must
+--      never do is put what you have been waiting for below the fold.
+--   2. YOURS. What you walked away with is the second question anyone asks of a chest, and
+--      hunting for it among five other people's rows is what the block is there to stop.
+--   3. EVERYONE ELSE'S.
+--
+-- then, within each block:
+--
+--   a. by kind, in _G.LootDrops.KIND order -- jewellery, armour, currency, tracery, rune. Chat
+--      order is arrival order, which is near-random within a frame and tells the reader nothing;
+--      kind is what the eye is scanning for.
+--   b. A-Z on the name as drawn, so the same chest reads the same way every time.
+--
+-- WHOSE IT IS SEPARATES THE BLOCKS; WHAT THEIR NAME IS ORDERS NOTHING. "Yours" is one bit, and
+-- it earns its place. Sorting the rest by looter name -- at any depth, including to break a tie
+-- -- is a different thing, and it interleaved six people's names where the items should have
+-- been. Ties fall to arrival order instead.
+-- WHICH LOOT A POPUP SEARCH LEAVES STANDING. Pure, and beside the sort for the same reason: the
+-- rule is about the items, and the window only draws the result.
+--
+-- Matched against the NAME AS DRAWN and the LOOTER, because those are the two columns on a row
+-- and either is a thing you would type. "ring" finds the rings; "ramor" finds what Ramor took.
+-- Plain find, not a pattern -- an item name holds apostrophes and dashes, and neither is a
+-- search operator to anyone typing one.
+--
+-- Returns a NEW list, in the order it was given. An empty search returns everything.
+function _G.LootDrops.FilterLoot(items, search)
+
+    search = string.lower(search or "")
+
+    if search == "" then return items end
+
+    local out = {}
+
+    for _, entry in ipairs(items) do
+
+        local name   = _G.LootDrops.DisplayNameAt(entry.logIndex, entry.item.base)
+        local player = entry.item.player or ""
+
+        if string.find(string.lower(name), search, 1, true) ~= nil
+        or string.find(string.lower(player), search, 1, true) ~= nil then
+            out[#out + 1] = entry
+        end
+
+    end
+
+    return out
+
+end
+
 function _G.LootDrops.SortLoot(items)
 
     -- Decorated first: the comparator runs O(n log n) times, and both the name and the kind are
     -- lookups. Sorting on fields the entry already carries also keeps the comparator readable.
-    for _, entry in ipairs(items) do
-        entry.sortName = _G.LootDrops.DisplayNameAt(entry.logIndex, entry.item.base)
-        entry.sortKind = _G.LootDrops.ItemKind(entry.sortName)
-        entry.wished   = _G.LootDrops.IsWished(entry.logIndex, entry.item.base)
+    for index, entry in ipairs(items) do
+
+        -- The row for the name as CAPTURED, so the kind is asked with the item's own id. A
+        -- collapsed group has no row and no id, and answers by its name -- which is the whole
+        -- reason ItemKind takes both.
+        local drop = _G.LootDrops.DropRow(entry.logIndex, entry.item.base)
+
+        entry.sortName  = _G.LootDrops.DisplayName(drop, entry.item.base)
+        entry.sortKind  = _G.LootDrops.ItemKind(entry.sortName, drop and drop.id)
+        entry.wished    = _G.LootDrops.IsWished(entry.logIndex, entry.item.base)
+        entry.sortIndex = index     -- arrival order, kept only to break a tie
     end
 
     table.sort(items, function(a, b)
 
         if a.wished ~= b.wished then
             return a.wished
+        end
+
+        -- the second block. isSelf may be nil on a row nobody claimed, so it is compared as a
+        -- boolean rather than passed through -- nil and false must not sort apart.
+        local mine, theirs = a.item.isSelf == true, b.item.isSelf == true
+        if mine ~= theirs then
+            return mine
         end
 
         if a.sortKind ~= b.sortKind then
@@ -597,9 +787,14 @@ function _G.LootDrops.SortLoot(items)
             return a.sortName < b.sortName
         end
 
-        -- Two looters, one item: the names decide, so reopening the chest deals them in the
-        -- same order rather than however table.sort last happened to leave them.
-        return (a.item.player or "") < (b.item.player or "")
+        -- WHO LOOTED IT IS NOT A SORT KEY, at any depth. Two people taking the same item are
+        -- two identical rows but for a name in the last column, and ordering those by that name
+        -- is the looter sort creeping back in through the tie.
+        --
+        -- The tie still has to be broken by SOMETHING, or table.sort -- which is not stable --
+        -- deals them differently on every rebuild and the block flickers. Arrival order does it:
+        -- it is what chat already showed, and it is not a judgement about anybody.
+        return a.sortIndex < b.sortIndex
 
     end)
 

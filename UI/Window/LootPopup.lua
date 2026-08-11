@@ -11,12 +11,16 @@ import "LootLogs.UI.Window.PanelWindow"
 import "LootLogs.UI.Window.LootRow"
 
 local PAD, GAP, ROW_H, CHIP_H, CHIP_GAP, POPUP_W, FOOT_H, SEP_W, TITLE_H, MIN_ROWS
-local MAX_ROWS, SCROLL_W
+local MAX_ROWS, SCROLL_W, FIND, ICON, MIN_WIDTH, MIN_HEIGHT
 
 local function Metrics()
     SEP_W    = 1
     PAD      = _G.Scaled(8)
     GAP      = _G.Scaled(8)
+    -- the .tga is clipped to its control rather than scaled, so the glyph stays 16px at every
+    -- font size and only the button around it has room to spare (Ressources/ICONS.md)
+    ICON     = 16
+    FIND     = 18
     -- taken from LootRow rather than restated: the rows are that tall because a quickslot
     -- cannot be scaled below 32px, and a second copy of the number here would drift
     ROW_H    = _G.LootRowHeight()
@@ -24,7 +28,11 @@ local function Metrics()
     CHIP_GAP = _G.Scaled(4)
     FOOT_H   = _G.Scaled(22)
     TITLE_H  = _G.Scaled(30)
-    POPUP_W  = _G.Scaled(320)
+    -- WIDE ENOUGH FOR THE NAME. At 320 the item column was about twenty characters and most of
+    -- this update's names are longer than that, so the window was mostly ellipsis. Width is the
+    -- cheap dimension here: the ceiling that keeps this window modest is MAX_ROWS, and height is
+    -- what a popup opening unbidden is judged on.
+    POPUP_W  = _G.Scaled(400)
     MIN_ROWS = 3
 
     -- The ceiling. The window used to grow to fit whatever dropped, which was fine when the
@@ -37,6 +45,13 @@ local function Metrics()
     -- at an alert.
     MAX_ROWS = 8
     SCROLL_W = 10
+
+    -- Resizing floors. Narrower than this and the boss chips wrap into a ladder; shorter and
+    -- there is no room for a row at all. MAX_ROWS still governs the size the window CHOOSES for
+    -- itself -- the gripper is there for someone who wants a different one, not to remove the
+    -- restraint from the automatic case.
+    MIN_WIDTH  = _G.Scaled(300)
+    MIN_HEIGHT = TITLE_H + SEP_W + PAD + CHIP_H + GAP + ROW_H + GAP + SEP_W + FOOT_H + PAD
 end
 
 _G.RegisterMetrics(Metrics)
@@ -45,20 +60,114 @@ _G.LootPopup = class(_G.PanelWindow)
 
 function _G.LootPopup:Constructor()
 
-    _G.PanelWindow.Constructor(self, { resizable = false })
+    _G.PanelWindow.Constructor(self, {
+        resizable  = true,
+        min_width  = MIN_WIDTH,
+        min_height = MIN_HEIGHT,
+    })
 
-    self.chest    = nil         -- the chest that opened this popup
-    self.selected = nil         -- eventIndex being shown, or "full"
-    self.chips    = {}
-    self.rows     = {}
+    self.chest      = nil       -- the chest that opened this popup
+    self.selected   = nil       -- eventIndex being shown, or "full"
+    self.chips      = {}
+    self.rows       = {}
+    self.rowCount   = 0
+    self.chipsH     = CHIP_H    -- one row of chips until BuildChips has counted them
+    self.search     = ""        -- the lowered form, matched against
+    self.searchText = ""        -- as typed
+    self.searchOpen = false
 
     local settings = _G.Settings.lootPopup or { left = 700, top = 300 }
     self:SetPosition(settings.left, settings.top)
-    self:SetSize(POPUP_W, _G.Scaled(220))
+    self:SetSize(settings.width or POPUP_W, settings.height or _G.Scaled(220))
 
     self.chipStrip = Turbine.UI.Control()
     self.chipStrip:SetParent(self.client)
     self.chipStrip:SetMouseVisible(false)
+
+    -- SEARCH TAKES THE CHIP ROW, it does not add a row of its own. This window opens unbidden
+    -- and must never be the biggest thing on the screen -- the same reason MAX_ROWS exists -- so
+    -- a permanently visible field would be paying height on every chest for something wanted on
+    -- few. The magnifier sits at the end of the chips and the field takes their place while it
+    -- is open, which is the browser's own idiom (UI/Window/LootBrowser.lua).
+    self.findBtn = Turbine.UI.Control()
+    self.findBtn:SetParent(self.client)
+    self.findBtn:SetSize(FIND, FIND)
+    self.findBtn:SetBackColor(_G.Theme.FRAME)
+    self.findBtn:SetMouseVisible(true)
+
+    local findIcon = Turbine.UI.Control()
+    findIcon:SetParent(self.findBtn)
+    findIcon:SetSize(ICON, ICON)
+    findIcon:SetPosition(math.floor((FIND - ICON) / 2), math.floor((FIND - ICON) / 2))
+    findIcon:SetBlendMode(Turbine.UI.BlendMode.Overlay)
+    findIcon:SetBackground("LootLogs/Ressources/search.tga")
+    findIcon:SetMouseVisible(false)
+
+    self.findBtn.MouseEnter = function() self.findBtn:SetBackColor(_G.Theme.HOVER) end
+    self.findBtn.MouseLeave = function() self.findBtn:SetBackColor(_G.Theme.FRAME) end
+    self.findBtn.MouseClick = function() self:ShowSearch(true) end
+
+    -- frame/inner, the anatomy the chips it replaces already use
+    self.searchFrame = Turbine.UI.Control()
+    self.searchFrame:SetParent(self.client)
+    self.searchFrame:SetBackColor(_G.Theme.FRAME)
+    self.searchFrame:SetVisible(false)
+    self.searchFrame:SetMouseVisible(false)
+
+    self.searchBg = Turbine.UI.Control()
+    self.searchBg:SetParent(self.searchFrame)
+    self.searchBg:SetBackColor(_G.Theme.BG)
+    self.searchBg:SetMouseVisible(false)
+
+    self.searchIcon = Turbine.UI.Control()
+    self.searchIcon:SetParent(self.searchBg)
+    self.searchIcon:SetSize(ICON, ICON)
+    self.searchIcon:SetBlendMode(Turbine.UI.BlendMode.Overlay)
+    self.searchIcon:SetBackground("LootLogs/Ressources/search.tga")
+    self.searchIcon:SetMouseVisible(false)
+
+    self.searchBox = Turbine.UI.TextBox()
+    self.searchBox:SetParent(self.searchBg)
+    self.searchBox:SetMultiline(false)
+    self.searchBox:SetFont(_G.Font(12))
+    self.searchBox:SetBackColor(_G.Theme.BG)
+    self.searchBox:SetForeColor(_G.Theme.TEXT)
+    self.searchBox:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+    self.searchBox:SetText("")
+
+    self.searchHint = Turbine.UI.Label()
+    self.searchHint:SetParent(self.searchBg)
+    self.searchHint:SetMultiline(false)
+    self.searchHint:SetFont(_G.Font(12))
+    self.searchHint:SetFontStyle(_G.Theme.FONT_STYLE)
+    self.searchHint:SetForeColor(_G.Theme.DIM)
+    self.searchHint:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+    self.searchHint:SetText(_G.L("searchPlaceholder"))
+    self.searchHint:SetMouseVisible(false)
+
+    self.searchBox.TextChanged = function()
+        self:SetSearch(self.searchBox:GetText())
+    end
+
+    -- Closing clears. A filter still running behind a folded-away field would read as a chest
+    -- that lost half its loot for no reason.
+    self.searchClear = Turbine.UI.Control()
+    self.searchClear:SetParent(self.searchBg)
+    self.searchClear:SetSize(FIND, FIND)
+    self.searchClear:SetBackColor(_G.Theme.BG)
+    self.searchClear:SetMouseVisible(true)
+
+    local clearIcon = Turbine.UI.Control()
+    clearIcon:SetParent(self.searchClear)
+    clearIcon:SetSize(ICON, ICON)
+    clearIcon:SetPosition(math.floor((FIND - ICON) / 2), math.floor((FIND - ICON) / 2))
+    clearIcon:SetBlendMode(Turbine.UI.BlendMode.Overlay)
+    clearIcon:SetBackground("LootLogs/Ressources/cross.tga")
+    clearIcon:SetMouseVisible(false)
+
+    self.searchClear.MouseEnter = function() self.searchClear:SetBackColor(_G.Theme.FRAME) end
+    self.searchClear.MouseLeave = function() self.searchClear:SetBackColor(_G.Theme.BG) end
+    self.searchClear.MouseClick = function() self:ShowSearch(false) end
 
     -- A ListBox rather than a plain Control, so the rows can scroll once there are more than
     -- the window is allowed to show. It still owns the rows it is given, which is what keeps
@@ -116,7 +225,14 @@ function _G.LootPopup:Constructor()
     self:SetWantsKeyEvents(true)
     self.KeyDown = function(sender, args)
         if args.Action == Turbine.UI.Lotro.Action.Escape then
-            self:CloseWindow()
+            -- Escape backs out one step at a time: the filter first, the window only once
+            -- there is no filter left to lose. Closing on the first press would take the
+            -- window away from someone who only wanted their search back.
+            if self.searchOpen then
+                self:ShowSearch(false)
+            else
+                self:CloseWindow()
+            end
         end
     end
 
@@ -164,9 +280,68 @@ function _G.LootPopup:ShowChest(chest)
     self.chest    = chest
     self.selected = chest.logIndex
 
+    -- A NEW CHEST ARRIVES UNSEARCHED. The filter belongs to the chest you were reading, and
+    -- carrying it into the next one would open the window on an empty list -- looking, from
+    -- where the player sits, exactly like a chest that dropped nothing.
+    self:ShowSearch(false)
+
     self:Rebuild()
     self:SetVisible(true)
     self:Activate()
+
+end
+
+-- ------------------------------------------------------------------------------------------------
+-- search
+
+-- Typing does not rebuild the item list, only re-filters it -- but the popup's rows ARE rebuilt
+-- per keystroke, which is cheap here in a way it is not in the browser: a chest holds a dozen
+-- rows, not a few hundred, and they are reused rather than made again.
+function _G.LootPopup:SetSearch(text)
+
+    text = text or ""
+    if text == self.searchText then return end
+
+    self.searchText = text
+    self.search     = string.lower(text)
+
+    if self.searchBox:GetText() ~= text then self.searchBox:SetText(text) end
+
+    self.searchHint:SetVisible(self.search == "")
+
+    self:Rebuild()
+
+end
+
+-- Opening swaps the chip strip for the field; closing swaps it back AND clears, so the rows
+-- always match what the field says is filtering them.
+function _G.LootPopup:ShowSearch(open)
+
+    self.searchOpen = open
+
+    self.searchFrame:SetVisible(open)
+    self.findBtn:SetVisible(not open)
+    self.chipStrip:SetVisible(not open)
+
+    if not open then
+
+        -- Cleared HERE rather than through SetSearch, so the SetText below finds the state
+        -- already settled: its TextChanged arrives as a no-op instead of a second rebuild.
+        self.searchText = ""
+        self.search     = ""
+        self.searchHint:SetVisible(true)
+
+        if self.searchBox:GetText() ~= "" then self.searchBox:SetText("") end
+
+    elseif self.searchBox.Focus ~= nil then
+        -- clicking the magnifier should leave the caret in the field, not one click away
+        self.searchBox:Focus()
+    end
+
+    -- The field is one chip row tall whatever the chips wrapped to, so opening it can change
+    -- the height of everything below -- and SetSearch only rebuilds when the TEXT changed,
+    -- which it has not when the field opens empty.
+    if self.chest ~= nil then self:Rebuild() end
 
 end
 
@@ -217,21 +392,47 @@ function _G.LootPopup:MakeChip(text, selected, dimmed, onClick)
 
 end
 
-function _G.LootPopup:BuildChips()
+-- The chips of the current instance, LAID OUT IN A FLOW THAT WRAPS, with the magnifier as the
+-- last thing in it.
+--
+-- The button used to be pinned to the right-hand end of the row, which is fine right up until
+-- the chips reach it -- and then it sits on top of "Full run", because a Turbine child is not
+-- clipped to its parent and a strip that was told it is narrower simply overflows. Six chests
+-- and a long instance name will do it at any width, so the flow has to be real: chips wrap onto
+-- another line, the magnifier follows the last of them, and the window is told how tall the
+-- whole thing came out (self.chipsH).
+--
+-- `width` is the window's, passed in rather than read back: on the first Rebuild nothing has
+-- been laid out yet, and chips measured against a stale width wrap in the wrong places.
+function _G.LootPopup:BuildChips(width)
 
     for _, chip in ipairs(self.chips) do
         chip:SetParent(nil)
     end
-    self.chips = {}
+    self.chips  = {}
+    self.chipsH = CHIP_H
 
     if self.chest == nil then return end
 
-    local x = 0
+    local inner  = math.max(0, width - 2 * PAD)
+    local x, y   = 0, 0
+
+    -- Wrap BEFORE placing, never after: a chip that has already been positioned past the edge
+    -- has drawn there for one frame, and moving it back is a flicker.
+    local function place(chipWidth)
+        if x > 0 and x + chipWidth > inner then
+            x = 0
+            y = y + CHIP_H + CHIP_GAP
+        end
+        local at = x
+        x = x + chipWidth + CHIP_GAP
+        return at, y
+    end
 
     local function add(text, selected, dimmed, onClick)
-        local chip = self:MakeChip(text, selected, dimmed, onClick)
-        chip:SetPosition(x, 0)
-        x = x + chip:GetWidth() + CHIP_GAP
+        local chip    = self:MakeChip(text, selected, dimmed, onClick)
+        local at, top = place(chip:GetWidth())
+        chip:SetPosition(at, top)
         self.chips[#self.chips + 1] = chip
     end
 
@@ -247,6 +448,13 @@ function _G.LootPopup:BuildChips()
         self.selected = "full"
         self:Rebuild()
     end)
+
+    -- the magnifier is the last chip in the flow, and wraps with them. It is parented to the
+    -- client rather than the strip, so that it survives the strip being hidden for the search.
+    local at, top = place(FIND)
+
+    self.findAt  = { x = at, y = top + math.floor((CHIP_H - FIND) / 2) }
+    self.chipsH  = y + CHIP_H
 
 end
 
@@ -323,19 +531,25 @@ function _G.LootPopup:Rebuild()
         (instance and instance.name or "?")
         .. _G.Sep .. _G.CM("DIM") .. tostring(self.chest.tier) .. _G.CMR)
 
-    self:BuildChips()
+    -- the chips are measured against the width the window HAS, which is the player's once they
+    -- have dragged the gripper
+    self:BuildChips(self:Width())
 
     local items = self:SelectedItems()
+    local total = #items
+
+    -- The search narrows what is ON SCREEN, never what was recorded: the chest keeps its items
+    -- and the footer keeps saying how many, so a filter can never look like lost loot.
+    items = _G.LootDrops.FilterLoot(items, self.search)
+
+    self.rowCount = #items
 
     -- The width the rows will have, computed rather than read back off rowHost: on the first
     -- Rebuild the host has not been laid out yet, and a row sized from it would cut its name
-    -- to fit a width that no longer exists a moment later.
-    -- Whether the bar is there changes how wide a row is, and the rows are built before the
-    -- window is laid out -- so the decision is made here, from the count, rather than read
-    -- back off a control that has not been sized yet.
-    local scrolling = #items > MAX_ROWS
-    local rowWidth  = math.max(0, POPUP_W - 2 * PAD
-        - (scrolling and (SCROLL_W + math.floor(GAP / 2)) or 0))
+    -- to fit a width that no longer exists a moment later. Whether the scrollbar is there
+    -- changes that width, and the rows are built before the window is laid out -- so Geometry
+    -- answers both from the size the window is ABOUT to have.
+    local _, _, rowWidth = self:Geometry(#items)
 
     -- Rows are reused, not rebuilt: Turbine has no destructor, so rebuilding on every chest
     -- would pile up orphaned controls for as long as the session lasts. ClearItems only lets
@@ -369,36 +583,89 @@ function _G.LootPopup:Rebuild()
         if entry.item.isSelf then mine = mine + 1 end
     end
 
-    -- A chest with no matched loot must still show. Silence reads as a broken plugin.
+    -- A chest with no matched loot must still show. Silence reads as a broken plugin -- and an
+    -- empty list has two quite different meanings, so it says which one this is.
     self.emptyLabel:SetVisible(#items == 0)
-    self.emptyLabel:SetText(_G.L("noLootYet"))
+    self.emptyLabel:SetText(self.search ~= "" and _G.L("noSearchMatch") or _G.L("noLootYet"))
 
-    self.footLabel:SetText(#items .. " "
-        .. (#items == 1 and _G.L("itemsOne") or _G.L("items"))
+    -- "3/12 items" while filtering: the count you are looking at, and the count that dropped.
+    local count = (self.search ~= "") and (#items .. "/" .. total) or tostring(#items)
+
+    self.footLabel:SetText(count .. " "
+        .. (#items == 1 and self.search == "" and _G.L("itemsOne") or _G.L("items"))
         .. _G.Sep .. mine .. " " .. _G.L("yours"))
 
     self:Layout(#items)
 
 end
 
--- The window grows to fit its rows, up to MAX_ROWS; past that it stops growing and the list
--- scrolls. The scrollbar only appears when it is needed -- a permanent one on a three-row
--- popup is a bar of furniture doing nothing.
+-- The width the window has: the player's if they have ever dragged the gripper, else the
+-- default. Read from settings rather than from the control, because Rebuild has to know it
+-- before anything has been laid out.
+function _G.LootPopup:Width()
+    return (_G.Settings.lootPopup or {}).width or POPUP_W
+end
+
+-- How tall the chip area is right now. One row while the search field is standing in for it,
+-- however many rows the chips wrapped into otherwise.
+function _G.LootPopup:ChipsHeight()
+    return self.searchOpen and CHIP_H or (self.chipsH or CHIP_H)
+end
+
+-- What size the window should be, and what that leaves for the rows. One answer, asked by both
+-- Rebuild (which needs the row width before it builds any) and Layout (which applies it).
+--
+-- THE PLAYER'S SIZE WINS. Until the gripper is dragged there is none, and the window sizes
+-- itself to its rows up to MAX_ROWS, which is the restraint that keeps something opening
+-- unbidden from being the biggest thing on the screen. Once there is one, it is theirs: a window
+-- that resized itself back on the next chest would make the gripper a lie.
+function _G.LootPopup:Geometry(rowCount)
+
+    local settings = _G.Settings.lootPopup or {}
+
+    local chrome = TITLE_H + SEP_W
+                 + PAD + self:ChipsHeight() + GAP
+                 + GAP + SEP_W + FOOT_H + PAD
+
+    local width  = settings.width or POPUP_W
+    local height = settings.height
+
+    if height == nil then
+        local shown = math.max(math.min(rowCount, MAX_ROWS), MIN_ROWS)
+        height = chrome + shown * ROW_H
+    end
+
+    -- A saved height is whatever the player dragged it to, including too short for one row, and
+    -- a chip row appearing or the search opening moves the chrome under it either way.
+    local rowsH     = math.max(0, height - chrome)
+    local scrolling = rowCount * ROW_H > rowsH
+    local inner     = math.max(0, width - 2 * PAD)
+    local rowsW     = math.max(0, inner - (scrolling and (SCROLL_W + math.floor(GAP / 2)) or 0))
+
+    return width, height, rowsW, rowsH, scrolling
+
+end
+
+-- The scrollbar only appears when it is needed -- a permanent one on a three-row popup is a bar
+-- of furniture doing nothing.
 function _G.LootPopup:Layout(rowCount)
 
     rowCount = rowCount or 0
 
-    self.scrolling = rowCount > MAX_ROWS
+    local width, height, _, _, scrolling = self:Geometry(rowCount)
 
-    local shown  = math.max(math.min(rowCount, MAX_ROWS), MIN_ROWS)
-    local height = TITLE_H + SEP_W
-                 + PAD + CHIP_H + GAP
-                 + shown * ROW_H
-                 + GAP + SEP_W + FOOT_H + PAD
+    self.scrolling = scrolling
+    self.rowScroll:SetVisible(scrolling)
 
-    self.rowScroll:SetVisible(self.scrolling)
+    self:SetSize(width, height)
 
-    self:SetSize(POPUP_W, height)
+    -- A window ALREADY at that size fires no SizeChanged, and then nothing has positioned the
+    -- chips this rebuild just moved -- the same trap AddRow works around in the browser. The
+    -- client is what OnLayout is measured in, and PanelWindow owns its size, so it is asked
+    -- rather than recomputed.
+    if self.client ~= nil then
+        self:OnLayout(self.client:GetWidth(), self.client:GetHeight())
+    end
 
 end
 
@@ -408,15 +675,50 @@ function _G.LootPopup:OnLayout(width, height)
 
     local inner = math.max(0, width - 2 * PAD)
 
-    self.chipStrip:SetPosition(PAD, PAD)
-    self.chipStrip:SetSize(inner, CHIP_H)
+    -- The chip area is as tall as the chips wrapped to, and the magnifier is wherever the flow
+    -- left it -- both settled in BuildChips, because both depend on the chips' own widths.
+    local chipsH = self:ChipsHeight()
+    local findAt = self.findAt or { x = math.max(0, inner - FIND), y = 0 }
 
-    local rowTop  = PAD + CHIP_H + GAP
+    self.chipStrip:SetPosition(PAD, PAD)
+    self.chipStrip:SetSize(inner, chipsH)
+
+    self.findBtn:SetPosition(PAD + findAt.x, PAD + findAt.y)
+
+    -- open, the field takes the whole row: the chips are not there to make room for
+    self.searchFrame:SetPosition(PAD, PAD)
+    self.searchFrame:SetSize(inner, CHIP_H)
+    self.searchBg:SetPosition(1, 1)
+    self.searchBg:SetSize(math.max(0, inner - 2), math.max(0, CHIP_H - 2))
+
+    local fieldH = math.max(0, CHIP_H - 2)
+    local textX  = 2 + ICON + math.floor(GAP / 2)
+
+    self.searchIcon:SetPosition(2, math.floor((fieldH - ICON) / 2))
+    self.searchClear:SetPosition(math.max(0, inner - 2 - FIND),
+        math.floor((fieldH - FIND) / 2))
+
+    local textW = math.max(0, inner - 2 - FIND - textX - math.floor(GAP / 2))
+
+    self.searchBox:SetPosition(textX, 0)
+    self.searchBox:SetSize(textW, fieldH)
+    self.searchHint:SetPosition(textX + 2, 0)
+    self.searchHint:SetSize(textW, fieldH)
+
+    local rowTop  = PAD + chipsH + GAP
     local footTop = height - PAD - FOOT_H
 
-    -- the scrollbar takes its width out of the rows, so a name is never cut by the bar
-    local rowsW  = inner - (self.scrolling and (SCROLL_W + math.floor(GAP / 2)) or 0)
     local rowsH  = math.max(0, footTop - GAP - SEP_W - rowTop)
+
+    -- DECIDED FROM THE HEIGHT THE WINDOW ACTUALLY HAS, not from the row count: this runs on
+    -- every frame of a gripper drag, and the bar has to appear the moment the rows stop fitting
+    -- rather than at the next rebuild.
+    self.scrolling = (self.rowCount or 0) * ROW_H > rowsH
+    self.rowScroll:SetVisible(self.scrolling)
+
+    -- the scrollbar takes its width out of the rows, so a name is never cut by the bar
+    local rowsW  = math.max(0, inner
+        - (self.scrolling and (SCROLL_W + math.floor(GAP / 2)) or 0))
 
     self.rowHost:SetPosition(PAD, rowTop)
     self.rowHost:SetSize(rowsW, rowsH)
@@ -450,6 +752,23 @@ function _G.LootPopup:OnMoved()
     _G.Settings.lootPopup.left = left
     _G.Settings.lootPopup.top  = top
     _G.SaveSettings()
+
+end
+
+-- Dragging the gripper is the player saying what size this window is, and it is remembered from
+-- then on -- including the height, which is what switches the automatic sizing off. Rebuilt
+-- afterwards, because the chips may now wrap differently and every name is truncated against a
+-- width that just changed.
+function _G.LootPopup:OnResized()
+
+    local width, height = self:GetSize()
+
+    if _G.Settings.lootPopup == nil then _G.Settings.lootPopup = {} end
+    _G.Settings.lootPopup.width  = width
+    _G.Settings.lootPopup.height = height
+    _G.SaveSettings()
+
+    self:Rebuild()
 
 end
 

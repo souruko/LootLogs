@@ -290,6 +290,82 @@ function(args)
 
 end)
 
+-- ------------------------------------------------------------------------------------------------
+-- kind probe
+--
+-- The popup sorts by what the CLIENT says an item is -- ItemInfo:GetCategory() -- and that is a
+-- bare number whose meaning is documented nowhere. _G.LootDrops.CATEGORY_KIND maps the ones we
+-- know; this prints the number for real catalogued items so an unknown one can be added rather
+-- than guessed at. An item that falls through to the name scan prints "--" for its category.
+--
+-- Takes a chest name to list one chest's drops, or nothing for the current run's.
+_G.RegisterCommand("kinds", "what the client calls each drop  (category numbers, for sorting)",
+function(args)
+
+    local KIND_NAME = { "jewellery", "armour", "currency", "tracery", "rune" }
+
+    local query = args and string.lower(string.match(args, "^%s*(.-)%s*$")) or ""
+
+    -- which chests to walk: the named one, the current run's, or everything
+    local wanted = {}
+
+    for eventIndex, event in pairs(_G.Events or {}) do
+        if query ~= "" then
+            if string.find(string.lower(event.name or ""), query, 1, true) ~= nil then
+                wanted[eventIndex] = true
+            end
+        end
+    end
+
+    if query == "" then
+        local run = _G.LootDrops and _G.LootDrops.currentRun
+        for _, chest in ipairs(run and run.chests or {}) do
+            wanted[chest.logIndex] = true
+        end
+    end
+
+    if next(wanted) == nil then
+        Turbine.Shell.WriteLine(_G.CM("DIM")
+            .. "  /lootlogs kinds <boss name>   -- no run on record to read instead" .. _G.CMR)
+        return
+    end
+
+    -- one line per NAME, not per row: the same item is catalogued at several chests and its
+    -- category is the client's, not the chest's
+    local seen, order = {}, {}
+
+    for eventIndex in pairs(wanted) do
+        for _, drop in ipairs((_G.Drops or {})[eventIndex] or {}) do
+            if seen[drop.item] == nil then
+                seen[drop.item] = drop
+                order[#order + 1] = drop.item
+            end
+        end
+    end
+
+    table.sort(order)
+
+    Turbine.Shell.WriteLine(_G.CM("ACCENT") .. "LootLogs" .. _G.CMR
+        .. _G.CM("DIM") .. "  kinds  " .. _G.CMR .. #order
+        .. _G.CM("DIM") .. " catalogued names" .. _G.CMR)
+
+    for _, name in ipairs(order) do
+
+        local drop              = seen[name]
+        local category, mapped  = _G.LootDrops.ItemCategory(drop.id)
+        local kind              = _G.LootDrops.ItemKind(
+            _G.LootDrops.DisplayName(drop, name), drop.id)
+
+        Turbine.Shell.WriteLine(
+            _G.CM("DIM") .. "  " .. string.format("%-4s", category or "--") .. _G.CMR
+            .. string.format("%-10s", KIND_NAME[kind] or "?")
+            .. _G.CM(mapped ~= nil and "TEXT" or "DIM") .. name .. _G.CMR
+            .. (mapped == nil and (_G.CM("DIM") .. "   (by name)" .. _G.CMR) or ""))
+
+    end
+
+end)
+
 _G.RegisterCommand("drops", "open the loot browser", function()
 
     if _G.LootBrowserWindow == nil then

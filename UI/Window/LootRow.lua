@@ -18,7 +18,11 @@ local PAD, ROW_H, ICON, RULE_W, GAP, META_W, STAR
 local function Metrics()
     PAD    = _G.Scaled(8)
     GAP    = _G.Scaled(8)
-    META_W = _G.Scaled(104)
+    -- The looter's column. Everything it does not take goes to the NAME, and the name is what
+    -- gets read -- "Blighted Shoulder-guards of Shadows" is 35 characters and used to be cut to
+    -- about 20. Sized for a long character name and nothing more; the level in front of it is
+    -- three digits, and the rest is the item's.
+    META_W = _G.Scaled(88)
     RULE_W = 2
     ICON   = _G.LootSlotSize
     STAR   = 12
@@ -77,20 +81,11 @@ _G.LootQualityColor = QualityColor
 -- worse than the coloured bar this replaced.
 local function ImageIds(id)
 
-    local number = _G.LootDrops.ItemId(id)
-    if number == nil then return nil end
-
-    local built, shortcut = pcall(function()
-        return Turbine.UI.Lotro.Shortcut(_G.LootDrops.SHORTCUT_ITEM,
-            string.format("0x%016X,0x%08X", 0, number))
-    end)
-    if not built or shortcut == nil then return nil end
-
-    local gotItem, item = pcall(function() return shortcut:GetItem() end)
-    if not gotItem or item == nil then return nil end
-
-    local gotInfo, info = pcall(function() return item:GetItemInfo() end)
-    if not gotInfo or info == nil then return nil end
+    -- The shortcut-to-ItemInfo walk is _G.LootDrops.ClientInfo's, and lives there because the
+    -- SORT needs the same record for the item's category. Two copies of it would drift, and the
+    -- one thing they must agree on is what an unresolvable id means: nil, and a fallback.
+    local info = _G.LootDrops.ClientInfo(id)
+    if info == nil then return nil end
 
     local function Try(getter)
         local ok, value = pcall(function() return info[getter](info) end)

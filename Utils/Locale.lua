@@ -104,6 +104,7 @@ _G.Locale = {
         -- loot drops
         fullRun           = "Full run",
         noLootYet         = "Nothing recorded for this chest",
+        noSearchMatch     = "Nothing matches that",
         items             = "items",
         itemsOne          = "item",
         yours             = "yours",
@@ -220,6 +221,7 @@ _G.Locale = {
         -- loot drops
         fullRun           = "Ganzer Lauf",
         noLootYet         = "Nichts f\252r diese Truhe erfasst",
+        noSearchMatch     = "Nichts passt dazu",
         items             = "Gegenst\228nde",
         itemsOne          = "Gegenstand",
         yours             = "davon deine",
@@ -336,6 +338,7 @@ _G.Locale = {
         -- loot drops
         fullRun           = "Course compl\232te",
         noLootYet         = "Rien enregistr\233 pour ce coffre",
+        noSearchMatch     = "Aucune correspondance",
         items             = "objets",
         itemsOne          = "objet",
         yours             = "\224 vous",

@@ -677,6 +677,47 @@ check("the head noun wins over the suffix",
 check("even when the suffix is a slot word",
     kind("Blighted Gauntlets of the Royal Guard"), KIND.ARMOUR)
 
+-- THE CLIENT'S OWN SLOT, which is the half that is authoritative. The category numbers come
+-- from ItemInfo:GetCategory() and are mapped in _G.LootDrops.CATEGORY_KIND.
+local CATEGORY = _G.LootDrops.CATEGORY_KIND
+
+check("Jewelry(49) is jewellery", CATEGORY[49],  KIND.JEWELLERY)
+check("Chest(3) is armour",       CATEGORY[3],   KIND.ARMOUR)
+check("Shield(33) is armour",     CATEGORY[33],  KIND.ARMOUR)
+check("Sword(44) rides with it",  CATEGORY[44],  KIND.ARMOUR)
+check("Barter(178) is currency",  CATEGORY[178], KIND.CURRENCY)
+check("a category we do not map has no kind", CATEGORY[235], nil)   -- Essences
+
+-- The whole point of asking the client: the name can lie, the slot cannot. This "ring" is a
+-- barter token, and it sorts as one.
+local clientInfo = _G.LootDrops.ClientInfo
+_G.LootDrops.ClientInfo = function(id)
+    if id == nil then return nil end
+    return { GetCategory = function() return id end }      -- the id IS the category, for the test
+end
+
+check("the client's slot beats the name",
+    _G.LootDrops.ItemKind("Ring of the Merchant", 178), KIND.CURRENCY)
+check("and places an item the words would miss",
+    _G.LootDrops.ItemKind("Blighted Divination Shell", 3), KIND.ARMOUR)
+
+-- a category outside our five is not an answer, so the name still gets its turn
+check("an unmapped category falls back to the name",
+    _G.LootDrops.ItemKind("Keen Ordâkhai Bracelet", 235), KIND.JEWELLERY)
+
+-- AN UNANSWERABLE ID IS NOT A CATEGORY OF "NONE". The client's item table may not be ready yet,
+-- and a name-derived kind cached then would be wrong for the rest of the session -- so it is
+-- not cached, and the next ask gets the real answer.
+_G.LootDrops.ClientInfo = function() return nil end
+check("no answer yet, so the name decides for now",
+    _G.LootDrops.ItemKind("Sturdy Ordâkhai Ring", 178), KIND.JEWELLERY)
+
+_G.LootDrops.ClientInfo = function(id) return { GetCategory = function() return id end } end
+check("and the answer is asked for again once there is one",
+    _G.LootDrops.ItemKind("Sturdy Ordâkhai Ring", 178), KIND.CURRENCY)
+
+_G.LootDrops.ClientInfo = clientInfo
+
 -- ------------------------------------------------------------------------------------------------
 section("Popup sort  (wishlisted, then kind, then A-Z)")
 
@@ -736,8 +777,11 @@ check("a collapsed group sorts as its own name",
     })),
     "Keen Conscript's Ring, Tracery, Enhancement Rune +1")
 
--- two looters, one item: the names decide, so reopening deals them the same way round
-check("same item, looters in order",
+-- TWO LOOTERS, ONE ITEM: the looter does NOT decide, not even here. Sorting the tie by name
+-- would be the looter sort creeping back in through the back door, so the tie keeps the order
+-- chat gave it -- which is also what stops an unstable table.sort reshuffling the block on
+-- every rebuild.
+check("same item keeps the order chat gave it",
     (function()
         local items = {
             { item = { base = "Keen Conscript's Ring", player = "Wren" }, logIndex = 544 },
@@ -746,10 +790,73 @@ check("same item, looters in order",
         _G.LootDrops.SortLoot(items)
         return items[1].item.player .. ", " .. items[2].item.player
     end)(),
-    "Ada, Wren")
+    "Wren, Ada")
 
--- WISHLISTED FIRST, above the kind order and everything else. The popup opens unbidden and is
--- read in a second; what you have been waiting for must never be below the fold.
+-- and the same list sorted twice comes out the same way, which is the point of the tie-break
+check("and sorting it again does not reshuffle it",
+    (function()
+        local items = {
+            { item = { base = "Keen Conscript's Ring", player = "Wren" }, logIndex = 544 },
+            { item = { base = "Keen Conscript's Ring", player = "Ada"  }, logIndex = 544 },
+            { item = { base = "Keen Conscript's Ring", player = "Bo"   }, logIndex = 544 },
+        }
+        _G.LootDrops.SortLoot(items)
+        _G.LootDrops.SortLoot(items)
+        local names = {}
+        for _, entry in ipairs(items) do names[#names + 1] = entry.item.player end
+        return table.concat(names, ", ")
+    end)(),
+    "Wren, Ada, Bo")
+
+-- THREE BLOCKS: wishlisted, then yours, then everyone else's -- and the kind order runs inside
+-- each of them, not across them. Your own tracery is above someone else's ring.
+local function blocks(rows)
+
+    local items = {}
+
+    for _, row in ipairs(rows) do
+        items[#items + 1] = {
+            item     = { base = row[1], player = row[2], isSelf = row[3] },
+            logIndex = 544,
+        }
+    end
+
+    local names = {}
+    for _, entry in ipairs(_G.LootDrops.SortLoot(items)) do
+        names[#names + 1] = entry.item.base
+    end
+
+    return table.concat(names, ", ")
+end
+
+check("yours comes before everyone else's",
+    blocks({
+        { "Bright Conscript's Ring",  "Ada",  false },
+        { "Cracked Mûrai Tracery",    "you",  true  },
+        { "Ordâkhai Explorer's Coat", "Wren", false },
+    }),
+    "Cracked Mûrai Tracery, Bright Conscript's Ring, Ordâkhai Explorer's Coat")
+
+check("and the kind order runs inside each block",
+    blocks({
+        { "Sun-kissed Essence Box",   "Wren", false },
+        { "Ordâkhai Explorer's Coat", "you",  true  },
+        { "Bright Conscript's Ring",  "Ada",  false },
+        { "Keen Conscript's Ring",    "you",  true  },
+    }),
+    "Keen Conscript's Ring, Ordâkhai Explorer's Coat, "
+    .. "Bright Conscript's Ring, Sun-kissed Essence Box")
+
+-- an unclaimed row carries no isSelf at all, and nil must sort with false rather than apart
+check("no looter is not your loot",
+    blocks({
+        { "Sun-kissed Essence Box", "Wren", nil  },
+        { "Keen Conscript's Ring",  "you",  true },
+    }),
+    "Keen Conscript's Ring, Sun-kissed Essence Box")
+
+-- WISHLISTED FIRST, above your own loot and above the kind order. The popup opens unbidden and
+-- is read in a second; what you have been waiting for must never be below the fold.
 _G.LootStats    = { IsWished = function(name) return _G.LootWishlist[name] == true end }
 _G.LootWishlist = { ["Enhancement Rune +1"] = true }
 
@@ -761,8 +868,68 @@ check("a wished item comes first whatever its kind",
     })),
     "Enhancement Rune +1, Keen Conscript's Ring, Ordâkhai Explorer's Coat")
 
+check("even when it is somebody else's and yours is not",
+    blocks({
+        { "Keen Conscript's Ring", "you",  true  },
+        { "Enhancement Rune +1",   "Wren", false },
+    }),
+    "Enhancement Rune +1, Keen Conscript's Ring")
+
 _G.LootWishlist = {}
 _G.LootStats    = nil
+
+-- ------------------------------------------------------------------------------------------------
+section("Popup search  (narrows what is shown, never what was recorded)")
+
+local function chestLoot()
+    return {
+        { item = { base = "Keen Conscript's Ring",     player = "Ramor" }, logIndex = 544 },
+        { item = { base = "Ordâkhai Explorer's Coat",  player = "Ada"   }, logIndex = 544 },
+        { item = { base = "Bright Conscript's Ring",   player = "Ramor" }, logIndex = 544 },
+        { item = { base = "Sun-kissed Essence Box",    player = "Wren"  }, logIndex = 544 },
+    }
+end
+
+local function found(search)
+
+    local names = {}
+
+    for _, entry in ipairs(_G.LootDrops.FilterLoot(chestLoot(), search)) do
+        names[#names + 1] = entry.item.base
+    end
+
+    return table.concat(names, ", ")
+end
+
+check("an empty search keeps everything",  #_G.LootDrops.FilterLoot(chestLoot(), ""),  4)
+check("and so does no search at all",      #_G.LootDrops.FilterLoot(chestLoot(), nil), 4)
+
+check("a name matches",
+    found("ring"), "Keen Conscript's Ring, Bright Conscript's Ring")
+check("case does not matter",
+    found("RING"), found("ring"))
+check("a match anywhere in the name counts",
+    found("essence"), "Sun-kissed Essence Box")
+
+-- THE LOOTER IS SEARCHABLE EVEN THOUGH IT IS NOT SORTABLE. "What did Ramor get" is a question
+-- the popup is opened for; it is the ordering by name that was unwanted, not the name.
+check("a looter matches too",
+    found("ramor"), "Keen Conscript's Ring, Bright Conscript's Ring")
+
+check("nothing matching is nothing shown", found("mithril"), "")
+
+-- Plain find, not a pattern: item names hold apostrophes and dashes, and a search box is not a
+-- place anyone expects to escape anything.
+check("a dash is a dash",         found("sun-kissed"), "Sun-kissed Essence Box")
+check("an apostrophe is one too", found("conscript's"),
+    "Keen Conscript's Ring, Bright Conscript's Ring")
+check("a magic character finds nothing rather than erroring",
+    found("%a"), "")
+
+-- The filter does not re-order: sorting happens before it, and a narrowed list keeps the order
+-- it was given -- rows 1 and 3 here, with 2 dropped out from between them.
+check("the surviving rows keep their order",
+    found("conscript"), "Keen Conscript's Ring, Bright Conscript's Ring")
 
 -- ------------------------------------------------------------------------------------------------
 section("Item links  (the clickable form, byte for byte the client's own)")
