@@ -4,6 +4,25 @@ Versions are `<major>.<lotro update>.<release>`. The middle number is the LOTRO 
 build targets, and the last number counts fixes and changes within it, resetting when either of the
 numbers above it moves. The leading number moves only for a major overhaul of the plugin itself.
 
+## [4.49.2] - 2026-08-12
+
+### Changed
+- The loot browser lists every item once per chest. The game's tables list an item once per roll it can come out of, so the same cloak appeared eight times at eight different rates and none of them told you how likely the cloak actually was
+- Every row now leads with the chance the item drops *at all* from that chest, with the individual rates printed behind it — the only figure that can be compared between an item that comes out of one roll and an item that comes out of six
+- A small bar beside that figure, so a page of sub-1% items can be sorted by eye instead of read digit by digit
+- The browser opens on the highest tier rather than the lowest, and changing tier keeps you on the boss you were reading
+- The browser shows one chest at a time. The bosses of an instance share most of their loot, so listing them together was the same rows over again, and no rate on the page meant anything until you had found which boss you were under
+- Every count in the browser counts items now instead of table rows — the sidebar used to say 308 beside a table showing 91
+- The loot popup separates what dropped into Starred, Yours and Fellowship
+- Anything you starred leads the popup, including when somebody else won it — and that case has its own colour now, so it can never be read as your own loot
+- Every popup row carries the item's drop chance, the same figure the browser gives, and anything under 2% is coloured so a rare hit reads as rare
+- The popup lists the rarest drop first inside each section, instead of grouping by item type
+- The boss chips say how much each chest gave, and "Full run" is now "Run · 11" — a count worth pressing
+
+### Removed
+- The folding group rows in the browser, with their icon strips and "+19". Every item in the pool is now listed once and priced, so there is nothing left for a fold to hide
+- The Slot column, which the loot tables never filled. Its width pays for the drop rates beside it
+
 ## [4.49.1] - 2026-08-10
 
 ### Added

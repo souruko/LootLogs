@@ -484,6 +484,199 @@ _G.DropGroups["Renamed Group"] = nil
 _G.DropGroups["Blank Label"]   = nil
 
 -- ------------------------------------------------------------------------------------------------
+section("Combined chance  (one item, several pools, one number)")
+
+local combined = _G.LootDrops.CombinedChance
+
+-- The rolls are independent, so the chance of at least one hitting is 1 - Π(1 - chance).
+-- ADDING THEM IS THE MISTAKE THIS EXISTS TO PREVENT: 70 + 10 is 80, which is wrong, and a
+-- six-pool item would add up past 100% while claiming a certainty the tables never gave.
+local function pct(value)
+    if value == nil then return nil end
+    return math.floor(value * 10000 + 0.5) / 100
+end
+
+check("nothing to fold is not a rate",     combined({}),                         nil)
+check("one entry is its own answer",       pct(combined({ { chance = 0.7 } })),  70)
+check("70% and 10% is 73%, not 80%",
+    pct(combined({ { chance = 0.7 }, { chance = 0.1 } })),                       73)
+check("six small pools still beat one",
+    pct(combined({ { chance = 0.010606 }, { chance = 0.010294 }, { chance = 0.01 },
+                   { chance = 0.003788 }, { chance = 0.003676 }, { chance = 0.003571 } })), 4.12)
+check("a guaranteed entry carries the rest",
+    pct(combined({ { chance = 1 }, { chance = 0.7 } })),                         100)
+check("an unknown chance is left out, not counted as zero",
+    pct(combined({ { chance = 0.7 }, { chance = nil } })),                       70)
+check("all unknown is unknown, never 0%",
+    combined({ { chance = nil }, { chance = nil } }),                            nil)
+check("bare numbers fold the same way",    pct(combined({ 0.7, 0.1 })),          73)
+
+-- ------------------------------------------------------------------------------------------------
+section("Item entries  (a chest rolls several tables, so one name has several chances)")
+
+-- Kishâsu T2. Counted from the data rather than written down, because the catalogue is
+-- regenerated from the game's own tables and a literal here would teach people to edit the
+-- number instead of reading the test.
+local KISHASU_T2 = 543
+
+local function EntriesInData(eventIndex, name)
+    local count = 0
+    for _, drop in ipairs(_G.Drops[eventIndex]) do
+        if drop.item == name and not drop.bucket then count = count + 1 end
+    end
+    return count
+end
+
+local necklace = _G.LootDrops.ItemEntries(KISHASU_T2, "Bright Conscript's Necklace")
+check("an item in six pools reports six chances",
+    #necklace, EntriesInData(KISHASU_T2, "Bright Conscript's Necklace"))
+check("and there really are six",  #necklace, 6)
+check("biggest first",             necklace[1].chance > necklace[#necklace].chance, true)
+check("each entry remembers its pool", necklace[1].group ~= nil, true)
+
+-- THE HALF THAT IS EASY TO MISS. Ungrouped items duplicate too, so the key is the NAME and
+-- never the group -- "collapse the groups" would leave this one at two rows.
+check("an ungrouped item duplicates as well",
+    #_G.LootDrops.ItemEntries(KISHASU_T2, "Silver Serpent"),
+    EntriesInData(KISHASU_T2, "Silver Serpent"))
+
+check("an uncatalogued name has no entries",
+    #_G.LootDrops.ItemEntries(KISHASU_T2, "Not An Item"), 0)
+
+-- A bucket row is the pool itself: it matches no chat line, has no id, and its rate belongs to
+-- the category rather than to anything in it.
+local bucketName = nil
+for _, drop in ipairs(_G.Drops[KISHASU_T2]) do
+    if drop.bucket then bucketName = drop.item break end
+end
+check("this chest has bucket rows to exclude", bucketName ~= nil, true)
+check("and a bucket row is not an item with entries",
+    #_G.LootDrops.ItemEntries(KISHASU_T2, bucketName), 0)
+
+-- A collapse group is not an item and has no row of its own, so it answers with its members'.
+check("a collapse group answers for its members",
+    #_G.LootDrops.ItemEntries(544, "Tracery"), #_G.LootDrops.GroupMembers(544, "Tracery"))
+
+-- ------------------------------------------------------------------------------------------------
+section("Dedupe  (one row per name per chest)")
+
+local function Chance(row)  return pct(row.any) end
+
+local function Find(rows, name)
+    for _, row in ipairs(rows) do
+        if row.item == name then return row end
+    end
+    return nil
+end
+
+-- Hand-built, so the rules are visible: two entries of one ungrouped item, a bucket row and
+-- its expand-group members, a collapse group of two, and an item nobody has a rate for.
+local sample = {
+    { item = "Silver Serpent",   chance = 1.00 },
+    { item = "Silver Serpent",   chance = 0.70 },
+    { item = "?? Group 1",       chance = 0.15, group = "Group 1", bucket = true },
+    { item = "Fallen Helm",      chance = 0.05, group = "Group 1", id = 7, quality = "rare" },
+    { item = "Fallen Helm",      chance = 0.04, group = "Group 1" },
+    { item = "Fallen Gauntlets", chance = 0.05, group = "Group 1" },
+    { item = "?? Tracery A",     chance = 0.50, group = "Tracery" },
+    { item = "?? Tracery B",     chance = 0.50, group = "Tracery" },
+    { item = "Mystery Trophy" },
+}
+
+local deduped = _G.LootDrops.Dedupe(sample)
+
+check("nine rows become five",             #deduped, 5)
+check("a name repeated is one row",        Find(deduped, "Silver Serpent") ~= nil, true)
+check("carrying both its chances",         #Find(deduped, "Silver Serpent").entries, 2)
+check("folded into one figure",            Chance(Find(deduped, "Silver Serpent")), 100)
+check("a bucket row is not a row",         Find(deduped, "?? Group 1"), nil)
+
+-- An EXPAND group's members are real, wantable items: with one row per name they no longer
+-- repeat themselves, so there is nothing left for a fold to hide.
+check("an expand group's members stay themselves",
+    Find(deduped, "Fallen Helm") ~= nil and Find(deduped, "Fallen Gauntlets") ~= nil, true)
+check("and are not a group row",           Find(deduped, "Fallen Helm").isGroup, nil)
+check("the first non-nil id survives",     Find(deduped, "Fallen Helm").id, 7)
+check("so does the first quality",         Find(deduped, "Fallen Helm").quality, "rare")
+
+-- A COLLAPSE group still folds. Its members are placeholder names -- nobody wants a list of
+-- traceries -- and that is a display rule about the group, not about duplication.
+local tracery = Find(deduped, "Tracery")
+check("a collapse group is one row",       tracery ~= nil, true)
+check("under the group's own key",         tracery.isGroup, true)
+check("carrying its members' entries",     #tracery.entries, 2)
+check("and combining them",                Chance(tracery), 75)
+check("its members are not listed",        Find(deduped, "?? Tracery A"), nil)
+check("but are still findable by name",    #tracery.memberNames, 2)
+check("a group has no id to borrow",       tracery.id, nil)
+
+-- An absent chance means "drops, rate not established". It must never become 0%.
+check("no chance anywhere is no rate",     Find(deduped, "Mystery Trophy").any, nil)
+
+-- Ordered for display, because file order was never meaningful and a wall of sub-1% rows is
+-- only readable sorted.
+check("the likeliest leads",               deduped[1].item, "Silver Serpent")
+check("and the unknown sinks to the end",  deduped[#deduped].item, "Mystery Trophy")
+
+-- Against the real table: 308 rows, 91 names, and every entry accounted for.
+local real = _G.LootDrops.Dedupe(_G.Drops[KISHASU_T2])
+local folded = 0
+for _, row in ipairs(real) do folded = folded + #row.entries end
+
+local nonBucket, collapsedHere = 0, false
+for _, drop in ipairs(_G.Drops[KISHASU_T2]) do
+    if not drop.bucket then nonBucket = nonBucket + 1 end
+    if drop.group == "Tracery" then collapsedHere = true end
+end
+
+-- the entry count below is "every non-bucket row survives", which only holds where no pool row
+-- stands in for its members -- this chest has none, and the assertion is worth stating
+check("this chest has no collapsed pool to stand in", collapsedHere, false)
+
+check("a real chest folds to far fewer rows", #real < #_G.Drops[KISHASU_T2], true)
+check("and loses nothing on the way",         folded, nonBucket)
+check("the six-entry item is one row of six", #Find(real, "Bright Conscript's Necklace").entries, 6)
+check("with the combined figure the browser prints",
+    Chance(Find(real, "Bright Conscript's Necklace")), 1.54)
+
+-- The same item one tier up, which is the row the design was drawn from: six pools again, and
+-- 4.12% is the number on the mockup.
+local t3 = _G.LootDrops.Dedupe(_G.Drops[540])
+check("Kishâsu T3 prices the same necklace at 4.12%",
+    Chance(Find(t3, "Bright Conscript's Necklace")), 4.12)
+check("and the cloak beside it at 8.11%",
+    Chance(Find(t3, "Game Hunter's Cloak")), 8.11)
+
+-- THE POOL IS THE ROW, for a collapse group. "?? Tracery" is a bucket row -- it matches no chat
+-- line and is the only thing the tables say about traceries -- so dropping every bucket row
+-- would take the tracery line out of the browser altogether.
+local tracery3 = Find(t3, "Tracery")
+check("a collapsed pool survives as its category", tracery3 ~= nil, true)
+check("carrying the pool's own rate",              Chance(tracery3), 100)
+check("and the placeholder name is not a row",     Find(t3, "?? Tracery"), nil)
+
+-- The other kind of bucket row, at the same chest: a pool over items that ARE listed. Its rate
+-- belongs to the roll, not to any piece, so it is dropped.
+check("an expand group's pool is not a row",       Find(t3, "?? Group 1"), nil)
+
+-- ------------------------------------------------------------------------------------------------
+section("Catalogued tiers  (the browser opens on the highest)")
+
+-- Lowest first, so the highest is simply the last -- which is what the browser selects, because
+-- a chest is farmed at the top tier and Solo is where nobody was looking.
+local tiers = _G.LootDrops.TiersFor(51)
+check("Pagru-kirít catalogues four tiers", #tiers, 4)
+check("lowest first",                      tiers[1], "Solo")
+check("so the highest is the last",        tiers[#tiers], "T3")
+
+-- An instance with one catalogued tier picks that one, not nothing: the rule is "the last of
+-- them", and a list of one has a last.
+local only = { "T1" }
+check("one tier is still the highest",     only[#only], "T1")
+
+check("an uncatalogued instance has no tiers", #_G.LootDrops.TiersFor(-1), 0)
+
+-- ------------------------------------------------------------------------------------------------
 section("Browser search  (it filters the selection, and a group answers for its members)")
 
 check("search text carries the client's name", _G.LootDrops.SearchText({ item = "Silver Serpent" }),
@@ -719,7 +912,12 @@ check("and the answer is asked for again once there is one",
 _G.LootDrops.ClientInfo = clientInfo
 
 -- ------------------------------------------------------------------------------------------------
-section("Popup sort  (wishlisted, then kind, then A-Z)")
+section("Popup sort  (wishlisted, then yours, then rarest first)")
+
+-- Sudûgul T1, whose real rates spread far enough to sort by: a coat at 1.1%, the rings at 1.5%,
+-- an essence box at 29%, a rune and a serpent at 100%, and several names the tables give no rate
+-- for at all.
+local SORT_CHEST = 544
 
 local function loose(names)
 
@@ -728,7 +926,7 @@ local function loose(names)
     for index, name in ipairs(names) do
         items[#items + 1] = {
             item     = { base = name, player = "Player" .. index },
-            logIndex = 544,
+            logIndex = SORT_CHEST,
         }
     end
 
@@ -746,20 +944,28 @@ local function ordered(items)
     return table.concat(names, ", ")
 end
 
--- Chat order in, kind order out. One of each, deliberately shuffled.
-check("kinds come out in order",
+-- RAREST FIRST. Chat order in, luck order out -- the 1.1% coat above the ring above the box
+-- above the two certainties.
+check("the rarest drop leads",
     ordered(loose({
-        "Enhancement Rune +1",
-        "Ordâkhai Explorer's Coat",
-        "Cracked Mûrai Tracery",
-        "Decorated Coffer of Ancient Script",
-        "Keen Conscript's Ring",
+        "Enhancement Rune +1",              -- 100%
+        "Sun-kissed Essence Box",           -- 29%
+        "Keen Conscript's Ring",            -- 1.5%
+        "Ordâkhai Explorer's Coat",         -- 1.1%
     })),
-    "Keen Conscript's Ring, Ordâkhai Explorer's Coat, "
-    .. "Decorated Coffer of Ancient Script, Cracked Mûrai Tracery, Enhancement Rune +1")
+    "Ordâkhai Explorer's Coat, Keen Conscript's Ring, "
+    .. "Sun-kissed Essence Box, Enhancement Rune +1")
 
--- inside a kind, A-Z -- so the same chest reads the same way every time it is reopened
-check("and A-Z inside a kind",
+-- KIND ORDERS NOTHING any more. A ring and a coat are told apart by looking at them; how lucky
+-- either was is the thing the window is read for, so the coat goes above the ring on its rate
+-- rather than below it on its category.
+check("a rarer armour piece beats a commoner ring",
+    ordered(loose({ "Keen Conscript's Ring", "Ordâkhai Explorer's Coat" })),
+    "Ordâkhai Explorer's Coat, Keen Conscript's Ring")
+
+-- Items sharing a rate share a pool, and there are six rings at 1.5% in this chest. A-Z decides
+-- between them, so the same chest reads the same way every time it is reopened.
+check("one rate, then A-Z",
     ordered(loose({
         "Sturdy Conscript's Ring",
         "Bright Conscript's Ring",
@@ -768,14 +974,25 @@ check("and A-Z inside a kind",
     "Bright Conscript's Ring, Keen Conscript's Ring, Sturdy Conscript's Ring")
 
 -- A COLLAPSED GROUP IS ONE ROW UNDER THE GROUP'S NAME, so the group's name is what has to be
--- placed -- there is no item there to ask. "Tracery" is a tracery.
-check("a collapsed group sorts as its own name",
+-- placed -- there is no item there to ask. "Tracery" answers with its pool's own rate, 100%.
+check("a collapsed group sorts on its pool's rate",
     ordered(loose({
-        "Enhancement Rune +1",
+        "Ordâkhai Explorer's Coat",
         "Tracery",
         "Keen Conscript's Ring",
     })),
-    "Keen Conscript's Ring, Tracery, Enhancement Rune +1")
+    "Ordâkhai Explorer's Coat, Keen Conscript's Ring, Tracery")
+
+-- AN UNKNOWN RATE IS NOT A RARE ONE. "Drops, rate not established" says nothing about luck, so
+-- it goes to the back of its block rather than leading the window on a promise the tables never
+-- made.
+check("an unrated drop sinks to the bottom",
+    ordered(loose({
+        "Badge of Forgotten Rank",          -- no rate at this chest
+        "Enhancement Rune +1",              -- 100%
+        "Ordâkhai Explorer's Coat",         -- 1.1%
+    })),
+    "Ordâkhai Explorer's Coat, Enhancement Rune +1, Badge of Forgotten Rank")
 
 -- TWO LOOTERS, ONE ITEM: the looter does NOT decide, not even here. Sorting the tie by name
 -- would be the looter sort creeping back in through the back door, so the tie keeps the order
@@ -784,8 +1001,8 @@ check("a collapsed group sorts as its own name",
 check("same item keeps the order chat gave it",
     (function()
         local items = {
-            { item = { base = "Keen Conscript's Ring", player = "Wren" }, logIndex = 544 },
-            { item = { base = "Keen Conscript's Ring", player = "Ada"  }, logIndex = 544 },
+            { item = { base = "Keen Conscript's Ring", player = "Wren" }, logIndex = SORT_CHEST },
+            { item = { base = "Keen Conscript's Ring", player = "Ada"  }, logIndex = SORT_CHEST },
         }
         _G.LootDrops.SortLoot(items)
         return items[1].item.player .. ", " .. items[2].item.player
@@ -796,9 +1013,9 @@ check("same item keeps the order chat gave it",
 check("and sorting it again does not reshuffle it",
     (function()
         local items = {
-            { item = { base = "Keen Conscript's Ring", player = "Wren" }, logIndex = 544 },
-            { item = { base = "Keen Conscript's Ring", player = "Ada"  }, logIndex = 544 },
-            { item = { base = "Keen Conscript's Ring", player = "Bo"   }, logIndex = 544 },
+            { item = { base = "Keen Conscript's Ring", player = "Wren" }, logIndex = SORT_CHEST },
+            { item = { base = "Keen Conscript's Ring", player = "Ada"  }, logIndex = SORT_CHEST },
+            { item = { base = "Keen Conscript's Ring", player = "Bo"   }, logIndex = SORT_CHEST },
         }
         _G.LootDrops.SortLoot(items)
         _G.LootDrops.SortLoot(items)
@@ -808,8 +1025,8 @@ check("and sorting it again does not reshuffle it",
     end)(),
     "Wren, Ada, Bo")
 
--- THREE BLOCKS: wishlisted, then yours, then everyone else's -- and the kind order runs inside
--- each of them, not across them. Your own tracery is above someone else's ring.
+-- THREE BLOCKS: wishlisted, then yours, then everyone else's -- and the rate order runs inside
+-- each of them, not across them. Your own certainty is above someone else's rare drop.
 local function blocks(rows)
 
     local items = {}
@@ -817,7 +1034,7 @@ local function blocks(rows)
     for _, row in ipairs(rows) do
         items[#items + 1] = {
             item     = { base = row[1], player = row[2], isSelf = row[3] },
-            logIndex = 544,
+            logIndex = SORT_CHEST,
         }
     end
 
@@ -829,44 +1046,43 @@ local function blocks(rows)
     return table.concat(names, ", ")
 end
 
-check("yours comes before everyone else's",
+check("yours comes before everyone else's, however common",
     blocks({
-        { "Bright Conscript's Ring",  "Ada",  false },
-        { "Cracked Mûrai Tracery",    "you",  true  },
-        { "Ordâkhai Explorer's Coat", "Wren", false },
+        { "Ordâkhai Explorer's Coat", "Ada",  false },   -- 1.1%, theirs
+        { "Enhancement Rune +1",      "you",  true  },   -- 100%, yours
     }),
-    "Cracked Mûrai Tracery, Bright Conscript's Ring, Ordâkhai Explorer's Coat")
+    "Enhancement Rune +1, Ordâkhai Explorer's Coat")
 
-check("and the kind order runs inside each block",
+check("and the rate order runs inside each block",
     blocks({
-        { "Sun-kissed Essence Box",   "Wren", false },
-        { "Ordâkhai Explorer's Coat", "you",  true  },
-        { "Bright Conscript's Ring",  "Ada",  false },
-        { "Keen Conscript's Ring",    "you",  true  },
+        { "Sun-kissed Essence Box",   "Wren", false },   -- 29%
+        { "Ordâkhai Explorer's Coat", "you",  true  },   -- 1.1%
+        { "Keen Conscript's Ring",    "Ada",  false },   -- 1.5%
+        { "Enhancement Rune +1",      "you",  true  },   -- 100%
     }),
-    "Keen Conscript's Ring, Ordâkhai Explorer's Coat, "
-    .. "Bright Conscript's Ring, Sun-kissed Essence Box")
+    "Ordâkhai Explorer's Coat, Enhancement Rune +1, "
+    .. "Keen Conscript's Ring, Sun-kissed Essence Box")
 
 -- an unclaimed row carries no isSelf at all, and nil must sort with false rather than apart
 check("no looter is not your loot",
     blocks({
-        { "Sun-kissed Essence Box", "Wren", nil  },
-        { "Keen Conscript's Ring",  "you",  true },
+        { "Ordâkhai Explorer's Coat", "Wren", nil  },   -- 1.1%, but not yours
+        { "Enhancement Rune +1",      "you",  true },   -- 100%, and yours
     }),
-    "Keen Conscript's Ring, Sun-kissed Essence Box")
+    "Enhancement Rune +1, Ordâkhai Explorer's Coat")
 
--- WISHLISTED FIRST, above your own loot and above the kind order. The popup opens unbidden and
+-- WISHLISTED FIRST, above your own loot and above the rate order. The popup opens unbidden and
 -- is read in a second; what you have been waiting for must never be below the fold.
 _G.LootStats    = { IsWished = function(name) return _G.LootWishlist[name] == true end }
 _G.LootWishlist = { ["Enhancement Rune +1"] = true }
 
-check("a wished item comes first whatever its kind",
+check("a wished item comes first however common it is",
     ordered(loose({
         "Keen Conscript's Ring",
         "Enhancement Rune +1",
         "Ordâkhai Explorer's Coat",
     })),
-    "Enhancement Rune +1, Keen Conscript's Ring, Ordâkhai Explorer's Coat")
+    "Enhancement Rune +1, Ordâkhai Explorer's Coat, Keen Conscript's Ring")
 
 check("even when it is somebody else's and yours is not",
     blocks({
@@ -877,6 +1093,108 @@ check("even when it is somebody else's and yours is not",
 
 _G.LootWishlist = {}
 _G.LootStats    = nil
+
+-- ------------------------------------------------------------------------------------------------
+section("Popup blocks  (starred, then yours, then the fellowship's)")
+
+_G.LootStats    = { IsWished = function(name) return _G.LootWishlist[name] == true end }
+_G.LootWishlist = {}
+
+local function partition(rows)
+
+    local items = {}
+
+    for _, row in ipairs(rows) do
+        items[#items + 1] = {
+            item     = { base = row[1], player = row[2], isSelf = row[3] },
+            logIndex = 544,
+        }
+    end
+
+    local starred, yours, fellowship = _G.LootDrops.PartitionLoot(items)
+
+    local function names(list)
+        local out = {}
+        for _, entry in ipairs(list) do out[#out + 1] = entry.item.base end
+        return table.concat(out, ", ")
+    end
+
+    return names(starred), names(yours), names(fellowship)
+
+end
+
+local blockRows = {
+    { "Sun-kissed Essence Box", "you",  true  },
+    { "Keen Conscript's Ring",  "Wren", false },
+    { "Silver Serpent",         "Ada",  false },
+}
+
+local starred, yours, fellowship = partition(blockRows)
+check("nothing starred, nothing in the first block", starred,    "")
+check("your own loot is yours",                      yours,      "Sun-kissed Essence Box")
+check("and the rest is the fellowship's",            fellowship,
+    "Keen Conscript's Ring, Silver Serpent")
+
+-- THE CASE THE OLD WINDOW BURIED. A drop you had starred that went to somebody else was sorted
+-- below your own loot and drawn in everyone-else's colours; now it leads, and it is in ONE
+-- block -- listed under Starred and NOT again under Fellowship.
+_G.LootWishlist = { ["Silver Serpent"] = true }
+
+starred, yours, fellowship = partition(blockRows)
+check("someone else's starred drop leads",           starred,    "Silver Serpent")
+check("and is not listed again below",               fellowship, "Keen Conscript's Ring")
+check("your own loot is untouched by it",            yours,      "Sun-kissed Essence Box")
+
+-- starred AND yours is one row, in the block that leads
+_G.LootWishlist = { ["Sun-kissed Essence Box"] = true }
+
+starred, yours, fellowship = partition(blockRows)
+check("starred wins over yours",                     starred,    "Sun-kissed Essence Box")
+check("so it is not in both",                        yours,      "")
+
+-- a starred group stars every member, so a tracery row lands in the first block under the
+-- group's name -- the same question IsWished answers everywhere else
+_G.LootWishlist = { ["Tracery"] = true }
+
+starred = partition({ { "?? Tracery", "Wren", false } })
+check("a starred group carries its members up",      starred,    "?? Tracery")
+
+_G.LootWishlist = {}
+_G.LootStats    = nil
+
+-- ------------------------------------------------------------------------------------------------
+section("Printed rates  (one spelling, in both windows)")
+
+local shown = _G.LootDrops.FormatChance
+
+check("a big rate has no decimals",       shown(0.70),     "70%")
+check("nor does a certainty",             shown(1.00),     "100%")
+check("the middle band keeps one",        shown(0.0811),   "8.1%")
+check("and rounds rather than truncates", shown(0.0456),   "4.6%")
+check("under one per cent keeps two",     shown(0.0076),   "0.76%")
+check("and so does a very small one",     shown(0.000357), "0.04%")
+check("an unknown rate has no spelling",  shown(nil),      nil)
+
+-- The series behind it: no per-cent signs, because the column heading already says what they
+-- are and six of them in a row is noise.
+local series = _G.LootDrops.EntrySeries
+
+check("six entries print biggest first",
+    series({ { chance = 0.021212 }, { chance = 0.020588 }, { chance = 0.02 },
+             { chance = 0.007576 }, { chance = 0.007353 }, { chance = 0.007143 } }),
+    "2.12" .. _G.Sep .. "2.06" .. _G.Sep .. "2.00" .. _G.Sep
+    .. "0.76" .. _G.Sep .. "0.74" .. _G.Sep .. "0.71")
+
+check("a guaranteed entry prints whole",
+    series({ { chance = 1 }, { chance = 0.7 } }), "100" .. _G.Sep .. "70")
+
+-- ONE ENTRY IS THE LEAD FIGURE. Printing it again beside itself says nothing, so the column
+-- stays empty -- which is also how a row with no rate at all draws.
+check("one entry has no series",          series({ { chance = 0.7 } }), nil)
+check("and neither has none",             series({}),                   nil)
+check("nor a nil list",                   series(nil),                  nil)
+check("unknown chances are not printed",
+    series({ { chance = nil }, { chance = nil } }), nil)
 
 -- ------------------------------------------------------------------------------------------------
 section("Popup search  (narrows what is shown, never what was recorded)")

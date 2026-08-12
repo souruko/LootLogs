@@ -13,11 +13,15 @@
 -- picture. The row height does scale, and is floored so the icon always fits.
 _G.LootSlotSize = 32
 
-local PAD, ROW_H, ICON, RULE_W, GAP, META_W, STAR
+local PAD, ROW_H, ICON, RULE_W, GAP, META_W, CHANCE_W, STAR
 
 local function Metrics()
     PAD    = _G.Scaled(8)
     GAP    = _G.Scaled(8)
+    -- HOW LIKELY WHAT JUST DROPPED WAS. The browser's own figure, in the browser's own width:
+    -- "70%" and "0.76%" both have to fit, and a rare hit only reads as rare if the number is
+    -- there while you are looking at the thing.
+    CHANCE_W = _G.Scaled(54)
     -- The looter's column. Everything it does not take goes to the NAME, and the name is what
     -- gets read -- "Blighted Shoulder-guards of Shadows" is 35 characters and used to be cut to
     -- about 20. Sized for a long character name and nothing more; the level in front of it is
@@ -207,6 +211,18 @@ function _G.LootRow:Constructor(parent)
     self.metaLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
     self.metaLabel:SetMouseVisible(false)
 
+    -- The drop chance, in the item's own size rather than the looter's: it is about the thing
+    -- that dropped, not about the line it arrived on.
+    self.chanceLabel = Turbine.UI.Label()
+    self.chanceLabel:SetParent(self)
+    self.chanceLabel:SetMultiline(false)
+    self.chanceLabel:SetHeight(ROW_H)
+    self.chanceLabel:SetFont(_G.Font(12))
+    self.chanceLabel:SetFontStyle(_G.Theme.FONT_STYLE)
+    self.chanceLabel:SetForeColor(_G.Theme.TEXT)
+    self.chanceLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
+    self.chanceLabel:SetMouseVisible(false)
+
 end
 
 -- Where the labels go. Depends on whether the star is showing, so it is recomputed both when
@@ -227,13 +243,23 @@ function _G.LootRow:LayoutLabels()
         nameX = nameX + STAR + math.floor(GAP / 2)
     end
 
+    -- The chance comes off the right FIRST, so the looter column keeps its width and only the
+    -- name gives any up -- the name is the one thing here that can be shortened without losing
+    -- a fact, because RefreshText re-cuts it against whatever it is left with.
+    local chanceX = math.max(0, width - CHANCE_W - PAD)
+    local metaX   = math.max(0, chanceX - META_W)
+
     self.nameLabel:SetPosition(nameX, 0)
     self.nameLabel:SetHeight(height)
-    self.nameLabel:SetWidth(math.max(0, width - nameX - META_W - PAD))
+    self.nameLabel:SetWidth(math.max(0, metaX - nameX))
 
-    self.metaLabel:SetPosition(math.max(0, width - META_W - PAD), 0)
+    self.metaLabel:SetPosition(metaX, 0)
     self.metaLabel:SetHeight(height)
     self.metaLabel:SetWidth(META_W)
+
+    self.chanceLabel:SetPosition(chanceX, 0)
+    self.chanceLabel:SetHeight(height)
+    self.chanceLabel:SetWidth(CHANCE_W)
 
 end
 
@@ -315,16 +341,47 @@ function _G.LootRow:SetLoot(item, drop, eventIndex)
     -- set before RefreshText, because the star's presence decides where the name starts
     self.star:SetVisible(wished)
 
+    -- THREE CASES, TESTED IN THIS ORDER, and the middle one is the whole point: a drop you had
+    -- starred that went to somebody else used to take the same blue ground as your own loot, so
+    -- the best and the worst news a chest can give looked identical.
+    --
+    -- The two chip pairs are one cool and one warm in every theme by design (UI/Theme.lua), so
+    -- "mine" and "theirs, and I wanted it" can never be read as the same event -- including in
+    -- misty, where they are tints rather than fills.
     if item.isSelf then
         self:SetBackColor(_G.Theme.CHIP_FAV_BG)
         self.rule:SetBackColor(_G.Theme.ACCENT)
         self.nameLabel:SetForeColor(_G.Theme.CHIP_FAV_TEXT)
         self.metaLabel:SetForeColor(_G.Theme.ACCENT)
+    elseif wished then
+        self:SetBackColor(_G.Theme.CHIP_USED_BG)
+        self.rule:SetBackColor(_G.Theme.CHIP_USED_FRAME)
+        self.nameLabel:SetForeColor(_G.Theme.CHIP_USED_TEXT)
+        self.metaLabel:SetForeColor(_G.Theme.CHIP_USED_TEXT)
     else
-        self:SetBackColor(wished and _G.Theme.CHIP_FAV_BG or _G.Theme.BG)
+        self:SetBackColor(_G.Theme.BG)
         self.rule:SetBackColor(_G.Theme.FRAME)
         self.nameLabel:SetForeColor(QualityColor(drop and drop.quality))
         self.metaLabel:SetForeColor(_G.Theme.DIM2)
+    end
+
+    -- THE BROWSER'S NUMBER, not a second opinion: the same helper folds the same entries, so a
+    -- rate seen here and looked up there cannot disagree. Asked by NAME rather than read off the
+    -- row, because a collapsed group ("Tracery") has no row of its own and answers for its
+    -- members.
+    local chance = _G.LootDrops.CombinedChance(
+        _G.LootDrops.ItemEntries(eventIndex, item.base))
+    local shown  = _G.LootDrops.FormatChance(chance)
+
+    if shown == nil then
+        -- an uncatalogued drop, or one the tables give no rate for: unknown, never 0%
+        self.chanceLabel:SetForeColor(_G.Theme.DASH)
+        self.chanceLabel:SetText("\226\128\148")            -- em dash
+    else
+        -- under 2% is the band where the number is the news. It takes the warm text so it
+        -- catches the eye at the same moment the item does.
+        self.chanceLabel:SetForeColor(chance < 0.02 and _G.Theme.CHIP_USED_TEXT or _G.Theme.TEXT)
+        self.chanceLabel:SetText(shown)
     end
 
     self:SetIcon(drop)

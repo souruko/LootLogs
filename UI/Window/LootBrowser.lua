@@ -17,17 +17,8 @@ import "LootLogs.UI.Window.LootRow"
 
 local PAD, GAP, SEP_W, ROW_H, TREE_ROW_H, HEAD_H, TREE_W, PILL_H, PILL_GAP, SEARCH_H
 local STAR, INDENT, SLOT, NAME_X, ICON, FIND
-local COL_SLOT, COL_DB, COL_YOURS, COL_STAR
-local PREVIEW_GAP, MORE_W
+local COL_ENTRIES, COL_ANY, COL_BAR, BAR_H, COL_YOURS, COL_STAR
 local MIN_WIDTH, MIN_HEIGHT
-
--- How many members a group row shows the art of. Most groups hold a handful, so five is
--- usually all of them; the rest are counted in the "+N" that follows.
-local PREVIEW_MAX = 5
-
--- ...but a group can hold fifty, and every candidate costs a lookup into the client's item
--- table. Only so many are tried before the row settles for what it has.
-local PREVIEW_TRIES = 12
 
 local function Metrics()
     SEP_W      = 1
@@ -50,14 +41,17 @@ local function Metrics()
     -- font size and only the button around it has room to spare (Ressources/ICONS.md)
     ICON       = 16
     FIND       = 18
-    COL_SLOT   = _G.Scaled(88)
-    COL_DB     = _G.Scaled(52)
+    -- The per-entry rates behind the lead figure. THE SLOT COLUMN'S WIDTH PAYS FOR IT: `slot`
+    -- is nil on every generated row, so that column was always empty, and a six-pool item
+    -- needs the room to print what it is made of.
+    COL_ENTRIES = _G.Scaled(140)
+    COL_ANY     = _G.Scaled(56)
+    -- Art, not text, so both stay put at every font size -- the same rule as the 32px item
+    -- icon and the 12px star.
+    COL_BAR     = 60
+    BAR_H       = 4
     COL_YOURS  = _G.Scaled(78)
     COL_STAR   = _G.Scaled(24)
-    -- the gap between the icons of a group row's preview strip, and the room the "+N" after
-    -- them needs; both scale, unlike the 32px art itself
-    PREVIEW_GAP = _G.Scaled(4)
-    MORE_W      = _G.Scaled(30)
     MIN_WIDTH  = _G.Scaled(840)
     MIN_HEIGHT = _G.Scaled(430)
 end
@@ -203,10 +197,10 @@ function _G.LootBrowser:Constructor()
     self.tableHead:SetMouseVisible(false)
 
     self.headLabels = {}
-    for _, spec in ipairs({ { "colItem", Turbine.UI.ContentAlignment.MiddleLeft },
-                            { "colSlot", Turbine.UI.ContentAlignment.MiddleLeft },
-                            { "colDb",   Turbine.UI.ContentAlignment.MiddleRight },
-                            { "colYours",Turbine.UI.ContentAlignment.MiddleRight } }) do
+    for _, spec in ipairs({ { "colItem",    Turbine.UI.ContentAlignment.MiddleLeft },
+                            { "colEntries", Turbine.UI.ContentAlignment.MiddleRight },
+                            { "colAny",     Turbine.UI.ContentAlignment.MiddleRight },
+                            { "colYours",   Turbine.UI.ContentAlignment.MiddleRight } }) do
         local label = Turbine.UI.Label()
         label:SetParent(self.tableHead)
         label:SetMultiline(false)
@@ -335,7 +329,7 @@ function _G.LootBrowser:Constructor()
     self.hintLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     self.hintLabel:SetForeColor(_G.Theme.DIM)
     self.hintLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
-    self.hintLabel:SetText(_G.L("browserRateHint"))
+    -- the text is chosen in OnLayout, where the room it has is known
     self.hintLabel:SetMouseVisible(false)
 
     self:SetWantsKeyEvents(true)
@@ -394,33 +388,10 @@ function _G.LootBrowser:CataloguedInstances()
 
 end
 
--- distinct tiers of one instance that actually have drops, lowest first
+-- distinct tiers of one instance that actually have drops, lowest first. The answer is data,
+-- so it lives in LootDrops and is tested there; this is only the window asking.
 function _G.LootBrowser:TiersFor(instanceId)
-
-    local seen, list = {}, {}
-
-    if _G.Drops ~= nil then
-        for eventIndex in pairs(_G.Drops) do
-            local event = _G.Events[eventIndex]
-            if event ~= nil and event.instance == instanceId then
-                local tier = tostring(event.tier)
-                if not seen[tier] then
-                    seen[tier] = true
-                    list[#list + 1] = tier
-                end
-            end
-        end
-    end
-
-    table.sort(list, function(a, b)
-        local orderA = (_G.TierOrder and _G.TierOrder[a]) or 99
-        local orderB = (_G.TierOrder and _G.TierOrder[b]) or 99
-        if orderA ~= orderB then return orderA < orderB end
-        return a < b
-    end)
-
-    return list
-
+    return _G.LootDrops.TiersFor(instanceId)
 end
 
 -- catalogued bosses of one instance at one tier, in boss order
@@ -500,13 +471,54 @@ function _G.LootBrowser:ShowHeadSearch(open)
 
 end
 
+-- The chest to show for an instance at a tier: the one whose boss you were already reading if
+-- that boss exists here, else the first.
+--
+-- KEPT BY NAME, because the event index is not the chest -- it is one (boss, tier) pair, so
+-- Kishâsu at T2 and Kishâsu at T3 are two different indices. Changing tier is a question about
+-- the same boss ("and what does it give at T3?"), and answering it by jumping back to the first
+-- chest in the instance makes the tier pills unusable for the one thing they are for.
+function _G.LootBrowser:BossAt(instanceId, tier, preferred)
+
+    local bosses = self:BossesFor(instanceId, tier)
+
+    if preferred ~= nil then
+        for _, boss in ipairs(bosses) do
+            if boss.event.name == preferred then return boss.index end
+        end
+    end
+
+    return bosses[1] and bosses[1].index or nil
+
+end
+
+-- What the table is showing: the name of the selected chest's boss, or nil when nothing is.
+function _G.LootBrowser:SelectedBossName()
+
+    local event = self.selectedEvent and _G.Events[self.selectedEvent]
+
+    return event and event.name or nil
+
+end
+
 function _G.LootBrowser:SelectInstance(instanceId)
 
-    self.selectedInstance = instanceId
-    self.selectedEvent    = nil
+    local wasBoss = self:SelectedBossName()
 
+    self.selectedInstance = instanceId
+
+    -- THE HIGHEST TIER, not the lowest. TiersFor returns them lowest first, so this is the last
+    -- of them -- and it is the one people are looking at: a chest is farmed at the top tier, and
+    -- opening on Solo showed the smallest table in the instance to someone who came to compare
+    -- the biggest.
     local tiers = self:TiersFor(instanceId)
-    self.selectedTier = tiers[1]
+    self.selectedTier = tiers[#tiers]
+
+    -- ONE CHEST AT A TIME. An instance is where its chests live, not a table of its own: the
+    -- three of them share most of their pools, so listing them together was the same eight
+    -- hundred rows three times over with a heading between them, and no rate on the page meant
+    -- anything until you had found which boss you were under.
+    self.selectedEvent = self:BossAt(instanceId, self.selectedTier, wasBoss)
 
     self:RebuildTree()
     self:RebuildTable()
@@ -602,17 +614,22 @@ function _G.LootBrowser:RebuildTree()
             self.treeHost:AddItem(self:MakeNode("pack", packName, nil, false, nil))
         end
 
-        -- how many catalogued rows this instance holds, across every tier
+        -- How many catalogued ITEMS this instance holds, across every tier. Not rows: the
+        -- tables list an item once per pool it sits in, so counting rows told the sidebar 308
+        -- where the table beside it shows 91 -- and the number that disagrees with what you can
+        -- see is the one that gets believed.
         local total = 0
-        for eventIndex, drops in pairs(_G.Drops or {}) do
+        for eventIndex in pairs(_G.Drops or {}) do
             local event = _G.Events[eventIndex]
             if event ~= nil and event.instance == entry.id then
-                total = total + #drops
+                total = total + _G.LootDrops.ItemCount(eventIndex)
             end
         end
 
         local instanceId = entry.id
-        local selected   = (self.selectedInstance == instanceId and self.selectedEvent == nil)
+        -- the OPEN instance is lit, not a selection of its own: what is selected is always one
+        -- of its chests, and the instance line is the branch that chest is under
+        local selected   = (self.selectedInstance == instanceId)
 
         self.treeHost:AddItem(self:MakeNode("instance", entry.instance.name, total, selected,
             function() self:SelectInstance(instanceId) end))
@@ -621,11 +638,13 @@ function _G.LootBrowser:RebuildTree()
         if self.selectedInstance == instanceId then
             for _, boss in ipairs(self:BossesFor(instanceId, self.selectedTier)) do
                 local eventIndex = boss.index
-                local bossCount  = #(_G.Drops[eventIndex] or {})
+                local bossCount  = _G.LootDrops.ItemCount(eventIndex)
                 self.treeHost:AddItem(self:MakeNode("boss", boss.event.name, bossCount,
                     self.selectedEvent == eventIndex,
                     function()
-                        self.selectedEvent = (self.selectedEvent == eventIndex) and nil or eventIndex
+                        -- NO TOGGLE OFF. There is always a chest on screen, so clicking the one
+                        -- you are already reading does nothing rather than emptying the table.
+                        self.selectedEvent = eventIndex
                         self:RebuildTree()
                         self:RebuildTable()
                     end))
@@ -687,9 +706,13 @@ function _G.LootBrowser:RebuildPills()
             if not selected then pill:SetBackColor(_G.Theme.FRAME) end
         end
         pill.MouseClick = function()
-            self.selectedTier = tier
-            -- the boss selection belongs to the old tier and would show its rows
-            self.selectedEvent = nil
+            -- The selection belongs to the old tier -- a chest is one (boss, tier) pair -- so it
+            -- is re-resolved rather than kept: the SAME BOSS at the new tier, which is the
+            -- question the pills exist to answer, or its first chest if this tier has no such
+            -- boss.
+            local boss = self:SelectedBossName()
+            self.selectedTier  = tier
+            self.selectedEvent = self:BossAt(self.selectedInstance, tier, boss)
             self:RebuildTree()
             self:RebuildTable()
         end
@@ -706,49 +729,12 @@ end
 -- ------------------------------------------------------------------------------------------------
 -- table
 
--- A boss name as a group header, with a rule running out to the right.
-function _G.LootBrowser:MakeGroupHeader(text)
-
-    local row = Turbine.UI.Control()
-    row:SetHeight(HEAD_H)
-    row:SetBackColor(_G.Theme.BG)
-    row:SetMouseVisible(false)
-
-    local label = Turbine.UI.Label()
-    label:SetParent(row)
-    label:SetMultiline(false)
-    label:SetPosition(PAD, 0)
-    label:SetHeight(HEAD_H)
-    label:SetFont(_G.Font(10))
-    label:SetFontStyle(_G.Theme.FONT_STYLE)
-    label:SetForeColor(_G.Theme.ACCENT)
-    label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    label:SetText(_G.Spaced(_G.Upper(text)))
-    label:SetMouseVisible(false)
-
-    local rule = Turbine.UI.Control()
-    rule:SetParent(row)
-    rule:SetHeight(SEP_W)
-    rule:SetBackColor(_G.Theme.FRAME)
-    rule:SetMouseVisible(false)
-
-    -- named for the same reason as the item row's: AddRow drives it directly, because a
-    -- rebuilt row that happens to match the list's width never fires SizeChanged
-    row.Layout = function()
-        local labelW = math.floor(#text * _G.GlyphWidth(10) * 2) + _G.Scaled(8)
-        label:SetWidth(labelW)
-        rule:SetPosition(PAD + labelW + GAP, math.floor(HEAD_H / 2))
-        rule:SetWidth(math.max(0, row:GetWidth() - PAD * 2 - labelW - GAP))
-    end
-
-    row.SizeChanged = row.Layout
-
-    return row
-
-end
-
 -- One catalogued item. Not a LootRow: that one is built around a looter and a level, which a
 -- database row has neither of. What they share is the icon and quality vocabulary.
+--
+-- ONE ROW PER NAME. What the row shows is _G.LootDrops.Dedupe's output: the item's several
+-- entries at this chest folded into one line, with `any` -- the chance it drops at all -- as
+-- the lead figure and the raw rates printed behind it.
 function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
 
     local row = Turbine.UI.Control()
@@ -776,46 +762,15 @@ function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
         row:SetBackColor(Ground())
     end
 
-    -- A child of an open fold is stepped in as a whole -- bar, icon and name together. Moving
-    -- the name alone would leave the art in a column of its own and read as a separate list.
-    local indent = drop.child and INDENT or 0
-
-    -- The fold marker takes the quality bar's place on an expandable group row, because a
-    -- group has no one quality to show and the two would fight for the same 3px.
-    local expandable = drop.isGroup and drop.expandable
-
-    if expandable then
-
-        local caret = Turbine.UI.Control()
-        caret:SetParent(row)
-        caret:SetSize(STAR, STAR)
-        caret:SetPosition(PAD - 4, math.floor((ROW_H - STAR) / 2))
-        -- No SetForeColor here: that is a Label method, and calling it on a Control throws --
-        -- which killed the whole row and took every grouped line off the table with it. An
-        -- Overlay glyph is tinted by the ground BEHIND it, never by a fore colour of its own
-        -- (Ressources/ICONS.md).
-        caret:SetBlendMode(Turbine.UI.BlendMode.Overlay)
-        caret:SetBackground(drop.open and "LootLogs/Ressources/arrow_down.tga"
-                                      or  "LootLogs/Ressources/arrow_right.tga")
-        caret:SetMouseVisible(false)
-
-    else
-
-        -- quality bar; the icon sits beside it, so rarity stays readable at a glance. A group
-        -- that does not fold has no one quality either, so it gets the accent strip instead of
-        -- a colour borrowed from whichever member happened to be listed first.
-        local bar = Turbine.UI.Control()
-        bar:SetParent(row)
-        bar:SetSize(3, SLOT)
-        bar:SetPosition(PAD + indent, math.floor((ROW_H - SLOT) / 2))
-        bar:SetBackColor(drop.isGroup and _G.Theme.STRIP or _G.LootQualityColor(drop.quality))
-        bar:SetMouseVisible(false)
-
-    end
-
-    -- Where the art column starts. A group's preview strip begins here too, so its first icon
-    -- sits exactly where a plain item's would.
-    local iconX = PAD + 3 + math.floor(GAP / 2) + indent
+    -- quality bar; the icon sits beside it, so rarity stays readable at a glance. A group has
+    -- no one quality either, so it gets the accent strip instead of a colour borrowed from
+    -- whichever member happened to be listed first.
+    local bar = Turbine.UI.Control()
+    bar:SetParent(row)
+    bar:SetSize(3, SLOT)
+    bar:SetPosition(PAD, math.floor((ROW_H - SLOT) / 2))
+    bar:SetBackColor(drop.isGroup and _G.Theme.STRIP or _G.LootQualityColor(drop.quality))
+    bar:SetMouseVisible(false)
 
     -- The item's own art, composed from its catalogued id. Images rather than a quickslot, so
     -- no stack count from your bags is painted over a listing about the world -- the tooltip
@@ -823,90 +778,24 @@ function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
     local iconHost = Turbine.UI.Control()
     iconHost:SetParent(row)
     iconHost:SetSize(SLOT, SLOT)
-    iconHost:SetPosition(iconX, math.floor((ROW_H - SLOT) / 2))
+    iconHost:SetPosition(PAD + 3 + math.floor(GAP / 2), math.floor((ROW_H - SLOT) / 2))
     iconHost:SetMouseVisible(false)
-
-    -- A GROUP SHOWS ITS MEMBERS, NOT A NAME. The export numbers its groups -- "Group 12" -- and
-    -- most of them are a set nobody has a word for, so the name column was printing a label that
-    -- said nothing where the useful thing, WHAT IS IN IT, was a fold away. So the row draws the
-    -- first few members' icons across the name column instead, and counts the rest as "+N".
-    --
-    -- Icons only, and mouse-invisible: they are a picture of the group, not rows of their own,
-    -- and the whole line stays one click that opens the fold. The members themselves, with their
-    -- names, links and rates, are what the fold is for.
-    --
-    -- previewCount is every member the group stands for, whether or not its art resolved, because
-    -- "+N" answers "how many more are in here" -- not "how many pictures were left out".
-    local preview, previewCount, moreLabel = nil, 0, nil
 
     if drop.isGroup then
 
-        preview = {}
-
-        local tries = 0
-
-        for _, member in ipairs(drop.members) do
-            -- the bucket row IS the group -- it carries the category's rate, has no id, and is
-            -- not one of the things in it
-            if not member.bucket then
-
-                previewCount = previewCount + 1
-
-                if #preview < PREVIEW_MAX and tries < PREVIEW_TRIES then
-                    tries = tries + 1
-                    local host = Turbine.UI.Control()
-                    host:SetParent(row)
-                    host:SetSize(SLOT, SLOT)
-                    host:SetMouseVisible(false)
-                    if _G.MakeItemIcon(host, member.id, SLOT) ~= nil then
-                        preview[#preview + 1] = host
-                    else
-                        -- an uncatalogued id draws nothing; drop the empty host and try the next
-                        host:SetParent(nil)
-                    end
-                end
-
-            end
-        end
-
-        if #preview == 0 then
-
-            -- Nothing resolved -- so the row falls back to what it was: the fixed group mark
-            -- (a plugin glyph, Overlay over the row's ground, Ressources/ICONS.md) and the
-            -- group's own name. A blank line is worse than a name that says little.
-            local mark = Turbine.UI.Control()
-            mark:SetParent(iconHost)
-            mark:SetSize(SLOT, SLOT)
-            mark:SetBlendMode(Turbine.UI.BlendMode.Overlay)
-            mark:SetBackground("LootLogs/Ressources/group.tga")
-            mark:SetMouseVisible(false)
-            preview = nil
-
-        else
-
-            moreLabel = Turbine.UI.Label()
-            moreLabel:SetParent(row)
-            moreLabel:SetMultiline(false)
-            moreLabel:SetHeight(ROW_H)
-            moreLabel:SetFont(_G.Font(12))
-            moreLabel:SetFontStyle(_G.Theme.FONT_STYLE)
-            moreLabel:SetForeColor(_G.Theme.ACCENT)
-            moreLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-            moreLabel:SetMouseVisible(false)
-
-        end
+        -- A GROUP HAS NO ART, because it has no id: "Tracery" is the plugin's word for a set,
+        -- and borrowing a member's icon would make the row look like the one item it is not.
+        -- The fixed group mark instead (a plugin glyph, Overlay over the row's ground, see
+        -- Ressources/ICONS.md).
+        local mark = Turbine.UI.Control()
+        mark:SetParent(iconHost)
+        mark:SetSize(SLOT, SLOT)
+        mark:SetBlendMode(Turbine.UI.BlendMode.Overlay)
+        mark:SetBackground("LootLogs/Ressources/group.tga")
+        mark:SetMouseVisible(false)
 
     else
         _G.MakeItemIcon(iconHost, drop.id, SLOT)
-    end
-
-    -- The whole row toggles the fold, not just the caret: a 12px arrow is a small target for
-    -- something the entire row is about. The star and the name link keep their own clicks,
-    -- because they are mouse-visible and take the event first.
-    if expandable then
-        row.MouseClick = function()
-            self:ToggleGroup(eventIndex, drop.group)
-        end
     end
 
     local nameLabel = Turbine.UI.Label()
@@ -936,36 +825,68 @@ function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
 
     end
 
-    local slotLabel = Turbine.UI.Label()
-    slotLabel:SetParent(row)
-    slotLabel:SetMultiline(false)
-    slotLabel:SetHeight(ROW_H)
-    slotLabel:SetFont(_G.Font(10))
-    slotLabel:SetFontStyle(_G.Theme.FONT_STYLE)
-    slotLabel:SetForeColor(_G.Theme.DIM2)
-    slotLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    slotLabel:SetText(drop.slot or "")
-    slotLabel:SetMouseVisible(false)
+    -- WHAT THE LEAD FIGURE IS MADE OF. An item in six of a chest's pools has six rates, and
+    -- they are six separate chances rather than one repeated -- so they are printed, biggest
+    -- first, one step dimmer and one size down. A single entry prints nothing: the lead figure
+    -- already is that number, and saying it twice on one line says nothing.
+    local entriesLabel = Turbine.UI.Label()
+    entriesLabel:SetParent(row)
+    entriesLabel:SetMultiline(false)
+    entriesLabel:SetHeight(ROW_H)
+    entriesLabel:SetFont(_G.Font(10))
+    entriesLabel:SetFontStyle(_G.Theme.FONT_STYLE)
+    entriesLabel:SetForeColor(_G.Theme.DIM)
+    entriesLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
+    entriesLabel:SetMouseVisible(false)
 
-    -- Database chance. An absent chance means "drops, rate not established" and must read as
-    -- unknown -- never as 0%, which would claim knowledge the table does not have.
-    local dbLabel = Turbine.UI.Label()
-    dbLabel:SetParent(row)
-    dbLabel:SetMultiline(false)
-    dbLabel:SetHeight(ROW_H)
-    dbLabel:SetFont(_G.Font(12))
-    dbLabel:SetFontStyle(_G.Theme.FONT_STYLE)
-    dbLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
-    dbLabel:SetMouseVisible(false)
-    -- the category's own rate wins over any one member's, on a group row
-    local shownChance = drop.bucketChance or drop.chance
+    local series = _G.LootDrops.EntrySeries(drop.entries)
 
-    if shownChance ~= nil then
-        dbLabel:SetForeColor(_G.Theme.TEXT)
-        dbLabel:SetText(math.floor(shownChance * 100 + 0.5) .. "%")
+    -- THE CHANCE IT DROPS AT ALL, which is the question the column exists to answer: an item in
+    -- six pools is likelier than an item in one, and this is the only figure that can be
+    -- compared between them. An absent chance means "drops, rate not established" and must read
+    -- as unknown -- never as 0%, which would claim knowledge the tables do not have.
+    local anyLabel = Turbine.UI.Label()
+    anyLabel:SetParent(row)
+    anyLabel:SetMultiline(false)
+    anyLabel:SetHeight(ROW_H)
+    anyLabel:SetFont(_G.Font(12))
+    anyLabel:SetFontStyle(_G.Theme.FONT_STYLE)
+    anyLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
+    anyLabel:SetMouseVisible(false)
+
+    local shown = _G.LootDrops.FormatChance(drop.any)
+
+    if shown ~= nil then
+        anyLabel:SetForeColor(_G.Theme.TEXT)
+        anyLabel:SetText(shown)
     else
-        dbLabel:SetForeColor(_G.Theme.DASH)
-        dbLabel:SetText("\226\128\148")                     -- em dash
+        anyLabel:SetForeColor(_G.Theme.DASH)
+        anyLabel:SetText("\226\128\148")                    -- em dash
+    end
+
+    -- The same number as a length, because a table of "0.76%" and "3.2%" is unsortable by eye
+    -- however carefully it is written. TWO CONTROLS, BUILT ONCE: only their positions move in
+    -- Layout, so a resize costs nothing.
+    --
+    -- Square root, not linear: at this width a linear scale puts everything under 5% in the
+    -- first three pixels, which is most of the table. Rooted, 0.5% and 3% are still visibly
+    -- different, and the eye reads the bar as "roughly how rare" rather than as a measurement.
+    local barTrack, barFill = nil, nil
+
+    if drop.any ~= nil then
+
+        barTrack = Turbine.UI.Control()
+        barTrack:SetParent(row)
+        barTrack:SetSize(COL_BAR, BAR_H)
+        barTrack:SetBackColor(_G.Theme.CHIP_USED_BG)
+        barTrack:SetMouseVisible(false)
+
+        barFill = Turbine.UI.Control()
+        barFill:SetParent(row)
+        barFill:SetSize(math.max(1, math.floor(math.sqrt(drop.any) * COL_BAR)), BAR_H)
+        barFill:SetBackColor(drop.any >= 0.40 and _G.Theme.CHIP_USED_TEXT or _G.Theme.STRIP)
+        barFill:SetMouseVisible(false)
+
     end
 
     -- Your own measured rate, with its sample size always beside it.
@@ -988,18 +909,12 @@ function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
     sampleLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
     sampleLabel:SetMouseVisible(false)
 
+    -- Keyed on drop.item, which for a group row is the group's own name -- the same key the
+    -- wishlist and the observed rate are stored under, so a collapsed "Tracery" reports how
+    -- often a tracery dropped rather than how often one particular rolled name did.
     local count, opens = 0, 0
     if _G.LootStats ~= nil then
-        if drop.isGroup then
-            -- any member is the same event, so the counts add
-            for _, member in ipairs(drop.members) do
-                local memberCount, memberOpens = _G.LootStats.Observed(eventIndex, member.item)
-                count = count + memberCount
-                opens = math.max(opens, memberOpens)
-            end
-        else
-            count, opens = _G.LootStats.Observed(eventIndex, drop.item)
-        end
+        count, opens = _G.LootStats.Observed(eventIndex, drop.item)
     end
 
     if opens > 0 then
@@ -1043,74 +958,49 @@ function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
     -- Named, because a rebuilt row cannot rely on SizeChanged alone: a fresh row whose width
     -- already matches the list never fires one, and then it draws with every column at zero.
     -- RebuildTable calls this directly once the row is in the list and sized.
+    --
+    -- The columns are placed FROM THE RIGHT, so the name -- the one thing whose length is not
+    -- known -- takes whatever is left rather than pushing anything off the edge.
     row.Layout = function()
 
-        local width  = row:GetWidth()
-        local starX  = width - PAD - COL_STAR + math.floor((COL_STAR - STAR) / 2)
-        local yoursX = width - PAD - COL_STAR - COL_YOURS
-        local dbX    = yoursX - COL_DB
-        local slotX  = dbX - COL_SLOT
-        local nameX = NAME_X + indent
+        local width    = row:GetWidth()
+        local starX    = width - PAD - COL_STAR
+        local yoursX   = starX - COL_YOURS
+        local barX     = yoursX - GAP - COL_BAR
+        local anyX     = barX - GAP - COL_ANY
+        local entriesX = anyX - COL_ENTRIES
 
-        nameLabel:SetPosition(nameX, 0)
-        nameLabel:SetWidth(math.max(0, slotX - nameX - GAP))
+        nameLabel:SetPosition(NAME_X, 0)
+        nameLabel:SetWidth(math.max(0, entriesX - NAME_X - GAP))
 
         local glyph = _G.GlyphWidth(12)
-        local shown = _G.LootDrops.DisplayName(drop, drop.item)
+        local name  = _G.LootDrops.DisplayName(drop, drop.item)
 
-        if preview ~= nil then
-
-            -- The preview strip takes the name column, so the name is not drawn at all. How many
-            -- icons fit is decided HERE and not at build time: the window resizes, and a strip
-            -- that ran past the slot column would sit under it rather than be clipped.
-            local stride = SLOT + PREVIEW_GAP
-            local room   = math.max(0, slotX - GAP - iconX)
-
-            -- an overflow count needs its own space; work out the fit with that reserved, then
-            -- keep the reservation only if something is in fact left over
-            local fits = math.max(1, math.floor((room + PREVIEW_GAP) / stride))
-            if #preview > fits or previewCount > #preview then
-                fits = math.max(1, math.floor((room - MORE_W + PREVIEW_GAP) / stride))
-            end
-
-            local drawn = math.min(#preview, fits)
-
-            for index, host in ipairs(preview) do
-                host:SetVisible(index <= drawn)
-                host:SetPosition(iconX + (index - 1) * stride,
-                    math.floor((ROW_H - SLOT) / 2))
-            end
-
-            local hidden = previewCount - drawn
-
-            moreLabel:SetVisible(hidden > 0)
-            moreLabel:SetText("+" .. hidden)
-            moreLabel:SetPosition(iconX + drawn * stride, 0)
-            moreLabel:SetWidth(MORE_W)
-
-            nameLabel:SetVisible(false)
-
-        elseif drop.isGroup then
+        if drop.isGroup then
             -- plain text, so the full width is the text's own -- no brackets to pay for
-            nameLabel:SetText(_G.Truncate(shown, nameLabel:GetWidth(), glyph))
+            nameLabel:SetText(_G.Truncate(name, nameLabel:GetWidth(), glyph))
         else
             -- truncate the visible name, then wrap it; the tag is markup and has no width, the
             -- brackets do
             nameLabel:SetText(_G.LootDrops.ItemLink(drop,
-                _G.Truncate(shown, nameLabel:GetWidth() - glyph * 2, glyph)))
+                _G.Truncate(name, nameLabel:GetWidth() - glyph * 2, glyph)))
         end
 
-        slotLabel:SetPosition(slotX, 0)
-        slotLabel:SetWidth(COL_SLOT)
-        -- A group has no slot of its own; the column says how many things it stands for. That is
-        -- previewCount and not #drop.members, because the bucket row is the category itself and
-        -- counting it would put the column one ahead of the icons and the "+N" beside it.
-        slotLabel:SetText(_G.Truncate(
-            drop.isGroup and (previewCount .. " " .. _G.L("groupKinds")) or (drop.slot or ""),
-            COL_SLOT - GAP, _G.GlyphWidth(10)))
+        -- Turbine cannot measure a label and will not clip one, so the series is cut to the
+        -- column here rather than left to run under the figure beside it.
+        entriesLabel:SetPosition(entriesX, 0)
+        entriesLabel:SetWidth(math.max(0, COL_ENTRIES - GAP))
+        entriesLabel:SetText(series and
+            _G.Truncate(series, COL_ENTRIES - GAP, _G.GlyphWidth(10)) or "")
 
-        dbLabel:SetPosition(dbX, 0)
-        dbLabel:SetWidth(COL_DB)
+        anyLabel:SetPosition(anyX, 0)
+        anyLabel:SetWidth(COL_ANY)
+
+        if barTrack ~= nil then
+            local barY = math.floor((ROW_H - BAR_H) / 2)
+            barTrack:SetPosition(barX, barY)
+            barFill:SetPosition(barX, barY)
+        end
 
         -- rate and sample share the column: the rate right-aligned against the sample, and
         -- the sample right-aligned against the star
@@ -1120,7 +1010,8 @@ function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
         sampleLabel:SetPosition(yoursX + COL_YOURS - sampleW, 0)
         sampleLabel:SetWidth(sampleW)
 
-        star:SetPosition(starX, math.floor((ROW_H - STAR) / 2))
+        star:SetPosition(starX + math.floor((COL_STAR - STAR) / 2),
+            math.floor((ROW_H - STAR) / 2))
 
     end
 
@@ -1146,111 +1037,6 @@ function _G.LootBrowser:Filtered(drop)
     if _G.LootStats == nil then return false end
 
     return _G.LootStats.Acquired(drop.item) ~= nil
-
-end
-
--- Is this group's fold open? Keyed per CHEST as well as per group, so opening "Fallen armour"
--- at Tier 3 does not silently open it at Solo, where a different set of pieces drops.
-function _G.LootBrowser:GroupKey(eventIndex, group)
-    return tostring(eventIndex) .. "\0" .. tostring(group)
-end
-
-function _G.LootBrowser:GroupOpen(eventIndex, group)
-    return self.openGroups ~= nil and self.openGroups[self:GroupKey(eventIndex, group)] == true
-end
-
-function _G.LootBrowser:ToggleGroup(eventIndex, group)
-
-    self.openGroups = self.openGroups or {}
-
-    local key = self:GroupKey(eventIndex, group)
-    self.openGroups[key] = not self.openGroups[key] or nil
-
-    self:RebuildTable()
-
-end
-
--- One row per group, the rest untouched. The group row carries the members' combined observed
--- count, because any member dropping is the event "one of these dropped" -- which is the only
--- rate that means anything for a class-specific roll.
---
--- An "expand" group keeps its members and hands them back as CHILD rows when the fold is open.
--- A "collapse" group never does: its members are placeholder names and listing them is the
--- thing grouping exists to stop. See _G.LootDrops.GroupMode.
-function _G.LootBrowser:Collapse(eventIndex, rows)
-
-    local out, groups = {}, {}
-
-    for _, drop in ipairs(rows) do
-
-        local group = drop.group
-
-        if group == nil or group == "" then
-            out[#out + 1] = drop
-        else
-            local seen = groups[group]
-            if seen == nil then
-                -- No id and no quality: a group is not an item and must not borrow one member's
-                -- identity. The row draws it with the fixed group mark instead, and its name is
-                -- text rather than a link -- see MakeItemRow.
-                seen = {
-                    item    = group,        -- the KEY: what the wishlist and the stats are on
-                    label   = _G.LootDrops.GroupLabel(group),   -- and what is drawn instead
-                    slot    = drop.slot,
-                    chance  = drop.chance,
-                    group   = group,
-                    members = { drop },
-                    isGroup = true,
-                }
-                -- A BUCKET ROW IS THE CATEGORY, NOT A MEMBER OF IT. The chart gives one rate for
-                -- "Fallen armour" without naming a single piece; that rate belongs on the group
-                -- line and the row carrying it must not also be listed inside its own fold.
-                if drop.bucket then seen.bucketChance = drop.chance end
-                seen.expandable = _G.LootDrops.GroupExpands(group)
-                seen.open       = seen.expandable and self:GroupOpen(eventIndex, group)
-                seen.bucket     = nil       -- the group row is never itself a bucket row
-                groups[group]   = seen
-                out[#out + 1]   = seen
-            else
-                seen.members[#seen.members + 1] = drop
-                if seen.chance == nil then seen.chance = drop.chance end
-                if drop.bucket then seen.bucketChance = drop.chance end
-            end
-        end
-
-    end
-
-    -- Second pass, because a group's members are only all known once the first pass is done.
-    -- An open fold emits its members straight after their parent, marked as children so the
-    -- row draws them stepped in and without a fold of their own.
-    local expanded = {}
-
-    for _, drop in ipairs(out) do
-
-        expanded[#expanded + 1] = drop
-
-        if drop.isGroup and drop.open then
-
-            table.sort(drop.members, function(a, b)
-                return _G.LootDrops.DisplayName(a, a.item) < _G.LootDrops.DisplayName(b, b.item)
-            end)
-
-            for _, member in ipairs(drop.members) do
-                if not member.bucket then
-                    expanded[#expanded + 1] = {
-                        item = member.item, plural = member.plural, label = member.label,
-                        quality = member.quality, slot = member.slot, chance = member.chance,
-                        popup = member.popup, id = member.id, group = member.group,
-                        child = true,
-                    }
-                end
-            end
-
-        end
-
-    end
-
-    return expanded
 
 end
 
@@ -1280,16 +1066,21 @@ function _G.LootBrowser:AddRow(row)
 
 end
 
--- The rows of the CURRENT SELECTION, built once and kept in self.rows.
+-- The rows of the SELECTED CHEST, built once and kept in self.rows.
+--
+-- ONE CHEST, ALWAYS. The whole-instance view is gone: three chests of one instance share most of
+-- their pools, so listing them together was the same rows over again under a heading, and it
+-- made every figure on the page ambiguous until you had found which boss you were under. The
+-- tree selects the chest; the table shows it.
 --
 -- Building is the expensive half: every item row resolves its art through a shortcut lookup into
 -- the client's own item table. None of that depends on the search text, so it happens when the
--- selection changes -- instance, tier, boss, the still-needed filter, a fold opening -- and not
--- when a key is pressed. ApplyFilter then decides which of these rows the list shows.
+-- selection changes -- instance, tier, boss, the still-needed filter -- and not when a key is
+-- pressed. ApplyFilter then decides which of these rows the list shows.
 --
 -- Each entry carries what the search needs to judge it, lowered here rather than per keystroke.
 -- The shape and the rule are _G.LootDrops.SearchFilter's, which is where the entry fields --
--- text, memberText, parent, header -- are documented.
+-- text and memberText -- are documented.
 function _G.LootBrowser:BuildRows()
 
     self.rows = {}
@@ -1297,71 +1088,56 @@ function _G.LootBrowser:BuildRows()
     local instance = self.selectedInstance and _G.Instances[self.selectedInstance]
     self.instanceLabel:SetText(instance and instance.name or "")
 
-    local bosses = self:BossesFor(self.selectedInstance, self.selectedTier)
-    self.bossCount = #bosses
+    -- what the sub-line names, and how many table rows the items on screen were folded from --
+    -- which is the sub-line's way of saying what the ENTRIES column is showing
+    self.bossName   = self:SelectedBossName()
+    self.entryCount = 0
 
-    for _, boss in ipairs(bosses) do
-        if self.selectedEvent == nil or self.selectedEvent == boss.index then
+    local eventIndex = self.selectedEvent
+    if eventIndex == nil then return end
 
-            -- Which of this boss's rows survive the still-needed filter, decided before the
-            -- header is emitted -- a group header over nothing is worse than no header. That
-            -- filter is not the search: it changes what EXISTS here, so it belongs in the build.
-            local visible = {}
-            for _, drop in ipairs(_G.Drops[boss.index] or {}) do
-                if not self:Filtered(drop) then
-                    visible[#visible + 1] = drop
-                end
-            end
-
-            -- Collapse grouped rows into one. Six traceries listed separately each look
-            -- like a rare drop; as one line they read as what they are.
-            visible = self:Collapse(boss.index, visible)
-
-            if #visible > 0 then
-
-                -- the header only earns its line when more than one boss is on screen
-                local header = nil
-                if self.selectedEvent == nil then
-                    header = { kind = "header", row = self:MakeGroupHeader(boss.event.name) }
-                    self.rows[#self.rows + 1] = header
-                    header.index = #self.rows   -- where the filter reaches back to light it up
-                end
-
-                local alt   = false
-                local group = nil
-
-                for _, drop in ipairs(visible) do
-
-                    local entry = {
-                        kind    = "item",
-                        row     = self:MakeItemRow(boss.index, drop, alt),
-                        drop    = drop,
-                        header  = header and header.index or nil,
-                        isGroup = drop.isGroup == true,
-                        text    = _G.LootDrops.SearchText(drop),
-                    }
-
-                    self.rows[#self.rows + 1] = entry
-                    alt = not alt
-
-                    if drop.isGroup then
-                        local names = {}
-                        for _, member in ipairs(drop.members) do
-                            names[#names + 1] = _G.LootDrops.SearchText(member)
-                        end
-                        entry.memberText = table.concat(names, "\0")
-                        group = #self.rows
-                    elseif drop.child then
-                        entry.parent = group        -- Collapse emits children after their group
-                    else
-                        group = nil
-                    end
-
-                end
-
-            end
-
+    -- Which of this chest's rows survive the still-needed filter. That filter is not the
+    -- search: it changes what EXISTS here, so it belongs in the build.
+    local visible = {}
+    for _, drop in ipairs(_G.Drops[eventIndex] or {}) do
+        if not self:Filtered(drop) then
+            visible[#visible + 1] = drop
         end
+    end
+
+    -- ONE ROW PER NAME, sorted by how likely it is. The tables list an item once per pool it
+    -- sits in, so the same cloak arrives eight times at eight rates; folded, it is one line
+    -- saying how likely the cloak is at all. See _G.LootDrops.Dedupe.
+    visible = _G.LootDrops.Dedupe(visible)
+
+    local alt = false
+
+    for _, drop in ipairs(visible) do
+
+        local entry = {
+            kind    = "item",
+            row     = self:MakeItemRow(eventIndex, drop, alt),
+            drop    = drop,
+            isGroup = drop.isGroup == true,
+            text    = _G.LootDrops.SearchText(drop),
+        }
+
+        self.rows[#self.rows + 1] = entry
+        alt = not alt
+
+        self.entryCount = self.entryCount + #(drop.entries or {})
+
+        -- A COLLAPSED GROUP IS THE ONLY ROW STANDING IN FOR ITS MEMBERS, so a member's name has
+        -- to find it: searching for a tracery you were promised must not come back empty
+        -- because the row is called "Tracery".
+        if drop.memberNames ~= nil then
+            local names = {}
+            for _, name in ipairs(drop.memberNames) do
+                names[#names + 1] = string.lower(name)
+            end
+            entry.memberText = table.concat(names, "\0")
+        end
+
     end
 
 end
@@ -1382,28 +1158,30 @@ function _G.LootBrowser:ApplyFilter()
 
     for index, entry in ipairs(self.rows) do
         if show[index] then
-            if entry.kind == "header" then
-                alt = false
-                self:AddRow(entry.row)
-            else
-                -- restripe: which side of the stripe a row lands on depends on what the
-                -- search left above it
-                if entry.row.SetAlt ~= nil then entry.row.SetAlt(alt) end
-                alt = not alt
-                self:AddRow(entry.row)
-                shown = shown + 1
-                if _G.LootStats ~= nil and _G.LootStats.IsWished(entry.drop.item) then
-                    starred = starred + 1
-                end
+            -- restripe: which side of the stripe a row lands on depends on what the search left
+            -- above it
+            if entry.row.SetAlt ~= nil then entry.row.SetAlt(alt) end
+            alt = not alt
+            self:AddRow(entry.row)
+            shown = shown + 1
+            if _G.LootStats ~= nil and _G.LootStats.IsWished(entry.drop.item) then
+                starred = starred + 1
             end
         end
     end
 
+    -- THE SUB-LINE NAMES THE CHEST. The heading above it is the instance, which stays put while
+    -- you move between its bosses, so the boss belongs here -- and with one chest on screen
+    -- there is no group header left to carry the name instead.
+    local boss = self.bossName and (self.bossName .. _G.Sep) or ""
+
     if search == "" then
-        self.countLabel:SetText((self.bossCount or 0) .. " " .. _G.L("bosses")
-            .. _G.Sep .. shown .. " " .. _G.L("catalogued"))
+        -- items first, entries behind: the table has one row per item now, and the entry count
+        -- is the answer to "then what is the ENTRIES column counting"
+        self.countLabel:SetText(boss .. shown .. " " .. _G.L("catalogued")
+            .. _G.Sep .. (self.entryCount or 0) .. " " .. _G.L("entries"))
     else
-        self.countLabel:SetText(_G.L("searchItems")
+        self.countLabel:SetText(boss .. _G.L("searchItems")
             .. _G.Sep .. shown .. " " .. _G.L("items"))
     end
 
@@ -1496,15 +1274,21 @@ function _G.LootBrowser:OnLayout(width, height)
     self.tableHead:SetPosition(tableLeft, headTop)
     self.tableHead:SetSize(tableW, HEAD_H)
 
-    local starX  = tableW - PAD - COL_STAR
-    local yoursX = starX - COL_YOURS
-    local dbX    = yoursX - COL_DB
-    local slotX  = dbX - COL_SLOT
+    -- The header is as wide as the table, but its COLUMNS are measured against the rows' width
+    -- -- the list gives 10px to a scrollbar that is always there, and a header laid out over the
+    -- full width would sit ten pixels right of every figure it names.
+    local rowsW    = math.max(0, tableW - 10)
 
-    -- the item column runs from the name to the slot column, and the search button sits at its
-    -- right edge -- so the header text stops short of it rather than running underneath
+    local starX    = rowsW - PAD - COL_STAR
+    local yoursX   = starX - COL_YOURS
+    local barX     = yoursX - GAP - COL_BAR
+    local anyX     = barX - GAP - COL_ANY
+    local entriesX = anyX - COL_ENTRIES
+
+    -- the item column runs from the name to the entries column, and the search button sits at
+    -- its right edge -- so the header text stops short of it rather than running underneath
     local itemX  = NAME_X
-    local itemW  = math.max(0, slotX - GAP - itemX)
+    local itemW  = math.max(0, entriesX - GAP - itemX)
     local findY  = math.floor((HEAD_H - FIND) / 2)
 
     self.headLabels[1]:SetPosition(itemX, 0)
@@ -1521,10 +1305,12 @@ function _G.LootBrowser:OnLayout(width, height)
     self.headSearchHint:SetSize(math.max(0, itemW - ICON - 6 - FIND - 2), HEAD_H)
     self.headSearchClear:SetPosition(math.max(0, itemW - FIND), findY)
 
-    self.headLabels[2]:SetPosition(slotX, 0)
-    self.headLabels[2]:SetWidth(COL_SLOT)
-    self.headLabels[3]:SetPosition(dbX, 0)
-    self.headLabels[3]:SetWidth(COL_DB)
+    self.headLabels[2]:SetPosition(entriesX, 0)
+    self.headLabels[2]:SetWidth(math.max(0, COL_ENTRIES - GAP))
+    self.headLabels[3]:SetPosition(anyX, 0)
+    self.headLabels[3]:SetWidth(COL_ANY)
+    -- YOURS names the rate AND its sample, so its label spans both -- the bar between it and
+    -- ANY is unlabelled on purpose: it is the same number as ANY, drawn as a length
     self.headLabels[4]:SetPosition(yoursX, 0)
     self.headLabels[4]:SetWidth(COL_YOURS)
 
@@ -1540,8 +1326,20 @@ function _G.LootBrowser:OnLayout(width, height)
     self.footLabel:SetPosition(tableLeft, footTop)
     self.footLabel:SetSize(math.floor(tableW / 2), HEAD_H)
 
+    local hintW = tableW - math.floor(tableW / 2)
+
     self.hintLabel:SetPosition(tableLeft + math.floor(tableW / 2), footTop)
-    self.hintLabel:SetSize(tableW - math.floor(tableW / 2), HEAD_H)
+    self.hintLabel:SetSize(hintW, HEAD_H)
+
+    -- TWO HINTS, AS MANY AS FIT. "Any" is a word the column heading cannot explain on its own,
+    -- so it is the one that stays; the greyed-rates note joins it when the window is wide
+    -- enough. Turbine will not clip a label, so the choice is made here rather than left to
+    -- overflow across the item count on the other half of the footer.
+    local anyHint  = _G.L("browserAnyHint")
+    local bothHint = _G.L("browserRateHint") .. _G.Sep .. anyHint
+
+    self.hintLabel:SetText(
+        (#bothHint * _G.GlyphWidth(10) <= hintW) and bothHint or anyHint)
 
     self:LayoutRows()
 

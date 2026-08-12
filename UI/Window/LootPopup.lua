@@ -11,7 +11,7 @@ import "LootLogs.UI.Window.PanelWindow"
 import "LootLogs.UI.Window.LootRow"
 
 local PAD, GAP, ROW_H, CHIP_H, CHIP_GAP, POPUP_W, FOOT_H, SEP_W, TITLE_H, MIN_ROWS
-local MAX_ROWS, SCROLL_W, FIND, ICON, MIN_WIDTH, MIN_HEIGHT
+local MAX_ROWS, SCROLL_W, FIND, ICON, MIN_WIDTH, MIN_HEIGHT, SECTION_H
 
 local function Metrics()
     SEP_W    = 1
@@ -28,11 +28,15 @@ local function Metrics()
     CHIP_GAP = _G.Scaled(4)
     FOOT_H   = _G.Scaled(22)
     TITLE_H  = _G.Scaled(30)
+    -- A section heading: a label and a rule, the same anatomy the browser's boss headings use.
+    SECTION_H = _G.Scaled(18)
     -- WIDE ENOUGH FOR THE NAME. At 320 the item column was about twenty characters and most of
     -- this update's names are longer than that, so the window was mostly ellipsis. Width is the
     -- cheap dimension here: the ceiling that keeps this window modest is MAX_ROWS, and height is
     -- what a popup opening unbidden is judged on.
-    POPUP_W  = _G.Scaled(400)
+    --
+    -- 400 -> 420 buys the drop-chance column outright, so the name gives up nothing for it.
+    POPUP_W  = _G.Scaled(420)
     MIN_ROWS = 3
 
     -- The ceiling. The window used to grow to fit whatever dropped, which was fine when the
@@ -50,7 +54,7 @@ local function Metrics()
     -- there is no room for a row at all. MAX_ROWS still governs the size the window CHOOSES for
     -- itself -- the gripper is there for someone who wants a different one, not to remove the
     -- restraint from the automatic case.
-    MIN_WIDTH  = _G.Scaled(300)
+    MIN_WIDTH  = _G.Scaled(320)
     MIN_HEIGHT = TITLE_H + SEP_W + PAD + CHIP_H + GAP + ROW_H + GAP + SEP_W + FOOT_H + PAD
 end
 
@@ -70,7 +74,11 @@ function _G.LootPopup:Constructor()
     self.selected   = nil       -- eventIndex being shown, or "full"
     self.chips      = {}
     self.rows       = {}
+    -- pooled beside the rows and for the same reason: Turbine has no destructor, so a heading
+    -- is reparented and re-driven per chest, never rebuilt
+    self.headers    = {}
     self.rowCount   = 0
+    self.headersH   = 0
     self.chipsH     = CHIP_H    -- one row of chips until BuildChips has counted them
     self.search     = ""        -- the lowered form, matched against
     self.searchText = ""        -- as typed
@@ -436,18 +444,32 @@ function _G.LootPopup:BuildChips(width)
         self.chips[#self.chips + 1] = chip
     end
 
+    -- WHAT EACH CHEST GAVE, on the chip. A row of bare boss names says only which chests exist,
+    -- which the instance already told you; the counts are what make a chip worth pressing --
+    -- and what makes "Run" worth pressing at all.
+    --
+    -- Counted through SelectedItems, so a chip and the list it opens can never disagree: it is
+    -- the same filter, the same grouping and the same items.
     for _, entry in ipairs(self:BossEvents(self.chest.instance, self.chest.tier)) do
         local index = entry.index
-        add(entry.event.name, self.selected == index, not self:HasChest(index), function()
-            self.selected = index
-            self:Rebuild()
-        end)
+        local count = #self:SelectedItems(index)
+        -- A boss with nothing recorded still shows, dimmed and clickable, at "· 0": selecting
+        -- it and getting the empty state is information, where a missing chip is a question.
+        add(entry.event.name .. _G.Sep .. count, self.selected == index,
+            not self:HasChest(index), function()
+                self.selected = index
+                self:Rebuild()
+            end)
     end
 
-    add(_G.L("fullRun"), self.selected == "full", false, function()
-        self.selected = "full"
-        self:Rebuild()
-    end)
+    -- Asked of the whole run rather than added up: a tracery taken from two chests by the same
+    -- person is one row here and two there, so the sum would promise items the list does not
+    -- have.
+    add(_G.L("run") .. _G.Sep .. #self:SelectedItems("full"), self.selected == "full", false,
+        function()
+            self.selected = "full"
+            self:Rebuild()
+        end)
 
     -- the magnifier is the last chip in the flow, and wraps with them. It is parented to the
     -- client rather than the strip, so that it survives the strip being hidden for the search.
@@ -458,16 +480,22 @@ function _G.LootPopup:BuildChips(width)
 
 end
 
--- The loot to show for the current selection, ordered by _G.LootDrops.SortLoot: wishlisted
--- first, then by kind -- jewellery, armour, currency, tracery, rune -- then A-Z.
+-- The loot to show for ONE selection, ordered by _G.LootDrops.SortLoot: wishlisted first, then
+-- by kind -- jewellery, armour, currency, tracery, rune -- then A-Z.
 --
 -- The ORDER is that function's, not this one's, and deliberately: it is a rule about what the
 -- items are, it is the same question the browser asks, and it is tested. This one only decides
 -- WHICH items there are.
-function _G.LootPopup:SelectedItems()
+--
+-- `selection` defaults to what is on screen. It is a parameter because the CHIPS ask the same
+-- question about chests that are not selected -- a chip saying "· 6" and a list showing four
+-- would be worse than no count at all, so both come out of one function.
+function _G.LootPopup:SelectedItems(selection)
 
     local items = {}
     local run   = _G.LootDrops and _G.LootDrops.currentRun
+
+    selection = selection or self.selected
 
     if run == nil then return items end
 
@@ -480,7 +508,7 @@ function _G.LootPopup:SelectedItems()
     local grouped = {}
 
     for _, chest in ipairs(run.chests) do
-        if self.selected == "full" or chest.logIndex == self.selected then
+        if selection == "full" or chest.logIndex == selection then
             for _, item in ipairs(chest.items) do
                 -- only what the drops data flagged as worth interrupting for; the rest was
                 -- still recorded, it just does not belong in a window that pops up unbidden
@@ -522,14 +550,103 @@ function _G.LootPopup:SelectedItems()
 
 end
 
+-- One section heading: a label and a rule running out to the right, the same anatomy the main
+-- window's group headings use (UI/Window/ContentView.lua, MakeGroupHeaderRow).
+--
+-- POOLED, like the rows beside it. A window that rebuilt its headings on every chest would pile
+-- up orphaned controls for as long as the session lasts, because Turbine has no destructor --
+-- only reparenting, which is what ClearItems does to these.
+function _G.LootPopup:SectionHeader(index, text, labelColor, ruleColor)
+
+    local header = self.headers[index]
+
+    if header == nil then
+
+        header = Turbine.UI.Control()
+        header:SetHeight(SECTION_H)
+        header:SetMouseVisible(false)
+
+        local label = Turbine.UI.Label()
+        label:SetParent(header)
+        label:SetMultiline(false)
+        -- clears the 2px rule an item row draws down its left edge, so the heading starts
+        -- where the rows do rather than in front of them
+        label:SetPosition(2, 0)
+        label:SetHeight(SECTION_H)
+        label:SetFont(_G.Font(10))
+        label:SetFontStyle(_G.Theme.FONT_STYLE)
+        label:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+        label:SetMouseVisible(false)
+
+        local rule = Turbine.UI.Control()
+        rule:SetParent(header)
+        rule:SetHeight(SEP_W)
+        rule:SetMouseVisible(false)
+
+        header.label = label
+        header.rule  = rule
+
+        -- named for the same reason the browser's rows are: a control whose width already
+        -- matches the list never fires SizeChanged, and then nothing has placed the rule
+        header.Layout = function()
+            local labelW = math.floor(#(header.text or "") * _G.GlyphWidth(10) * 2) + _G.Scaled(8)
+            label:SetWidth(labelW)
+            rule:SetPosition(2 + labelW + math.floor(GAP / 2), math.floor(SECTION_H / 2))
+            rule:SetWidth(math.max(0,
+                header:GetWidth() - 2 - labelW - math.floor(GAP / 2)))
+        end
+
+        header.SizeChanged = header.Layout
+
+        self.headers[index] = header
+
+    end
+
+    header.text = text
+    header.label:SetText(_G.Spaced(_G.Upper(text)))
+    header.label:SetForeColor(labelColor)
+    header.rule:SetBackColor(ruleColor)
+
+    return header
+
+end
+
+-- THE THREE BLOCKS, dressed. Which item goes where is _G.LootDrops.PartitionLoot's rule and is
+-- tested there; this only says what each block is called and what colour it takes.
+--
+-- The two chip pairs are one warm and one cool in every theme, so STARRED and YOURS cannot be
+-- confused with each other whichever theme is on, and FELLOWSHIP takes the quietest rule of the
+-- three because it is the block you are not reading.
+function _G.LootPopup:Partition(items)
+
+    local starred, yours, fellowship = _G.LootDrops.PartitionLoot(items)
+
+    return {
+        { key = "sectionStarred",    label = _G.Theme.CHIP_USED_TEXT,
+                                     rule  = _G.Theme.CHIP_USED_FRAME, items = starred },
+        { key = "sectionYours",      label = _G.Theme.ACCENT,
+                                     rule  = _G.Theme.FRAME,           items = yours },
+        { key = "sectionFellowship", label = _G.Theme.DIM,
+                                     rule  = _G.Theme.CHIP_DONE_FRAME, items = fellowship },
+    }
+
+end
+
 function _G.LootPopup:Rebuild()
 
     if self.chest == nil then return end
 
+    -- BOSS FIRST, because that is what the window is about: a chest opened, and this is what
+    -- was in it. The instance and the tier are context and take the dim.
     local instance = _G.Instances[self.chest.instance]
-    self:SetTitleText(
-        (instance and instance.name or "?")
-        .. _G.Sep .. _G.CM("DIM") .. tostring(self.chest.tier) .. _G.CMR)
+    local event    = (self.selected ~= "full") and _G.Events[self.selected] or nil
+    local context  = (instance and instance.name or "?") .. _G.Sep .. tostring(self.chest.tier)
+
+    if event ~= nil then
+        self:SetTitleText(event.name .. _G.CM("DIM") .. _G.Sep .. context .. _G.CMR)
+    else
+        self:SetTitleText(_G.L("fullRun") .. _G.CM("DIM") .. _G.Sep .. context .. _G.CMR)
+    end
 
     -- the chips are measured against the width the window HAS, which is the player's once they
     -- have dragged the gripper
@@ -544,6 +661,18 @@ function _G.LootPopup:Rebuild()
 
     self.rowCount = #items
 
+    local sections = self:Partition(items)
+
+    -- Settled BEFORE anything is measured: a heading only exists where its block has something
+    -- in it -- an empty "FELLOWSHIP" over nothing is a rule and a word saying "nothing here" --
+    -- and how many there are decides how tall the window is about to be.
+    self.headersH = 0
+    for _, section in ipairs(sections) do
+        if #section.items > 0 then
+            self.headersH = self.headersH + SECTION_H
+        end
+    end
+
     -- The width the rows will have, computed rather than read back off rowHost: on the first
     -- Rebuild the host has not been laid out yet, and a row sized from it would cut its name
     -- to fit a width that no longer exists a moment later. Whether the scrollbar is there
@@ -556,32 +685,54 @@ function _G.LootPopup:Rebuild()
     -- go of them; the same objects go straight back in.
     self.rowHost:ClearItems()
 
-    for index, entry in ipairs(items) do
+    local rowIndex, headerIndex = 0, 0
 
-        local row = self.rows[index]
-        if row == nil then
-            row = _G.LootRow(self.rowHost)
-            self.rows[index] = row
+    for _, section in ipairs(sections) do
+        if #section.items > 0 then
+
+            headerIndex = headerIndex + 1
+
+            local header = self:SectionHeader(headerIndex, _G.L(section.key),
+                section.label, section.rule)
+
+            header:SetSize(rowWidth, SECTION_H)
+            self.rowHost:AddItem(header)
+            header:SetWidth(rowWidth)
+            header.Layout()
+
+            for _, entry in ipairs(section.items) do
+
+                rowIndex = rowIndex + 1
+
+                local row = self.rows[rowIndex]
+                if row == nil then
+                    row = _G.LootRow(self.rowHost)
+                    self.rows[rowIndex] = row
+                end
+
+                row:SetVisible(true)
+                row:SetSize(rowWidth, ROW_H)
+                self.rowHost:AddItem(row)
+
+                -- after AddItem, because the list may have resized the row -- and the width is
+                -- what the name is truncated against
+                row:SetWidth(rowWidth)
+                row:SetLoot(entry.item, _G.LootDrops.DropRow(entry.logIndex, entry.item.base),
+                    entry.logIndex)
+
+            end
+
         end
-
-        row:SetVisible(true)
-        row:SetSize(rowWidth, ROW_H)
-        self.rowHost:AddItem(row)
-
-        -- after AddItem, because the list may have resized the row -- and the width is what
-        -- the name is truncated against
-        row:SetWidth(rowWidth)
-        row:SetLoot(entry.item, _G.LootDrops.DropRow(entry.logIndex, entry.item.base),
-            entry.logIndex)
-
     end
 
-    -- rows past the end are simply not in the list any more, so nothing draws them
+    -- rows and headings past the end are simply not in the list any more, so nothing draws them
 
     local mine = 0
     for _, entry in ipairs(items) do
         if entry.item.isSelf then mine = mine + 1 end
     end
+
+    local starred = #sections[1].items
 
     -- A chest with no matched loot must still show. Silence reads as a broken plugin -- and an
     -- empty list has two quite different meanings, so it says which one this is.
@@ -593,7 +744,8 @@ function _G.LootPopup:Rebuild()
 
     self.footLabel:SetText(count .. " "
         .. (#items == 1 and self.search == "" and _G.L("itemsOne") or _G.L("items"))
-        .. _G.Sep .. mine .. " " .. _G.L("yours"))
+        .. _G.Sep .. mine .. " " .. _G.L("yours")
+        .. _G.Sep .. starred .. " " .. _G.L("starred"))
 
     self:Layout(#items)
 
@@ -627,18 +779,25 @@ function _G.LootPopup:Geometry(rowCount)
                  + PAD + self:ChipsHeight() + GAP
                  + GAP + SEP_W + FOOT_H + PAD
 
+    local headersH = self.headersH or 0
+
     local width  = settings.width or POPUP_W
     local height = settings.height
 
     if height == nil then
+        -- MAX_ROWS COUNTS ROWS, NOT HEADINGS. The ceiling exists so a window that opens
+        -- unbidden is never the biggest thing on the screen, and three 18px rules are not what
+        -- would threaten that -- capping them instead would cost a chest two of its items to
+        -- pay for the words naming them.
         local shown = math.max(math.min(rowCount, MAX_ROWS), MIN_ROWS)
-        height = chrome + shown * ROW_H
+        height = chrome + headersH + shown * ROW_H
     end
 
     -- A saved height is whatever the player dragged it to, including too short for one row, and
-    -- a chip row appearing or the search opening moves the chrome under it either way.
+    -- a chip row appearing or the search opening moves the chrome under it either way. The
+    -- headings live INSIDE the list, so they take their height out of what the rows have.
     local rowsH     = math.max(0, height - chrome)
-    local scrolling = rowCount * ROW_H > rowsH
+    local scrolling = rowCount * ROW_H + headersH > rowsH
     local inner     = math.max(0, width - 2 * PAD)
     local rowsW     = math.max(0, inner - (scrolling and (SCROLL_W + math.floor(GAP / 2)) or 0))
 
@@ -713,7 +872,7 @@ function _G.LootPopup:OnLayout(width, height)
     -- DECIDED FROM THE HEIGHT THE WINDOW ACTUALLY HAS, not from the row count: this runs on
     -- every frame of a gripper drag, and the bar has to appear the moment the rows stop fitting
     -- rather than at the next rebuild.
-    self.scrolling = (self.rowCount or 0) * ROW_H > rowsH
+    self.scrolling = (self.rowCount or 0) * ROW_H + (self.headersH or 0) > rowsH
     self.rowScroll:SetVisible(self.scrolling)
 
     -- the scrollbar takes its width out of the rows, so a name is never cut by the bar
@@ -728,6 +887,13 @@ function _G.LootPopup:OnLayout(width, height)
 
     for _, row in ipairs(self.rows) do
         row:SetWidth(rowsW)
+    end
+
+    -- the headings' rules run to the right edge, so they are re-driven rather than left to a
+    -- SizeChanged a control already at that width never fires
+    for _, header in ipairs(self.headers) do
+        header:SetWidth(rowsW)
+        header.Layout()
     end
 
     self.emptyLabel:SetPosition(PAD, rowTop)
