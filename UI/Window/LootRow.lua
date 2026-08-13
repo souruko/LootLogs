@@ -365,12 +365,10 @@ function _G.LootRow:SetLoot(item, drop, eventIndex)
         self.metaLabel:SetForeColor(_G.Theme.DIM2)
     end
 
-    -- THE BROWSER'S NUMBER, not a second opinion: the same helper folds the same entries, so a
-    -- rate seen here and looked up there cannot disagree. Asked by NAME rather than read off the
-    -- row, because a collapsed group ("Tracery") has no row of its own and answers for its
-    -- members.
-    local chance = _G.LootDrops.CombinedChance(
-        _G.LootDrops.ItemEntries(eventIndex, item.base))
+    -- THE BROWSER'S NUMBER, not a second opinion: both windows read the chance off the same
+    -- catalogue row, so a rate seen here and looked up there cannot disagree. Asked by NAME,
+    -- because what this window has is the name chat printed.
+    local chance = _G.LootDrops.ItemChance(eventIndex, item.base)
     local shown  = _G.LootDrops.FormatChance(chance)
 
     if shown == nil then

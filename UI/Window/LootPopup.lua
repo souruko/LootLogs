@@ -501,48 +501,17 @@ function _G.LootPopup:SelectedItems(selection)
 
     if run == nil then return items end
 
-    -- Grouped drops collapse to one entry per looter. Six differently-named traceries from one
-    -- chest are six lines saying the same thing; "Tracery" once, per person, is the fact.
-    --
-    -- ONLY "collapse" GROUPS. An "expand" group buckets real, wantable items -- armour pieces --
-    -- and nobody looted "Fallen armour": they looted a pair of boots, and that is what the
-    -- window has to say. The bucket is a browser convenience, not a thing that drops.
-    local grouped = {}
-
+    -- ONE LINE PER DROP, under the name chat printed. Nothing is folded together here: what a
+    -- person looted is an event, and two of them are two lines even where the drops data would
+    -- call them the same kind of thing. The folding that does happen -- an item's several pool
+    -- rates into one figure -- is in the catalogue, not in what was looted.
     for _, chest in ipairs(run.chests) do
         if selection == "full" or chest.logIndex == selection then
             for _, item in ipairs(chest.items) do
                 -- only what the drops data flagged as worth interrupting for; the rest was
                 -- still recorded, it just does not belong in a window that pops up unbidden
                 if _G.LootDrops.IsPopupItem(chest.logIndex, item.base) then
-
-                    local group = _G.LootDrops.GroupOf(chest.logIndex, item.base)
-                    if group ~= nil and _G.LootDrops.GroupExpands(group) then
-                        group = nil
-                    end
-
-                    if group == nil then
-                        items[#items + 1] = { item = item, logIndex = chest.logIndex }
-                    else
-                        local key  = group .. "\0" .. tostring(item.player)
-                        local seen = grouped[key]
-                        if seen == nil then
-                            -- a copy, so the group name is shown without renaming the capture
-                            local shown = {
-                                base     = group,
-                                level    = item.level,
-                                quantity = item.quantity or 1,
-                                player   = item.player,
-                                isSelf   = item.isSelf,
-                            }
-                            grouped[key] = shown
-                            items[#items + 1] = { item = shown, logIndex = chest.logIndex,
-                                                  grouped = true }
-                        else
-                            seen.quantity = (seen.quantity or 1) + (item.quantity or 1)
-                        end
-                    end
-
+                    items[#items + 1] = { item = item, logIndex = chest.logIndex }
                 end
             end
         end

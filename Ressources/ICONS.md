@@ -32,7 +32,7 @@ Every icon in this folder is derived from [Phosphor Icons](https://phosphoricons
 | `arrow_right.tga` | `caret-right` | regular | 12×12 | white | collapsed group in the sidebar |
 | `collaps.tga` | `caret-up` | regular | 16×16 | white | collapse-all button |
 | `search.tga` | `magnifying-glass` | regular | 16×16 | white | sidebar search field, loot browser item column |
-| `group.tga` | `squares-four` | regular | 32×32 | white | grouped row in the loot browser, in place of item art |
+| `group.tga` | `squares-four` | regular | 32×32 | white | category row in the loot browser ("Tracery"), in place of item art |
 | `star_on.tga` | `star` | fill | 12×12 | white | pinned tier band, Pinned tab |
 | `star_off.tga` | `star` | regular | 12×12 | white | unpinned tier band |
 | `star_fill.tga` | `star` | fill | 16×16 | white | unused since the Pinned tab dropped to 12px |

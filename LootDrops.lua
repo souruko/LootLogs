@@ -245,76 +245,13 @@ function _G.LootDrops.ItemLinkAt(eventIndex, base)
 end
 
 -- ------------------------------------------------------------------------------------------------
--- groups
-
--- Some items are one thing wearing many names. Every character gets a tracery from a chest, but
--- it is class-specific and rolled, so it arrives as "Stealth Movement Speed" or "Crit Chain
--- Skill Critical Chance" or one of dozens of others. Catalogued individually they read as a
--- pile of rare drops, when what actually happened is "a tracery dropped", near enough always.
---
--- So a row may declare `group = "Tracery"`. Grouping is DISPLAY AND STATISTICS, never matching:
--- every name still needs its own row or the parser will not recognise the drop at all. What
--- changes is that the popup and the browser show one line for the group, and the observed rate
--- sums its members -- which is the number that means something, because any member dropping is
--- the event "a tracery dropped".
--- TWO KINDS OF GROUP, and the difference is whether the members are worth naming.
---
---   "collapse"  the members are placeholders. Traceries: every character gets one, the name is
---               a class-specific roll out of dozens, and nobody wants a list of them. One row,
---               everywhere, and the individual names exist only so the parser recognises a drop
---               at all. This is the DEFAULT, because it is what grouping was built for.
---
---   "expand"    the members are real, wantable items that happen to share a bucket. Armour: the
---               chart gives one rate for "Fallen armour", but which piece dropped is exactly
---               what you care about. The browser shows a foldable row; the popup does not
---               collapse them at all, because "Fallen armour" is not what you just looted.
---
--- Declared per group in the drops data (_G.DropGroups), not per row: it is a property of the
--- group, and repeating it on every member is how the two halves drift apart.
-function _G.LootDrops.GroupMode(group)
-
-    if group == nil or group == "" then return nil end
-
-    local declared = _G.DropGroups ~= nil and _G.DropGroups[group] or nil
-
-    if declared ~= nil and declared.mode == "expand" then return "expand" end
-
-    return "collapse"
-
-end
-
-function _G.LootDrops.GroupExpands(group)
-    return _G.LootDrops.GroupMode(group) == "expand"
-end
-
--- What to CALL a group on screen. Display only, exactly like an item's `label`: the key stays
--- whatever the data says, so `group = "Group 1"` on every member row goes on working and giving
--- a group a real name is one line in _G.DropGroups:
---
---     ["Group 1"] = { mode = "expand", label = "Fallen Armour" },
---
--- The label is per KEY, so it renames that group at every chest that uses the key. The export
--- numbers its groups per chest, which means one chest's "Group 1" is not another's -- so a name
--- that only fits one of them wants a new key on those rows rather than a label here.
-function _G.LootDrops.GroupLabel(group)
-
-    if group == nil or group == "" then return group end
-
-    local declared = _G.DropGroups ~= nil and _G.DropGroups[group] or nil
-
-    if declared ~= nil and declared.label ~= nil and declared.label ~= "" then
-        return declared.label
-    end
-
-    return group
-
-end
+-- searching
 
 -- Everything a row can be found under, lowered ONCE at build time so a keystroke costs a find
 -- and nothing else. A drop answers to the name the client prints AND to its label, because
 -- whoever is searching knows it by one or the other and has no way to tell which this build
--- stores -- and for a group row, `item` is the key and `label` the name on screen, so both find
--- it either way.
+-- stores -- and a category row ("?? Tracery") is only ever seen as its label, so the label is
+-- the half that has to find it.
 function _G.LootDrops.SearchText(drop)
 
     if drop == nil then return "" end
@@ -335,24 +272,23 @@ local function Hit(text, search)
     return text ~= nil and string.find(text, search, 1, true) ~= nil
 end
 
--- WHICH ROWS A SEARCH LEAVES STANDING. Pure, and about grouping rather than pixels, which is
--- why it lives here beside GroupMode: the rule is that a group answers for its members.
+-- WHICH ROWS A SEARCH LEAVES STANDING. Pure, and about names rather than pixels, which is why
+-- it lives here rather than in the window.
 --
 -- `rows` is the list the browser has already built, in display order, each entry carrying:
 --
---   kind        "header" for a boss heading, anything else for a row
---   text        the row's own searchable names, from SearchText
---   memberText  a group's members' names, joined -- a group folded shut is the only row
---               standing in for them, so a member's name must find it
---   parent      index of a child's group entry -- a group matched by NAME keeps all its
---               children, and a child matched on its own pulls its group back in
---   header      index of the boss heading above the row, which shows only if something under
---               it survived
+--   kind     "header" for a heading, anything else for a row
+--   text     the row's own searchable names, from SearchText
+--   header   index of the heading above the row, which shows only if something under it survived
+--
+-- ONE ROW PER ITEM, so there is nothing to answer for anything else: a row shows when its own
+-- names match. The drops data used to bucket items into pools and a pool's row had to be found
+-- by its members' names; the pools are folded away at build time now.
 --
 -- Returns a map of index -> shown. An empty search shows everything but the empty headings.
 function _G.LootDrops.SearchFilter(rows, search)
 
-    local show, named = {}, {}
+    local show = {}
 
     search = search or ""
 
@@ -364,22 +300,9 @@ function _G.LootDrops.SearchFilter(rows, search)
             -- shows. One pass does it, because a heading is always built before its rows.
             show[index] = false
 
-        elseif search == "" then
-
-            show[index] = true
-
-        elseif entry.isGroup then
-
-            named[index] = Hit(entry.text, search)
-            show[index]  = named[index] or Hit(entry.memberText, search)
-
-        elseif entry.parent ~= nil then
-
-            show[index] = Hit(entry.text, search) or named[entry.parent] == true
-
         else
 
-            show[index] = Hit(entry.text, search)
+            show[index] = (search == "") or Hit(entry.text, search)
 
         end
 
@@ -390,35 +313,6 @@ function _G.LootDrops.SearchFilter(rows, search)
     end
 
     return show
-
-end
-
-function _G.LootDrops.GroupOf(eventIndex, base)
-
-    local drop = _G.LootDrops.DropRow(eventIndex, base)
-
-    if drop ~= nil and drop.group ~= nil and drop.group ~= "" then
-        return drop.group
-    end
-
-    return nil
-
-end
-
--- Every catalogued row of one group at one chest.
-function _G.LootDrops.GroupMembers(eventIndex, group)
-
-    local members = {}
-
-    if _G.Drops == nil or group == nil then return members end
-
-    for _, drop in ipairs(_G.Drops[eventIndex] or {}) do
-        if drop.group == group then
-            members[#members + 1] = drop
-        end
-    end
-
-    return members
 
 end
 
@@ -458,168 +352,57 @@ function _G.LootDrops.TiersFor(instanceId)
 
 end
 
--- How many distinct ITEMS one chest catalogues, which is what the table now shows: the rows
--- are entries, and a chest listing 308 of them for 91 items must not say 308 anywhere.
+-- How many ITEMS one chest catalogues, which is what every count in the browser says. The drops
+-- data is one row per item, so this is simply how many rows it has -- the fold that used to make
+-- 308 table entries into 91 items happens when the file is built, not here.
 function _G.LootDrops.ItemCount(eventIndex)
+    return #((_G.Drops or {})[eventIndex] or {})
+end
 
-    local seen, count = {}, 0
-
-    for _, drop in ipairs((_G.Drops or {})[eventIndex] or {}) do
-        -- the same two exclusions the table itself makes: a bucket row is the pool, and a
-        -- collapse group is one row however many placeholder names it holds
-        if not drop.bucket then
-            local group = drop.group
-            local key   = drop.item
-            if group ~= nil and group ~= "" and _G.LootDrops.GroupMode(group) == "collapse" then
-                key = group
-            end
-            if not seen[key] then
-                seen[key] = true
-                count     = count + 1
-            end
-        end
-    end
-
-    return count
-
+-- How many of the game's own table entries one item stands for: the rates behind its figure,
+-- and 1 for a row that has only the one. The browser sums this over what it is showing, which
+-- is why the total is counted there and not here -- the still-needed filter takes rows out.
+function _G.LootDrops.EntrySpan(drop)
+    return drop == nil and 0 or math.max(1, #(drop.chances or {}))
 end
 
 -- ------------------------------------------------------------------------------------------------
 -- chances
 
--- ONE NAME, SEVERAL CHANCES. A chest does not roll once: it rolls several tables, and an item
--- that sits in more than one of them is catalogued once per table it sits in. "Bright
--- Conscript's Necklace" has six rows at Kishâsu because six of that chest's rolls can produce
--- it, at 1.06%, 1.03%, 1.00%, 0.38%, 0.37% and 0.36%. Those are six separate chances, not one
--- repeated -- which is why they are printed as a series and why CombinedChance folds them.
+-- ONE NAME, SEVERAL CHANCES -- ALREADY FOLDED. A chest does not roll once: it rolls several
+-- tables, and an item sitting in more than one of them has a separate chance in each. "Bright
+-- Conscript's Necklace" is in six of Kishâsu's pools, at 1.06%, 1.03%, 1.00%, 0.38%, 0.37% and
+-- 0.36%.
 --
--- Ungrouped items duplicate too, and that is the half that is easy to miss: "Silver Serpent" is
--- two rows at Kishâsu, so the key here is the NAME, never the group.
+-- The drops file carries that fold: every row is one item, with `chance` -- the chance it drops
+-- AT ALL, 1 - Π(1 - c) -- and `chances`, the individual rates behind it, biggest first and
+-- absent where there is only one. So there is nothing to compute here, and nothing to cache:
+-- both windows read the row.
 --
--- Sorted biggest first, which is the order both windows read them in.
-local function ByChanceDescending(a, b)
+-- `chance` may be nil, which means "drops, rate not established" and must never print as 0%.
 
-    -- an unknown chance is not a small one, but it has to land somewhere: last, so the figures
-    -- that ARE known lead. nil == nil returns false, which keeps the order weak and table.sort
-    -- from throwing.
-    if a.chance == b.chance then return false end
-    if a.chance == nil then return false end
-    if b.chance == nil then return true end
+-- The rates behind one item's figure at one chest, biggest first, or an empty list. A row with a
+-- single entry has no `chances`: its `chance` IS that entry, which is what the caller gets.
+function _G.LootDrops.ItemChances(eventIndex, itemName)
 
-    return a.chance > b.chance
+    local drop = _G.LootDrops.DropRow(eventIndex, itemName)
+
+    if drop == nil then return {} end
+
+    if drop.chances ~= nil then return drop.chances end
+
+    return drop.chance ~= nil and { drop.chance } or {}
 
 end
 
--- A BUCKET ROW IS THE POOL, NOT A THING IN IT. "?? Group 4" carries the rate of the whole
--- roll -- "gear: 5%" -- matches no chat line and has no id, so it is not an item and never
--- becomes one.
---
--- Which cuts two ways, and the second way is why this is a function rather than a `not
--- drop.bucket`:
---
---   asked about an ITEM   the pool's rate is not the item's, and adding it would hand every
---                         piece inside the pool the category's chance
---   asked about the POOL  the pool's rate IS the answer -- "Tracery" is exactly the category
---                         "?? Tracery" names, and its 100% is the number both windows show
---
--- So the entries of a group prefer its bucket rows where it has them, and fall back to its
--- members' own rates where it does not.
-local function EntriesFor(eventIndex, canonical, groupKey)
+-- The chance one item drops at all from one chest, or nil where it is uncatalogued or the
+-- tables give no rate. THE BROWSER'S NUMBER, read off the same row the browser draws, so a rate
+-- seen in the popup and looked up in the browser cannot disagree.
+function _G.LootDrops.ItemChance(eventIndex, itemName)
 
-    local own, pooled = {}, {}
+    local drop = _G.LootDrops.DropRow(eventIndex, itemName)
 
-    for _, drop in ipairs((_G.Drops or {})[eventIndex] or {}) do
-
-        local isName  = (canonical ~= nil and drop.item == canonical)
-        local isPool  = (groupKey  ~= nil and groupKey ~= "" and drop.group == groupKey)
-
-        if isName or isPool then
-            local entry = { chance = drop.chance, group = drop.group }
-            if drop.bucket then
-                -- only where the question WAS the pool; a bucket row asked about by its own
-                -- name is still not an item
-                if isPool then pooled[#pooled + 1] = entry end
-            else
-                own[#own + 1] = entry
-            end
-        end
-
-    end
-
-    local entries = (#pooled > 0) and pooled or own
-
-    table.sort(entries, ByChanceDescending)
-
-    return entries
-
-end
-
--- MEMOISED, because the answer is a property of _G.Drops and nothing else.
---
--- EntriesFor walks a whole chest -- three hundred rows at a good one -- allocating a table per
--- hit and sorting the result. Every popup row and every browser row asks for it, and the popup
--- asks again for every one of them on every keystroke in its search box. The drops table is
--- input and never written here, so the walk is done once per (chest, name) and kept.
---
--- Dropped by RebuildIndex, alongside the lookups it is built from.
-local entriesOf = {}
-
--- Every entry one item has at one chest, biggest first. SHARED AND CACHED: treat the list, and
--- the entries in it, as read-only.
---
--- A COLLAPSE GROUP ANSWERS FOR ITS MEMBERS. "Tracery" is not an item, has no row of its own and
--- no id; the entries it stands for are the category's, which is the same rule that gives it one
--- line in both windows. So a name that is a group key is answered with the group's entries.
-function _G.LootDrops.ItemEntries(eventIndex, itemName)
-
-    if _G.Drops == nil or itemName == nil then return {} end
-
-    local byName = entriesOf[eventIndex]
-    if byName == nil then
-        byName                 = {}
-        entriesOf[eventIndex]  = byName
-    end
-
-    local entries = byName[itemName]
-    if entries == nil then
-        entries           = EntriesFor(eventIndex, Canonical(itemName) or itemName, itemName)
-        byName[itemName]  = entries
-    end
-
-    return entries
-
-end
-
--- The chance AT LEAST ONE entry hits: 1 - Π(1 - chance).
---
--- Not the sum: 70% and 10% is 73%, and adding them would put a six-pool item past 100% while
--- claiming a certainty the tables never gave. Not the biggest either: an item in six pools is
--- likelier than an item in one, and that difference is the whole point of the column.
---
--- nil when NOTHING is known, because an absent chance means "drops, rate not established" and
--- must never print as 0%. A nil among known ones is simply left out of the product.
---
--- Takes entries as ItemEntries returns them, or bare numbers, so a caller with a list of
--- chances does not have to dress them up first.
-function _G.LootDrops.CombinedChance(entries)
-
-    local product, known = 1, false
-
-    for _, entry in ipairs(entries or {}) do
-
-        local chance = entry
-        if type(entry) == "table" then chance = entry.chance end
-
-        if chance ~= nil then
-            known   = true
-            product = product * (1 - chance)
-        end
-
-    end
-
-    if not known then return nil end
-
-    return 1 - product
+    return drop and drop.chance or nil
 
 end
 
@@ -651,15 +434,13 @@ end
 -- nil FOR A SINGLE ENTRY. One entry is the lead figure itself, and printing it twice on the
 -- same line says nothing; the column simply stays empty, which is also how a row with no rate
 -- at all draws.
-function _G.LootDrops.EntrySeries(entries)
+function _G.LootDrops.EntrySeries(chances)
 
-    if entries == nil or #entries < 2 then return nil end
+    if chances == nil or #chances < 2 then return nil end
 
     local parts = {}
 
-    for _, entry in ipairs(entries) do
-        local chance = entry
-        if type(entry) == "table" then chance = entry.chance end
+    for _, chance in ipairs(chances) do
         if chance ~= nil then
             local value = chance * 100
             -- two decimals below ten, none above: the small ones are only distinguishable by
@@ -672,124 +453,6 @@ function _G.LootDrops.EntrySeries(entries)
     if #parts == 0 then return nil end
 
     return table.concat(parts, _G.Sep)
-
-end
-
--- ONE ROW PER NAME, for one chest. The browser's table is built from this.
---
--- What comes out of the drops data is the game's own loot tables, near enough verbatim: one row
--- per (item, table it appears in). Listed that way a chest reads as three hundred rows for
--- ninety items, the same cloak eight lines apart at eight different rates, and no way to tell
--- from any one of them how likely the cloak actually is.
---
--- So the rows fold by NAME -- the same key the wishlist and the stats already use -- and each
--- surviving row carries:
---
---   entries   every chance that name had here, biggest first
---   any       those combined: the chance the item drops AT ALL from this chest
---
--- A COLLAPSE group still folds to one row under its own key, because its members are
--- placeholder names nobody wants listed -- that is a display rule about the group and it
--- survives the dedupe. An EXPAND group does not: its members are real, wantable items, and with
--- one row per name they no longer need a fold to stop repeating themselves.
---
--- Bucket rows follow EntriesFor's rule: dropped where they are a pool over listed items, kept
--- where the pool IS the row -- a collapsed "Tracery" is the category "?? Tracery" names, and
--- 100% is the honest figure for it.
---
--- Ordered for display: `any` descending, then the name as drawn. File order was never
--- meaningful, and a sorted table is what makes a wall of sub-1% rows readable.
-function _G.LootDrops.Dedupe(rows)
-
-    local out, byKey = {}, {}
-
-    for _, drop in ipairs(rows or {}) do
-
-        local group     = drop.group
-        local collapsed = group ~= nil and group ~= ""
-                          and _G.LootDrops.GroupMode(group) == "collapse"
-        local key       = collapsed and group or drop.item
-
-        -- a bucket row is a row of its own only where the pool IS the row it would make
-        if not drop.bucket or collapsed then
-
-            local seen = byKey[key]
-
-            if seen == nil then
-
-                -- The key is what everything else asks about this row: the wishlist, the
-                -- observed rate, the search. For a group that is the group's own name, and it
-                -- deliberately has no id and no quality -- a group is not an item and must not
-                -- borrow one member's identity.
-                seen = { item = key, entries = {} }
-
-                if collapsed then
-                    seen.isGroup     = true
-                    seen.group       = group
-                    seen.label       = _G.LootDrops.GroupLabel(group)
-                    -- what the search has to find this row by: a folded group is the only row
-                    -- standing in for its members, so a member's name must reach it
-                    seen.memberNames = {}
-                end
-
-                byKey[key]    = seen
-                out[#out + 1] = seen
-
-            end
-
-            if collapsed then
-                seen.memberNames[#seen.memberNames + 1] = drop.item
-            else
-                -- the generated data repeats these on every entry of the same item, so the
-                -- first non-nil one seen is the answer
-                if seen.label   == nil then seen.label   = drop.label   end
-                if seen.quality == nil then seen.quality = drop.quality end
-                if seen.slot    == nil then seen.slot    = drop.slot    end
-                if seen.id      == nil then seen.id      = drop.id      end
-                if seen.plural  == nil then seen.plural  = drop.plural  end
-                if seen.popup   == nil then seen.popup   = drop.popup   end
-                if seen.group   == nil then seen.group   = drop.group   end
-            end
-
-            local entry = { chance = drop.chance, group = drop.group }
-
-            if drop.bucket then
-                -- EntriesFor's rule, kept in step: where a collapsed group has the pool's own
-                -- rate, that rate is the group's -- the members' individual ones are its share
-                -- of the same roll and would be counted twice
-                seen.pooled = seen.pooled or {}
-                seen.pooled[#seen.pooled + 1] = entry
-            else
-                seen.entries[#seen.entries + 1] = entry
-            end
-
-        end
-
-    end
-
-    for _, drop in ipairs(out) do
-
-        if drop.pooled ~= nil then
-            drop.entries = drop.pooled
-            drop.pooled  = nil
-        end
-
-        table.sort(drop.entries, ByChanceDescending)
-        drop.any = _G.LootDrops.CombinedChance(drop.entries)
-
-    end
-
-    table.sort(out, function(a, b)
-        if a.any ~= b.any then
-            -- an unknown rate sorts below every known one rather than above every small one
-            if a.any == nil then return false end
-            if b.any == nil then return true end
-            return a.any > b.any
-        end
-        return _G.LootDrops.DisplayName(a, a.item) < _G.LootDrops.DisplayName(b, b.item)
-    end)
-
-    return out
 
 end
 
@@ -1144,14 +807,12 @@ function _G.LootDrops.SortLoot(items)
     -- lookups. Sorting on fields the entry already carries also keeps the comparator readable.
     for index, entry in ipairs(items) do
 
-        -- The row for the name as CAPTURED. A collapsed group has no row of its own and answers
-        -- by its name, which is why the chance is asked for by NAME rather than read off a row.
+        -- The row for the name as CAPTURED, which is the one row this item has at this chest.
         local drop = _G.LootDrops.DropRow(entry.logIndex, entry.item.base)
 
         entry.sortName   = _G.LootDrops.DisplayName(drop, entry.item.base)
         -- the number the row prints, so the list is sorted by what the player can see
-        entry.sortChance = _G.LootDrops.CombinedChance(
-            _G.LootDrops.ItemEntries(entry.logIndex, entry.item.base))
+        entry.sortChance = drop and drop.chance or nil
         entry.wished     = _G.LootDrops.IsWished(entry.logIndex, entry.item.base)
         entry.sortIndex  = index    -- arrival order, kept only to break a tie
     end
@@ -1252,21 +913,20 @@ function _G.LootDrops.HasPopupItems(chest)
 
 end
 
--- Is this drop on the wishlist, EITHER by its own name or by the group it belongs to?
+-- Is this drop on the wishlist?
 --
--- Both count, and the group half is the one that is easy to forget: a tracery's name is a
--- rolled detail nobody wishes for, so starring "Tracery" has to mean starring every tracery.
--- One helper because three places ask the question -- whether to open the popup, whether to
--- draw the star on a row, and where that row sorts -- and they must never disagree.
+-- The wishlist is keyed on the item name, which is also what the browser's star sets and what
+-- the drops data is keyed on -- one name, one row, one star. One helper because three places
+-- ask the question -- whether to open the popup, whether to draw the star on a row, and where
+-- that row sorts -- and they must never disagree.
+--
+-- `eventIndex` is not read today. It stays in the signature because the question is asked about
+-- a drop AT A CHEST, and taking it away would have every caller stop passing it.
 function _G.LootDrops.IsWished(eventIndex, base)
 
     if _G.LootStats == nil then return false end
 
-    if _G.LootStats.IsWished(base) then return true end
-
-    local group = _G.LootDrops.GroupOf(eventIndex, base)
-
-    return group ~= nil and _G.LootStats.IsWished(group)
+    return _G.LootStats.IsWished(base) == true
 
 end
 
@@ -1309,7 +969,6 @@ end
 -- should not need a full plugin restart
 function _G.LootDrops.RebuildIndex()
     alias, events, dropOf = nil, nil, nil
-    entriesOf = {}
 end
 
 -- ------------------------------------------------------------------------------------------------

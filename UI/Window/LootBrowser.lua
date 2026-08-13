@@ -732,9 +732,8 @@ end
 -- One catalogued item. Not a LootRow: that one is built around a looter and a level, which a
 -- database row has neither of. What they share is the icon and quality vocabulary.
 --
--- ONE ROW PER NAME. What the row shows is _G.LootDrops.Dedupe's output: the item's several
--- entries at this chest folded into one line, with `any` -- the chance it drops at all -- as
--- the lead figure and the raw rates printed behind it.
+-- ONE ROW PER ITEM, which is how the drops data is written: `chance` -- the chance it drops at
+-- all -- as the lead figure, and `chances`, the individual pool rates behind it, printed after.
 function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
 
     local row = Turbine.UI.Control()
@@ -743,13 +742,13 @@ function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
 
     local wished = _G.LootStats ~= nil and _G.LootStats.IsWished(drop.item)
 
-    -- A group row is a HEADING over items, not an item, so it takes the header ground the
-    -- table's own column strip uses and stays out of the striping. That band, the fixed mark
-    -- where the art goes and the accent name are three signals saying the same thing: what is
-    -- named here is a category, and the rate beside it is the category's.
+    -- A CATEGORY ROW names a kind of reward rather than an item -- "Tracery", which the client
+    -- rolls a name for -- so it takes the header ground the table's own column strip uses and
+    -- stays out of the striping. That band, the fixed mark where the art goes and the accent
+    -- name are three signals saying the same thing: this is not an item you can look up.
     local function Ground()
         if wished then return _G.Theme.CHIP_FAV_BG end
-        if drop.isGroup then return _G.Theme.HEADER end
+        if drop.category then return _G.Theme.HEADER end
         return alt and _G.Theme.ROW_ALT or _G.Theme.BG
     end
     row:SetBackColor(Ground())
@@ -762,14 +761,14 @@ function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
         row:SetBackColor(Ground())
     end
 
-    -- quality bar; the icon sits beside it, so rarity stays readable at a glance. A group has
-    -- no one quality either, so it gets the accent strip instead of a colour borrowed from
-    -- whichever member happened to be listed first.
+    -- quality bar; the icon sits beside it, so rarity stays readable at a glance. A category
+    -- names no one item and so has no one quality: it gets the accent strip instead of a colour
+    -- that would be a guess.
     local bar = Turbine.UI.Control()
     bar:SetParent(row)
     bar:SetSize(3, SLOT)
     bar:SetPosition(PAD, math.floor((ROW_H - SLOT) / 2))
-    bar:SetBackColor(drop.isGroup and _G.Theme.STRIP or _G.LootQualityColor(drop.quality))
+    bar:SetBackColor(drop.category and _G.Theme.STRIP or _G.LootQualityColor(drop.quality))
     bar:SetMouseVisible(false)
 
     -- The item's own art, composed from its catalogued id. Images rather than a quickslot, so
@@ -781,12 +780,11 @@ function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
     iconHost:SetPosition(PAD + 3 + math.floor(GAP / 2), math.floor((ROW_H - SLOT) / 2))
     iconHost:SetMouseVisible(false)
 
-    if drop.isGroup then
+    if drop.category then
 
-        -- A GROUP HAS NO ART, because it has no id: "Tracery" is the plugin's word for a set,
-        -- and borrowing a member's icon would make the row look like the one item it is not.
-        -- The fixed group mark instead (a plugin glyph, Overlay over the row's ground, see
-        -- Ressources/ICONS.md).
+        -- A CATEGORY HAS NO ART, because it has no id: "Tracery" is what the tables call the
+        -- reward, and the client rolls the actual name. The fixed category mark instead (a
+        -- plugin glyph, Overlay over the row's ground, see Ressources/ICONS.md).
         local mark = Turbine.UI.Control()
         mark:SetParent(iconHost)
         mark:SetSize(SLOT, SLOT)
@@ -806,13 +804,11 @@ function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
     nameLabel:SetFontStyle(_G.Theme.FONT_STYLE)
     nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
 
-    if drop.isGroup then
+    if drop.category then
 
-        -- NOT A LINK. A group name is the plugin's own word for a set -- editable in the drops
-        -- data, and answering to no item id -- so linking it would examine whichever member the
-        -- row borrowed, which is not what the name says. Plain text, in the accent the other
-        -- headings use, and markup stays OFF: a "<" in a hand-written group name would be eaten
-        -- as a tag.
+        -- NOT A LINK. A category answers to no item id, so there is nothing for the client to
+        -- examine and a link would be a dead one. Plain text, in the accent the other headings
+        -- use, and markup stays OFF: a "<" in the name would be eaten as a tag.
         nameLabel:SetForeColor(_G.Theme.ACCENT)
         nameLabel:SetMouseVisible(false)
 
@@ -839,7 +835,7 @@ function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
     entriesLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
     entriesLabel:SetMouseVisible(false)
 
-    local series = _G.LootDrops.EntrySeries(drop.entries)
+    local series = _G.LootDrops.EntrySeries(drop.chances)
 
     -- THE CHANCE IT DROPS AT ALL, which is the question the column exists to answer: an item in
     -- six pools is likelier than an item in one, and this is the only figure that can be
@@ -854,7 +850,7 @@ function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
     anyLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
     anyLabel:SetMouseVisible(false)
 
-    local shown = _G.LootDrops.FormatChance(drop.any)
+    local shown = _G.LootDrops.FormatChance(drop.chance)
 
     if shown ~= nil then
         anyLabel:SetForeColor(_G.Theme.TEXT)
@@ -873,7 +869,7 @@ function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
     -- different, and the eye reads the bar as "roughly how rare" rather than as a measurement.
     local barTrack, barFill = nil, nil
 
-    if drop.any ~= nil then
+    if drop.chance ~= nil then
 
         barTrack = Turbine.UI.Control()
         barTrack:SetParent(row)
@@ -883,8 +879,8 @@ function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
 
         barFill = Turbine.UI.Control()
         barFill:SetParent(row)
-        barFill:SetSize(math.max(1, math.floor(math.sqrt(drop.any) * COL_BAR)), BAR_H)
-        barFill:SetBackColor(drop.any >= 0.40 and _G.Theme.CHIP_USED_TEXT or _G.Theme.STRIP)
+        barFill:SetSize(math.max(1, math.floor(math.sqrt(drop.chance) * COL_BAR)), BAR_H)
+        barFill:SetBackColor(drop.chance >= 0.40 and _G.Theme.CHIP_USED_TEXT or _G.Theme.STRIP)
         barFill:SetMouseVisible(false)
 
     end
@@ -909,9 +905,8 @@ function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
     sampleLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
     sampleLabel:SetMouseVisible(false)
 
-    -- Keyed on drop.item, which for a group row is the group's own name -- the same key the
-    -- wishlist and the observed rate are stored under, so a collapsed "Tracery" reports how
-    -- often a tracery dropped rather than how often one particular rolled name did.
+    -- Keyed on drop.item -- the same key the wishlist and the observed rate are stored under,
+    -- and the same key the drops data is written under, so all three are asking about one thing.
     local count, opens = 0, 0
     if _G.LootStats ~= nil then
         count, opens = _G.LootStats.Observed(eventIndex, drop.item)
@@ -950,8 +945,8 @@ function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
 
     -- An item's name label takes the mouse so its link can be clicked, which means the row stops
     -- seeing the pointer the moment it crosses the name -- and the row highlight would drop out
-    -- exactly where you are looking. So the label drives the same highlight. A group's name is
-    -- mouse-invisible and never intercepts it in the first place.
+    -- exactly where you are looking. So the label drives the same highlight. A category's name
+    -- is mouse-invisible and never intercepts it in the first place.
     nameLabel.MouseEnter = row.MouseEnter
     nameLabel.MouseLeave = row.MouseLeave
 
@@ -976,7 +971,7 @@ function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
         local glyph = _G.GlyphWidth(12)
         local name  = _G.LootDrops.DisplayName(drop, drop.item)
 
-        if drop.isGroup then
+        if drop.category then
             -- plain text, so the full width is the text's own -- no brackets to pay for
             nameLabel:SetText(_G.Truncate(name, nameLabel:GetWidth(), glyph))
         else
@@ -1096,46 +1091,30 @@ function _G.LootBrowser:BuildRows()
     local eventIndex = self.selectedEvent
     if eventIndex == nil then return end
 
-    -- Which of this chest's rows survive the still-needed filter. That filter is not the
-    -- search: it changes what EXISTS here, so it belongs in the build.
-    local visible = {}
-    for _, drop in ipairs(_G.Drops[eventIndex] or {}) do
-        if not self:Filtered(drop) then
-            visible[#visible + 1] = drop
-        end
-    end
-
-    -- ONE ROW PER NAME, sorted by how likely it is. The tables list an item once per pool it
-    -- sits in, so the same cloak arrives eight times at eight rates; folded, it is one line
-    -- saying how likely the cloak is at all. See _G.LootDrops.Dedupe.
-    visible = _G.LootDrops.Dedupe(visible)
-
+    -- ONE ROW PER ITEM, LIKELIEST FIRST, and both of those are properties of the data rather
+    -- than of this window: the drops file is written that way, so the chest is walked in order
+    -- and nothing is folded or sorted here. See Logs/Drops/English.lua.
+    --
+    -- The still-needed filter is not the search: it changes what EXISTS in the table, so it
+    -- belongs in the build rather than in ApplyFilter.
     local alt = false
 
-    for _, drop in ipairs(visible) do
+    for _, drop in ipairs(_G.Drops[eventIndex] or {}) do
 
-        local entry = {
-            kind    = "item",
-            row     = self:MakeItemRow(eventIndex, drop, alt),
-            drop    = drop,
-            isGroup = drop.isGroup == true,
-            text    = _G.LootDrops.SearchText(drop),
-        }
+        if not self:Filtered(drop) then
 
-        self.rows[#self.rows + 1] = entry
-        alt = not alt
+            self.rows[#self.rows + 1] = {
+                kind = "item",
+                row  = self:MakeItemRow(eventIndex, drop, alt),
+                drop = drop,
+                text = _G.LootDrops.SearchText(drop),
+            }
 
-        self.entryCount = self.entryCount + #(drop.entries or {})
+            alt = not alt
 
-        -- A COLLAPSED GROUP IS THE ONLY ROW STANDING IN FOR ITS MEMBERS, so a member's name has
-        -- to find it: searching for a tracery you were promised must not come back empty
-        -- because the row is called "Tracery".
-        if drop.memberNames ~= nil then
-            local names = {}
-            for _, name in ipairs(drop.memberNames) do
-                names[#names + 1] = string.lower(name)
-            end
-            entry.memberText = table.concat(names, "\0")
+            -- how many of the game's own table entries this one row stands for
+            self.entryCount = self.entryCount + _G.LootDrops.EntrySpan(drop)
+
         end
 
     end
