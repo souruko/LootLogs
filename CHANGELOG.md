@@ -4,6 +4,14 @@ Versions are `<major>.<lotro update>.<release>`. The middle number is the LOTRO 
 build targets, and the last number counts fixes and changes within it, resetting when either of the
 numbers above it moves. The leading number moves only for a major overhaul of the plugin itself.
 
+## [4.49.3] - 2026-08-13
+
+### Changed
+- An item's label no longer replaces its name. Rows show the name the game itself prints, with the label underneath it in small text as a short description — "Blighted Shoulder-guards of the Endless Flame" with "Runekeeper shoulders red" below it — in the loot popup and the loot browser alike
+- Item links and chat alerts read as the real item name too, so a drop you paste into fellowship chat names the thing everyone else sees
+- Searching still finds an item by its description, in either window, so whichever of the two names you know gets you to the row
+- Group and category rows are unchanged: those have no name of their own, so their label is still what they are called
+
 ## [4.49.2] - 2026-08-12
 
 ### Changed

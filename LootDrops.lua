@@ -211,14 +211,15 @@ end
 -- nobody is holding. The client zeroes it itself for other people's loot, which is where our
 -- ids came from in the first place, and a zeroed shortcut is already proven to resolve.
 --
--- The link TEXT is the display name, so a row with a `label` reads as "Burglar Red Shoulders"
--- while the link still resolves to the real item -- the id does that, not the words.
+-- The link TEXT is the display name, which is the client's own name for the item -- a row's
+-- `label` is a description drawn under it (DisplayNote) and is deliberately NOT what the link
+-- reads as: a link says what it examines.
 --
 -- Without an id there is nothing to link to, so it falls back to the plain bracketed name. That
 -- is the same shape, just not clickable, so a chest with a mix of the two still lines up.
 function _G.LootDrops.ItemLink(drop, shown)
 
-    local name = shown or (drop ~= nil and (drop.label or drop.item)) or "?"
+    local name = shown or (drop ~= nil and _G.LootDrops.DisplayName(drop, drop.item)) or "?"
     local id   = drop ~= nil and _G.LootDrops.ItemId(drop.id) or nil
 
     if id == nil then
@@ -305,10 +306,10 @@ function _G.LootDrops.GroupLabel(group)
 end
 
 -- Everything a row can be found under, lowered ONCE at build time so a keystroke costs a find
--- and nothing else. A drop answers to the name the client prints AND to its label, because
--- whoever is searching knows it by one or the other and has no way to tell which this build
--- stores -- and for a group row, `item` is the key and `label` the name on screen, so both find
--- it either way.
+-- and nothing else. A drop answers to the name the client prints AND to its label, because the
+-- label is what people call the thing and is drawn on the row as its description -- typing
+-- either has to reach it. For a group row `item` is the key and `label` the name on screen, so
+-- both find it there too.
 function _G.LootDrops.SearchText(drop)
 
     if drop == nil then return "" end
@@ -767,16 +768,29 @@ end
 -- ------------------------------------------------------------------------------------------------
 -- display names
 
--- What the UI should call this item. `label` in the drops data replaces the client's own name
--- wherever the item is shown -- "[Blighted Shoulder-guards of Shadows]" reading as
--- "Burglar Red Shoulders", which is what people actually call it.
+-- Whether a row HAS a name of its own. A group row is keyed on the group ("Tracery") and a
+-- bucket row on a category the chat never prints ("?? Group 1") -- neither is an item, and
+-- neither key is a name anybody would want read out. Those two are the rows whose `label` IS
+-- the name; everywhere else the client's own name is the name.
+local function Nameless(drop)
+    return drop ~= nil and (drop.isGroup == true or drop.bucket == true)
+end
+
+-- What the UI should call this item: THE NAME THE CLIENT PRINTS. `label` no longer replaces it
+-- -- "Blighted Shoulder-guards of the Endless Flame" is the thing that dropped, it is what the
+-- tooltip and the chat link say, and a row that renamed it left the reader to work out which of
+-- their own words the plugin had chosen. The label is drawn under the name instead, by
+-- DisplayNote below.
+--
+-- THE TWO EXCEPTIONS ARE THE ROWS THAT HAVE NO NAME: a group and a bucket. Their key is a
+-- plugin word or an export's numbering, so their label is not a description of a name -- it is
+-- the only name they have, and it stays the one that is drawn.
 --
 -- Display ONLY. Matching, _G.Drops keys, the wishlist and every stat still use the name the
--- client prints, because that is the only thing chat gives us to match on. Renaming the key
--- would break the lookup the moment the label was edited.
+-- client prints, because that is the only thing chat gives us to match on.
 function _G.LootDrops.DisplayName(drop, fallback)
 
-    if drop ~= nil and drop.label ~= nil and drop.label ~= "" then
+    if Nameless(drop) and drop.label ~= nil and drop.label ~= "" then
         return drop.label
     end
 
@@ -784,10 +798,32 @@ function _G.LootDrops.DisplayName(drop, fallback)
 
 end
 
+-- The short description that goes UNDER the name -- what people actually call the item, in
+-- their own words: "Runekeeper shoulders red" beneath "Blighted Shoulder-guards of the Endless
+-- Flame". Optional, and nil far more often than not.
+--
+-- nil for a group and for a bucket, because there the label is already being drawn AS the name
+-- and repeating it under itself says nothing.
+function _G.LootDrops.DisplayNote(drop)
+
+    if drop == nil or Nameless(drop) then return nil end
+    if drop.label == nil or drop.label == "" then return nil end
+
+    return drop.label
+
+end
+
 -- the display name for one item at one chest, when only the base name is to hand
 function _G.LootDrops.DisplayNameAt(eventIndex, base)
 
     return _G.LootDrops.DisplayName(_G.LootDrops.DropRow(eventIndex, base), base)
+
+end
+
+-- the description for one item at one chest, likewise
+function _G.LootDrops.DisplayNoteAt(eventIndex, base)
+
+    return _G.LootDrops.DisplayNote(_G.LootDrops.DropRow(eventIndex, base))
 
 end
 
@@ -1079,8 +1115,11 @@ end
 -- WHICH LOOT A POPUP SEARCH LEAVES STANDING. Pure, and beside the sort for the same reason: the
 -- rule is about the items, and the window only draws the result.
 --
--- Matched against the NAME AS DRAWN and the LOOTER, because those are the two columns on a row
--- and either is a thing you would type. "ring" finds the rings; "ramor" finds what Ramor took.
+-- Matched against EVERYTHING THE ROW DRAWS -- the name, the description under it, and the
+-- looter -- because any of the three is a thing you would type. "ring" finds the rings,
+-- "runekeeper" finds what the description says a row is, and "ramor" finds what Ramor took.
+-- The description matters as much as the name here: it is the reason somebody typing their own
+-- word for an item finds it at all, which used to work only because the label WAS the name.
 -- Plain find, not a pattern -- an item name holds apostrophes and dashes, and neither is a
 -- search operator to anyone typing one.
 --
@@ -1096,9 +1135,11 @@ function _G.LootDrops.FilterLoot(items, search)
     for _, entry in ipairs(items) do
 
         local name   = _G.LootDrops.DisplayNameAt(entry.logIndex, entry.item.base)
+        local note   = _G.LootDrops.DisplayNoteAt(entry.logIndex, entry.item.base) or ""
         local player = entry.item.player or ""
 
         if string.find(string.lower(name), search, 1, true) ~= nil
+        or string.find(string.lower(note), search, 1, true) ~= nil
         or string.find(string.lower(player), search, 1, true) ~= nil then
             out[#out + 1] = entry
         end

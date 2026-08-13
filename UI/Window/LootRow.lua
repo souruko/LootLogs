@@ -1,5 +1,10 @@
 -- One item row, shared by the loot popup and (from M3) the loot browser.
 --
+-- The name column is TWO LINES where the drops data gives the item a `label`: the game's own
+-- name, and under it in small text what people actually call the thing. The label used to be
+-- drawn instead of the name, which left the row saying something the tooltip and the chat link
+-- did not -- see _G.LootDrops.DisplayNote.
+--
 -- Turbine cannot measure a label and does not clip an oversized one, so every text column is
 -- truncated with _G.Truncate against _G.GlyphWidth. Icons deliberately do not scale with the
 -- Font Size setting: Turbine clips a .tga to its control rather than resizing it, so a scaled
@@ -201,6 +206,25 @@ function _G.LootRow:Constructor(parent)
     self.nameLabel:SetMarkupEnabled(true)
     self.nameLabel:SetMouseVisible(true)
 
+    -- WHAT PEOPLE ACTUALLY CALL IT, under the name the game gives it: "Runekeeper shoulders red"
+    -- beneath "Blighted Shoulder-guards of the Endless Flame". The drops data's `label`, which
+    -- used to REPLACE the name -- and replacing it meant the row no longer said what the tooltip
+    -- and the chat link said, so two people reading the same drop read two different words.
+    --
+    -- Deliberately smaller and dimmer than the name, and never a link: it is a note about the
+    -- item, not the item. Mouse-invisible like every other label here, so the row keeps its
+    -- hover and the name above it keeps its click. Hidden entirely where a row has no label,
+    -- which is most of them -- an empty second line would make every row look two-storey.
+    self.noteLabel = Turbine.UI.Label()
+    self.noteLabel:SetParent(self)
+    self.noteLabel:SetMultiline(false)
+    self.noteLabel:SetFont(_G.Font(10))
+    self.noteLabel:SetFontStyle(_G.Theme.FONT_STYLE)
+    self.noteLabel:SetForeColor(_G.Theme.DIM2)
+    self.noteLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+    self.noteLabel:SetMouseVisible(false)
+    self.noteLabel:SetVisible(false)
+
     self.metaLabel = Turbine.UI.Label()
     self.metaLabel:SetParent(self)
     self.metaLabel:SetMultiline(false)
@@ -249,9 +273,23 @@ function _G.LootRow:LayoutLabels()
     local chanceX = math.max(0, width - CHANCE_W - PAD)
     local metaX   = math.max(0, chanceX - META_W)
 
+    -- TWO LINES WHERE THERE IS A DESCRIPTION, ONE WHERE THERE IS NOT, in the same row height
+    -- either way: the popup's list gives every row the same height, and a row that grew for its
+    -- note would leave the icons and the rules of its neighbours out of step.
+    --
+    -- Split by PROPORTION rather than by font size, because the height already tracks the Font
+    -- Size setting -- 55% of it leaves the 12px name and the 10px note fitting at every step,
+    -- with the name taking the larger share because it is the line that gets read.
+    local nameW = math.max(0, metaX - nameX)
+    local nameH = self.noteLabel:IsVisible() and math.floor(height * 0.55) or height
+
     self.nameLabel:SetPosition(nameX, 0)
-    self.nameLabel:SetHeight(height)
-    self.nameLabel:SetWidth(math.max(0, metaX - nameX))
+    self.nameLabel:SetHeight(nameH)
+    self.nameLabel:SetWidth(nameW)
+
+    self.noteLabel:SetPosition(nameX, nameH)
+    self.noteLabel:SetHeight(math.max(0, height - nameH))
+    self.noteLabel:SetWidth(nameW)
 
     self.metaLabel:SetPosition(metaX, 0)
     self.metaLabel:SetHeight(height)
@@ -272,6 +310,13 @@ function _G.LootRow:RefreshText()
     local item = self.item
     if item == nil then return end
 
+    -- Whether there is a description decides how tall the name's line is, so it is settled
+    -- BEFORE the layout and cut to width after it -- the same order the star already forces on
+    -- this column, and for the same reason: the layout cannot be computed from a state that is
+    -- set afterwards.
+    local note = _G.LootDrops.DisplayNote(self.drop)
+    self.noteLabel:SetVisible(note ~= nil)
+
     self:LayoutLabels()
 
     -- Count and name are truncated as ONE string, so a name too long for the column loses its
@@ -289,6 +334,11 @@ function _G.LootRow:RefreshText()
         glyph)
 
     self.nameLabel:SetText(_G.LootDrops.ItemLink(self.drop, text))
+
+    -- No brackets and no markup on this one, so the whole column is the description's
+    self.noteLabel:SetText(note ~= nil
+        and _G.Truncate(note, self.noteLabel:GetWidth(), _G.GlyphWidth(10))
+        or  "")
 
     local meta = item.player or ""
     if item.level then
@@ -348,21 +398,28 @@ function _G.LootRow:SetLoot(item, drop, eventIndex)
     -- The two chip pairs are one cool and one warm in every theme by design (UI/Theme.lua), so
     -- "mine" and "theirs, and I wanted it" can never be read as the same event -- including in
     -- misty, where they are tints rather than fills.
+    --
+    -- The description takes the looter column's colour rather than the name's, because it is the
+    -- same kind of thing: a supporting line that must stay legible on a tinted ground without
+    -- competing with the name above it.
     if item.isSelf then
         self:SetBackColor(_G.Theme.CHIP_FAV_BG)
         self.rule:SetBackColor(_G.Theme.ACCENT)
         self.nameLabel:SetForeColor(_G.Theme.CHIP_FAV_TEXT)
         self.metaLabel:SetForeColor(_G.Theme.ACCENT)
+        self.noteLabel:SetForeColor(_G.Theme.ACCENT)
     elseif wished then
         self:SetBackColor(_G.Theme.CHIP_USED_BG)
         self.rule:SetBackColor(_G.Theme.CHIP_USED_FRAME)
         self.nameLabel:SetForeColor(_G.Theme.CHIP_USED_TEXT)
         self.metaLabel:SetForeColor(_G.Theme.CHIP_USED_TEXT)
+        self.noteLabel:SetForeColor(_G.Theme.CHIP_USED_TEXT)
     else
         self:SetBackColor(_G.Theme.BG)
         self.rule:SetBackColor(_G.Theme.FRAME)
         self.nameLabel:SetForeColor(QualityColor(drop and drop.quality))
         self.metaLabel:SetForeColor(_G.Theme.DIM2)
+        self.noteLabel:SetForeColor(_G.Theme.DIM2)
     end
 
     -- THE BROWSER'S NUMBER, not a second opinion: the same helper folds the same entries, so a

@@ -118,30 +118,61 @@ check("nil drop yields nil", _G.LootDrops.ShortcutData(nil),      nil)
 check("shortcut type constant",           _G.LootDrops.SHORTCUT_ITEM,          SHORTCUT_TYPE)
 
 -- ------------------------------------------------------------------------------------------------
-section("Display label  (renames the item on screen, never the key)")
+section("Display label  (a description under the name, never the name itself)")
 
-local labelled = { item = "Blighted Shoulder-guards of Shadows",
-                   label = "Burglar Red Shoulders", id = 0x700713ED }
+local labelled = { item = "Blighted Shoulder-guards of the Endless Flame",
+                   label = "Runekeeper shoulders red", id = 0x700713ED }
 local plainRow = { item = "Silver Serpent" }
 
-check("label replaces the shown name",
-    _G.LootDrops.DisplayName(labelled, labelled.item), "Burglar Red Shoulders")
+-- THE LABEL NO LONGER REPLACES THE NAME. The row draws the client's own name and puts the
+-- label under it as a small description, so the row, the tooltip and the chat link all say
+-- the same thing about the same item.
+check("the shown name is the client's own",
+    _G.LootDrops.DisplayName(labelled, labelled.item),
+    "Blighted Shoulder-guards of the Endless Flame")
+check("the label is the description",
+    _G.LootDrops.DisplayNote(labelled), "Runekeeper shoulders red")
 check("no label falls back to the client name",
     _G.LootDrops.DisplayName(plainRow, plainRow.item), "Silver Serpent")
+check("no label is no description",     _G.LootDrops.DisplayNote(plainRow), nil)
 check("nil drop falls back",
     _G.LootDrops.DisplayName(nil, "Silver Serpent"), "Silver Serpent")
+check("nil drop has no description",    _G.LootDrops.DisplayNote(nil), nil)
 check("empty label is not a rename",
     _G.LootDrops.DisplayName({ item = "x", label = "" }, "x"), "x")
+check("empty label is not a description",
+    _G.LootDrops.DisplayNote({ item = "x", label = "" }), nil)
 
--- the key is untouched: the label must not affect matching, or a rename would silently stop
--- the parser recognising the item
-check("label does not become a lookup key", _G.LootDrops.Canonical("Burglar Red Shoulders"), nil)
+-- THE TWO ROWS THAT HAVE NO NAME OF THEIR OWN keep the label as their name: a group is keyed on
+-- the plugin's word for a set and a bucket on the export's numbering, and neither key is
+-- something to read out. Their label is therefore not a description and must not be drawn twice.
+local groupRow  = { item = "Group 1",    label = "Fallen Armour", isGroup = true }
+local bucketRow = { item = "?? Group 1", label = "Group 1",       bucket  = true }
+
+check("a group is named by its label",
+    _G.LootDrops.DisplayName(groupRow, groupRow.item), "Fallen Armour")
+check("and has no description under it",  _G.LootDrops.DisplayNote(groupRow),  nil)
+check("a bucket is named by its label",
+    _G.LootDrops.DisplayName(bucketRow, bucketRow.item), "Group 1")
+check("and has no description either",    _G.LootDrops.DisplayNote(bucketRow), nil)
+
+-- the key is untouched: the label must not affect matching, or a description would silently
+-- stop the parser recognising the item
+check("label does not become a lookup key",
+    _G.LootDrops.Canonical("Runekeeper shoulders red"), nil)
 check("catalogued name still resolves",
     _G.LootDrops.Canonical("Silver Serpent"), "Silver Serpent")
 
 -- a labelled row still keys its shortcut off the real id
 check("label does not disturb the shortcut",
     _G.LootDrops.ShortcutData(labelled), "0x0000000000000000,0x700713ED")
+
+-- THE LINK READS AS THE ITEM IT EXAMINES. A link whose text was one player's nickname for the
+-- thing, pasted into fellowship chat, is a link nobody else can place.
+check("the item link reads as the client's name",
+    _G.LootDrops.ItemLink(labelled, nil),
+    "<Examine:IIDDID:0x0000000000000000:0x700713ED>" ..
+    "[Blighted Shoulder-guards of the Endless Flame]<\\Examine>")
 
 -- ------------------------------------------------------------------------------------------------
 section("Loot line patterns  (both link forms, from the live client)")
@@ -1234,6 +1265,22 @@ check("a match anywhere in the name counts",
 check("a looter matches too",
     found("ramor"), "Keen Conscript's Ring, Bright Conscript's Ring")
 
+-- THE DESCRIPTION UNDER THE NAME IS SEARCHABLE TOO, and it has to be: it is what people call
+-- the item in their own words, and typing that used to find the row only because the label was
+-- drawn AS the name. Set on the row here rather than hunted for in the data, because no
+-- generated row carries a label yet and the rule has to hold the day one does.
+local described = _G.LootDrops.DropRow(544, "Sun-kissed Essence Box")
+described.label = "Runekeeper shoulders red"
+
+check("a description matches",
+    found("runekeeper"), "Sun-kissed Essence Box")
+check("case does not matter there either",
+    found("RUNEKEEPER"), "Sun-kissed Essence Box")
+check("and the name it describes still matches",
+    found("essence"), "Sun-kissed Essence Box")
+
+described.label = nil       -- the data is shared with every test below this one
+
 check("nothing matching is nothing shown", found("mithril"), "")
 
 -- Plain find, not a pattern: item names hold apostrophes and dashes, and a search box is not a
@@ -1278,12 +1325,21 @@ check("no id falls back to a plain bracketed name",
 check("nil drop still renders something",
     _G.LootDrops.ItemLink(nil, "Silver Serpent"), "[Silver Serpent]")
 
--- The link TEXT is the display name; the id is what resolves. So a renamed item reads as its
--- nickname and still links to the real thing.
-check("the link reads as the label",
+-- The link TEXT is the display name -- the client's own name for the item, which is what the
+-- id resolves to and what the tooltip will say. A row's `label` is a description drawn under
+-- the name and is deliberately not what the link reads as: a link pasted into chat has to name
+-- the thing it examines.
+check("the link reads as the client's name, not the label",
     _G.LootDrops.ItemLink({ item = "Blighted Shoulder-guards of Shadows",
                             label = "Burglar Red Shoulders", id = 0x700713ED }),
-    "<Examine:IIDDID:0x0000000000000000:0x700713ED>[Burglar Red Shoulders]<\\Examine>")
+    "<Examine:IIDDID:0x0000000000000000:0x700713ED>" ..
+    "[Blighted Shoulder-guards of Shadows]<\\Examine>")
+
+-- A group has no name but its label, so there the label IS what the link would read -- except
+-- a group carries no id, so it falls back to the plain bracketed form.
+check("a group still reads as its label",
+    _G.LootDrops.ItemLink({ item = "Group 1", label = "Fallen Armour", isGroup = true }),
+    "[Fallen Armour]")
 
 -- ItemId is load-bearing twice over: the link and the layered icon both format an id, and
 -- neither can do it to a string.
