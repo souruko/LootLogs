@@ -13,7 +13,7 @@
 --=
 --= This file is INPUT to LootLogs, produced by the separate cataloguing plugin. See
 --= Logs/Drops/English.lua for the row format, including the optional `plural` field that
---= stacked drops need and the `label` that renames an item on screen.
+--= stacked drops need and the `label` that describes an item under its name on screen.
 --=================================================================================================
 
 _G.Drops = {}

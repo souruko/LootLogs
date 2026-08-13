@@ -7,6 +7,9 @@ numbers above it moves. The leading number moves only for a major overhaul of th
 ## [4.49.3] - 2026-08-13
 
 ### Changed
+- An item's label no longer replaces its name. Rows show the name the game itself prints, with the label underneath it in small text as a short description — "Blighted Shoulder-guards of the Endless Flame" with "Runekeeper shoulders red" below it — in the loot popup and the loot browser alike
+- Item links and chat alerts read as the real item name too, so a drop you paste into fellowship chat names the thing everyone else sees
+- Searching still finds an item by its description, in either window, so whichever of the two names you know gets you to the row
 - Chat parsing no longer runs every one of the plugin's ~600 chest patterns against every line the game prints. Each pattern implies literal text a matching line must contain, so the lines are looked up by that text and only the handful of patterns that could possibly match are run — the same matches in the same order, for about a thirtieth of the work
 - Reading a loot line stopped searching for the item name with a pattern. The link markup in front of the name is a hundred-odd bytes on the form the game uses for something in your bags, and matching lazily through it cost more than everything else in the loot path put together
 - The loot buffer is a ring rather than a list rebuilt on every drop. A six-man run filled and re-copied a 200-entry table for every item anybody picked up, at exactly the moment the client was busiest

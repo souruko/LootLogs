@@ -821,6 +821,28 @@ function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
 
     end
 
+    -- The drops data's `label`, drawn UNDER the name as a small description -- "Runekeeper
+    -- shoulders red" beneath the game's own words for the same shoulders. The popup's row does
+    -- exactly this (UI/Window/LootRow.lua) and the two windows have to agree, or the same item
+    -- reads as two different things depending on which one you opened.
+    --
+    -- nil on most rows and on every category row, so the label is built only where there is
+    -- something to put in it and the name keeps the whole row height otherwise.
+    local note      = _G.LootDrops.DisplayNote(drop)
+    local noteLabel = nil
+
+    if note ~= nil then
+        noteLabel = Turbine.UI.Label()
+        noteLabel:SetParent(row)
+        noteLabel:SetMultiline(false)
+        noteLabel:SetFont(_G.Font(10))
+        noteLabel:SetFontStyle(_G.Theme.FONT_STYLE)
+        noteLabel:SetForeColor(_G.Theme.DIM2)
+        noteLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+        -- mouse-invisible, so the row's own highlight survives the pointer crossing it
+        noteLabel:SetMouseVisible(false)
+    end
+
     -- WHAT THE LEAD FIGURE IS MADE OF. An item in six of a chest's pools has six rates, and
     -- they are six separate chances rather than one repeated -- so they are printed, biggest
     -- first, one step dimmer and one size down. A single entry prints nothing: the lead figure
@@ -965,11 +987,25 @@ function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
         local anyX     = barX - GAP - COL_ANY
         local entriesX = anyX - COL_ENTRIES
 
+        -- The name gives up the top 55% of the row where there is a description under it, and
+        -- keeps the whole height where there is not -- the same split as the popup's row, and
+        -- by proportion for the same reason: the height tracks the Font Size setting.
+        local nameH = note ~= nil and math.floor(ROW_H * 0.55) or ROW_H
+
         nameLabel:SetPosition(NAME_X, 0)
+        nameLabel:SetHeight(nameH)
         nameLabel:SetWidth(math.max(0, entriesX - NAME_X - GAP))
 
         local glyph = _G.GlyphWidth(12)
         local name  = _G.LootDrops.DisplayName(drop, drop.item)
+
+        if noteLabel ~= nil then
+            noteLabel:SetPosition(NAME_X, nameH)
+            noteLabel:SetHeight(math.max(0, ROW_H - nameH))
+            noteLabel:SetWidth(nameLabel:GetWidth())
+            -- plain text, so the column's full width is the description's
+            noteLabel:SetText(_G.Truncate(note, noteLabel:GetWidth(), _G.GlyphWidth(10)))
+        end
 
         if drop.category then
             -- plain text, so the full width is the text's own -- no brackets to pay for

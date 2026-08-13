@@ -33,7 +33,12 @@
 --= plural  : OPTIONAL, the spelling used when more than one drops at once. Cannot be derived by
 --=           rule ("Badges of Forgotten Rank"), and the CSV does not carry it, so it is filled
 --=           in from a capture.
---= label   : OPTIONAL, what to CALL the item on screen. Display only; `item` stays the key.
+--= label   : OPTIONAL, a SHORT DESCRIPTION of the item, drawn in small text UNDER its name --
+--=           "Runekeeper shoulders red" below "Blighted Shoulder-guards of the Endless Flame".
+--=           It does NOT rename the item: the name on screen, in the tooltip and in the chat
+--=           link is always the one the client prints. Display only; `item` stays the key.
+--=           On a `?? ` category row the label IS the name, because that row has none of its
+--=           own.
 --= quality : OPTIONAL, "incomparable" | "rare" | "uncommon" | "common".
 --= slot    : OPTIONAL free text for the browser's slot column.
 --= popup   : true means worth interrupting the player for, and it is the ONLY thing the loot
