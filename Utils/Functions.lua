@@ -4,6 +4,8 @@
 --= utility functions
 --=================================================================================================
 
+import "LootLogs.Utils.EventIndex"
+
 
 function _G.PrintAlert(text)
     
@@ -266,25 +268,28 @@ function _G.InstanceTierStates(instanceId, characterId)
     local character = characterId ~= nil and _G.Logs[characterId] or nil
     if character == nil or character.logs == nil then return nil end
 
-    -- gather the tiers of this instance, and the boss buckets within each tier
+    -- gather the tiers of this instance, and the boss buckets within each tier.
+    --
+    -- One instance's events, not all of them: the sidebar calls this once per instance item and
+    -- refreshes the lot on every chest anyone loots, so filtering the whole event table here was
+    -- the same walk repeated sixty times over.
     local tiers = {}
-    for eventIndex, event in pairs(_G.Events) do
-        if event.instance == instanceId then
-            local tierName = tostring(event.tier)
-            if tiers[tierName] == nil then
-                tiers[tierName] = {
-                    name   = tierName,
-                    order  = (_G.TierOrder and _G.TierOrder[tierName]) or 99,
-                    bosses = {},
-                }
-            end
-            local bossOrder = event.order or 99
-            if tiers[tierName].bosses[bossOrder] == nil then
-                tiers[tierName].bosses[bossOrder] = {}
-            end
-            local indices = tiers[tierName].bosses[bossOrder]
-            indices[#indices + 1] = eventIndex
+    for _, eventIndex in ipairs(_G.EventIndex.ForInstance(instanceId)) do
+        local event    = _G.Events[eventIndex]
+        local tierName = tostring(event.tier)
+        if tiers[tierName] == nil then
+            tiers[tierName] = {
+                name   = tierName,
+                order  = (_G.TierOrder and _G.TierOrder[tierName]) or 99,
+                bosses = {},
+            }
         end
+        local bossOrder = event.order or 99
+        if tiers[tierName].bosses[bossOrder] == nil then
+            tiers[tierName].bosses[bossOrder] = {}
+        end
+        local indices = tiers[tierName].bosses[bossOrder]
+        indices[#indices + 1] = eventIndex
     end
 
     local ordered = {}

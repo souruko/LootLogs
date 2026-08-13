@@ -1,4 +1,6 @@
 
+import "LootLogs.Utils.EventIndex"
+
 -- content panel geometry (docs/design/window-redesign/README.md, section 5)
 local BORDER, HEADER_H, LEGEND_H, PILL_W, PILL_H, TYPE_W, ACT_H, ACT_CLEAR_W, ACT_DEL_W
 
@@ -75,7 +77,56 @@ end
 
 -- ------------------------------------------------------------------------------------------------
 
+-- A REBUILD THE PLAYER CANNOT SEE IS NOT WORTH DOING NOW.
+--
+-- UpdateContent tears the list down and builds every row of it again, and it is called from
+-- ProcessMatch -- so a raid with the window closed, which is the normal way to raid, paid for a
+-- full rebuild on every chest anyone in the group looted. The work is not skipped, it is
+-- deferred: the window flushes it on its way open (see _G.LLWindow:SetVisible), so what is on
+-- screen is never stale.
 function ContentView:UpdateContent()
+
+    if not self:WindowIsVisible() then
+        self.deferred = true
+        return
+    end
+
+    self.deferred = false
+
+    self:RebuildContent()
+
+end
+
+-- Whether the whole window is on screen, not just this control: a child keeps its own visible
+-- flag when the window hiding it is closed, so IsVisible() on the view answers the wrong
+-- question. The settings panel swapping places with the view is that flag, and it is checked
+-- too -- the view is rebuilt when the player switches back.
+function ContentView:WindowIsVisible()
+
+    local window = _G.Window
+
+    if window == nil or window.contentView ~= self then
+        -- built but not installed yet: the constructor's own first pass, which must run
+        return true
+    end
+
+    return window:IsVisible() and self:IsVisible()
+
+end
+
+-- Pays off whatever was banked while the view was off screen. Cheap and safe to call when
+-- nothing was: the flag is the whole state.
+function ContentView:FlushDeferred()
+
+    if not self.deferred then return end
+
+    self.deferred = false
+    self:RebuildContent()
+
+end
+
+-- Rebuilds now, whatever the window is doing. The flush path, and the constructor's.
+function ContentView:RebuildContent()
 
     local tab       = _G.Settings.selected.tab
     local charId    = _G.Settings.selected.character
@@ -193,21 +244,25 @@ local function FormatTimeRemaining(seconds, absTime)
 end
 
 -- Build tiers[tierName] = { order, bosses = { bossOrder -> { name, indices[] } } } for one instance.
+--
+-- Reads the instance's own event list rather than filtering all ~600 of them. This and the four
+-- helpers under it are each called once per tier per instance per rebuild, so the whole table
+-- used to be walked something like a hundred times to draw one content pack.
 local function buildInstanceTiers(instanceId)
-    local tiers = {}
-    for eventIndex, event in pairs(_G.Events) do
-        if event.instance == instanceId then
-            local tierName = tostring(event.tier)
-            if tiers[tierName] == nil then
-                tiers[tierName] = { order = tierOrder(event.tier), bosses = {} }
-            end
-            local o = event.order or 99
-            if tiers[tierName].bosses[o] == nil then
-                tiers[tierName].bosses[o] = { name = event.name, indices = {} }
-            end
-            local idx = tiers[tierName].bosses[o].indices
-            idx[#idx + 1] = eventIndex
+    local tiers  = {}
+    local Events = _G.Events
+    for _, eventIndex in ipairs(_G.EventIndex.ForInstance(instanceId)) do
+        local event    = Events[eventIndex]
+        local tierName = tostring(event.tier)
+        if tiers[tierName] == nil then
+            tiers[tierName] = { order = tierOrder(event.tier), bosses = {} }
         end
+        local o = event.order or 99
+        if tiers[tierName].bosses[o] == nil then
+            tiers[tierName].bosses[o] = { name = event.name, indices = {} }
+        end
+        local idx = tiers[tierName].bosses[o].indices
+        idx[#idx + 1] = eventIndex
     end
 
     local sortedTierNames = {}
@@ -283,9 +338,9 @@ end
 -- the lockout just extends. In practice this is always the Weeklies tier of a tracker
 -- instance, but the flag is read rather than assumed.
 local function TierCarriesOver(instanceId, tierName)
-    for _, event in pairs(_G.Events) do
-        if event.instance == instanceId and tostring(event.tier) == tierName
-           and event.onlyResetIfDone then
+    for _, eventIndex in ipairs(_G.EventIndex.ForInstance(instanceId)) do
+        local event = _G.Events[eventIndex]
+        if tostring(event.tier) == tierName and event.onlyResetIfDone then
             return true
         end
     end
@@ -293,8 +348,8 @@ local function TierCarriesOver(instanceId, tierName)
 end
 
 local function InstanceCarriesOver(instanceId)
-    for _, event in pairs(_G.Events) do
-        if event.instance == instanceId and event.onlyResetIfDone then
+    for _, eventIndex in ipairs(_G.EventIndex.ForInstance(instanceId)) do
+        if _G.Events[eventIndex].onlyResetIfDone then
             return true
         end
     end
@@ -303,8 +358,9 @@ end
 
 -- The reset schedule of a tier, taken from its first event.
 local function TierReset(instanceId, tierName)
-    for _, event in pairs(_G.Events) do
-        if event.instance == instanceId and tostring(event.tier) == tierName then
+    for _, eventIndex in ipairs(_G.EventIndex.ForInstance(instanceId)) do
+        local event = _G.Events[eventIndex]
+        if tostring(event.tier) == tierName then
             return event.reset
         end
     end

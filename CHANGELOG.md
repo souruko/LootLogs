@@ -4,6 +4,17 @@ Versions are `<major>.<lotro update>.<release>`. The middle number is the LOTRO 
 build targets, and the last number counts fixes and changes within it, resetting when either of the
 numbers above it moves. The leading number moves only for a major overhaul of the plugin itself.
 
+## [4.49.3] - 2026-08-13
+
+### Changed
+- Chat parsing no longer runs every one of the plugin's ~600 chest patterns against every line the game prints. Each pattern implies literal text a matching line must contain, so the lines are looked up by that text and only the handful of patterns that could possibly match are run — the same matches in the same order, for about a thirtieth of the work
+- Reading a loot line stopped searching for the item name with a pattern. The link markup in front of the name is a hundred-odd bytes on the form the game uses for something in your bags, and matching lazily through it cost more than everything else in the loot path put together
+- The loot buffer is a ring rather than a list rebuilt on every drop. A six-man run filled and re-copied a 200-entry table for every item anybody picked up, at exactly the moment the client was busiest
+- A chest line that records nothing no longer saves the whole log file and rebuilds the window. Saving copies every character's lockouts twice over, and it was running on matches that had changed nothing at all
+- With the window closed, a chest no longer rebuilds a table nobody is looking at. The rebuild is banked and paid when the window opens, so what is on screen is never stale
+- The window's own lookups ask for one instance's chests instead of filtering all of them, once per tier per instance per redraw
+- Drop chances are worked out once per item per chest instead of on every redraw, so typing in the popup's search box no longer re-reads the chest's whole loot table for every row on every keystroke
+
 ## [4.49.2] - 2026-08-12
 
 ### Changed

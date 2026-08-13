@@ -55,12 +55,18 @@ local BUFFER_MAX = 200
 -- Both link forms wrap the name in markup the plan did not know about --
 --   <Examine:IIDDID:0x<64>:0x<32>>[Name]<\Examine>          an item you do NOT hold
 --   <ExamineItemInstance:ItemInfo:<blob>>[Name]<\...>       an item now in your bags
--- so ".-" before the bracket is doing real work. It is safe: a name cannot contain "[", and
--- the blob is built from high codepoints whose UTF-8 bytes are all >= 0x80, so no raw 0x5B
--- can appear inside it either.
+-- so the name has to be FOUND rather than sat at a known offset. It is safe to look for the
+-- bracket: a name cannot contain "[", and the blob is built from high codepoints whose UTF-8
+-- bytes are all >= 0x80, so no raw 0x5B can appear inside it either.
+--
+-- Only the two verbs are patterns now. Locating the bracketed name used to be part of them --
+-- ".-%[(.-)%]" -- and that lazy run is the single most expensive thing in the loot path: it
+-- re-enters the pattern matcher once per byte of link markup, and an ExamineItemInstance blob
+-- is a hundred-odd bytes of it, on every loot line six people generate. ParseLootLine finds
+-- the brackets with plain finds instead, which is memchr and not a matcher at all.
 local P = {
-    lootSelf  = "^You have acquired: .-%[(.-)%]",
-    lootOther = "^(%S+) has acquired .-%[(.-)%]",
+    lootSelf  = "^You have acquired: ",
+    lootOther = "^(%S+) has acquired ",
 }
 _G.LootDrops.P = P
 
@@ -548,7 +554,18 @@ local function EntriesFor(eventIndex, canonical, groupKey)
 
 end
 
--- Every entry one item has at one chest, biggest first.
+-- MEMOISED, because the answer is a property of _G.Drops and nothing else.
+--
+-- EntriesFor walks a whole chest -- three hundred rows at a good one -- allocating a table per
+-- hit and sorting the result. Every popup row and every browser row asks for it, and the popup
+-- asks again for every one of them on every keystroke in its search box. The drops table is
+-- input and never written here, so the walk is done once per (chest, name) and kept.
+--
+-- Dropped by RebuildIndex, alongside the lookups it is built from.
+local entriesOf = {}
+
+-- Every entry one item has at one chest, biggest first. SHARED AND CACHED: treat the list, and
+-- the entries in it, as read-only.
 --
 -- A COLLAPSE GROUP ANSWERS FOR ITS MEMBERS. "Tracery" is not an item, has no row of its own and
 -- no id; the entries it stands for are the category's, which is the same rule that gives it one
@@ -557,7 +574,19 @@ function _G.LootDrops.ItemEntries(eventIndex, itemName)
 
     if _G.Drops == nil or itemName == nil then return {} end
 
-    return EntriesFor(eventIndex, Canonical(itemName) or itemName, itemName)
+    local byName = entriesOf[eventIndex]
+    if byName == nil then
+        byName                 = {}
+        entriesOf[eventIndex]  = byName
+    end
+
+    local entries = byName[itemName]
+    if entries == nil then
+        entries           = EntriesFor(eventIndex, Canonical(itemName) or itemName, itemName)
+        byName[itemName]  = entries
+    end
+
+    return entries
 
 end
 
@@ -1280,6 +1309,7 @@ end
 -- should not need a full plugin restart
 function _G.LootDrops.RebuildIndex()
     alias, events, dropOf = nil, nil, nil
+    entriesOf = {}
 end
 
 -- ------------------------------------------------------------------------------------------------
@@ -1326,7 +1356,20 @@ end
 -- ------------------------------------------------------------------------------------------------
 -- the buffer, and the chest waiting on its window
 
+-- THE BUFFER IS A RING, not a list that is rebuilt.
+--
+-- Pruning used to allocate a fresh table and copy every survivor into it on EVERY loot line,
+-- then shift the whole thing down with table.remove(kept, 1) once the cap was reached -- which
+-- is exactly when a six-man run is at its busiest. Both costs are per line, and both are gone:
+-- entries only ever leave from the front, so a head index removes them in constant time.
+--
+-- `head`..`tail` are live; everything outside is nil. The table is compacted back to 1 when it
+-- empties (any pause in looting longer than the window does it) or when the head has walked
+-- past a bufferful, so the array part cannot grow with the length of the session.
 local buffer  = {}
+local head    = 1
+local tail    = 0
+
 local pending = nil
 local newRun  = false       -- a run started; the next resolved chest opens a fresh one
 
@@ -1337,23 +1380,43 @@ local function Now()
 end
 
 -- Age, not count. A 40-entry cap held well under a second of a six-man run, which would have
--- let the forward window read a buffer that had already discarded what it wanted.
+-- let the forward window read a buffer that had already discarded what it wanted. The count
+-- below is only a memory backstop.
+--
+-- Stopping at the first entry young enough relies on the buffer being in time order, which it
+-- is: entries are appended as chat prints them and game time does not run backwards.
 local function Prune(now)
 
     local horizon = now - BackWindow() - 2
 
-    local kept = {}
-    for _, item in ipairs(buffer) do
-        if item.t >= horizon then
-            kept[#kept + 1] = item
+    while head <= tail and buffer[head].t < horizon do
+        buffer[head] = nil
+        head         = head + 1
+    end
+
+    while tail - head + 1 > BUFFER_MAX do
+        buffer[head] = nil
+        head         = head + 1
+    end
+
+    if head > tail then
+
+        head, tail = 1, 0
+
+    elseif head > BUFFER_MAX then
+
+        -- Amortised: the head has to walk a whole bufferful before this runs again, so the
+        -- shift costs O(1) per line. Writing down before reading up is safe because what is
+        -- left is at most BUFFER_MAX entries and the head is already past that.
+        local slot = 0
+        for index = head, tail do
+            slot          = slot + 1
+            buffer[slot]  = buffer[index]
+            buffer[index] = nil
         end
-    end
+        head, tail = 1, slot
 
-    while #kept > BUFFER_MAX do
-        table.remove(kept, 1)
     end
-
-    buffer = kept
 
 end
 
@@ -1367,7 +1430,8 @@ local function Since(since)
 
     local items = {}
 
-    for _, item in ipairs(buffer) do
+    for index = head, tail do
+        local item = buffer[index]
         if item.t >= since and not item.claimed then
             items[#items + 1] = item
         end
@@ -1390,20 +1454,39 @@ end
 -- ------------------------------------------------------------------------------------------------
 -- chat
 
+-- Who looted what, out of one chat line: looter, the raw bracketed name, and whether it was
+-- you. nil for anything that is not a loot line -- currency shares the channel and has no
+-- bracket at all.
+--
+-- The whole of the loot path's parsing lives here so there is one answer to "is this a loot
+-- line", and the order it asks in is the order the old pair of patterns asked in: yours first,
+-- then anybody's.
+function _G.LootDrops.ParseLootLine(message)
+
+    -- CHEAPEST TEST FIRST. Every loot line has a bracketed name; most lines on this channel are
+    -- not loot lines, and this rules them out with one memchr rather than two pattern runs.
+    local open = string.find(message, "[", 1, true)
+    if open == nil then return nil end
+
+    local close = string.find(message, "]", open + 1, true)
+    if close == nil then return nil end
+
+    if string.find(message, P.lootSelf) ~= nil then
+        return _G.name, string.sub(message, open + 1, close - 1), true
+    end
+
+    local player = string.match(message, P.lootOther)
+    if player == nil then return nil end
+
+    return player, string.sub(message, open + 1, close - 1), false
+
+end
+
 -- Called from ChatParsing for SelfLoot (36) and FellowLoot (37) only. Those types are
 -- discarded by the filter below the call site; this runs before it.
 function _G.LootDrops.HandleChat(chatType, message)
 
-    local player, raw, isSelf
-
-    raw = string.match(message, P.lootSelf)
-    if raw ~= nil then
-        player = _G.name
-        isSelf = true
-    else
-        player, raw = string.match(message, P.lootOther)
-        isSelf = false
-    end
+    local player, raw, isSelf = _G.LootDrops.ParseLootLine(message)
 
     if raw == nil then return end
 
@@ -1414,17 +1497,28 @@ function _G.LootDrops.HandleChat(chatType, message)
     local canonical = Canonical(base)
     if canonical == nil then return end
 
+    -- Gated on a plain find, because the id is a bonus and most lines do not carry one: the
+    -- ExamineItemInstance form has no id, and an unanchored pattern would still have walked the
+    -- whole line looking for one. A match can only begin at the literal the pattern opens with,
+    -- so starting there loses nothing.
+    local id      = nil
+    local examine = string.find(message, "Examine:", 1, true)
+    if examine ~= nil then
+        id = string.match(message, EXAMINE_ID, examine)
+    end
+
     local entry = {
         base     = canonical,
         level    = level,
         quantity = quantity,
         player   = player,
         isSelf   = isSelf,
-        id       = string.match(message, EXAMINE_ID),
+        id       = id,
         t        = Now(),
     }
 
-    buffer[#buffer + 1] = entry
+    tail         = tail + 1
+    buffer[tail] = entry
     Prune(entry.t)
 
     -- A chest is open and this line landed inside its forward window, so it belongs to that

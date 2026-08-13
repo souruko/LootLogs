@@ -59,33 +59,36 @@ function ProcessMatch(message, log, logIndex)
 
     end
 
-    if newEntry then
-        logs[logIndex] = newEntry
-    end
+    -- NOTHING CHANGED, NOTHING TO DO. A matched line that records no new entry is the common
+    -- case -- progress that would overwrite a "Done", a chest line with no count in it -- and it
+    -- used to cost a full SaveLogs (which deep-copies every character's whole log table for the
+    -- Euro twin, then writes both) plus a complete teardown and rebuild of the window, every
+    -- time. `newEntry` is the only thing in this function that writes anything.
+    if newEntry == nil then return end
+
+    logs[logIndex] = newEntry
 
     SaveLogs()
 
-    if newEntry then
-        local event     = _G.Events[logIndex]
-        local instance  = _G.Instances[event.instance]
-        local remaining = newEntry.timeOfDeath - Turbine.Engine.GetLocalTime()
-        _G.PrintAlert(
-            _G.CM("HOVER") .. "[" .. (instance and instance.name or "?") .. "]" .. _G.CMR ..
-            " " .. event.name ..
-            " " .. _G.CM("DIM") .. "(" .. event.tier .. ")" .. _G.CMR ..
-            "  " .. newEntry.value ..
-            "  " .. _G.CM("ACCENT") .. _G.FormatTimeSpan(remaining) .. _G.CMR
-        )
-        if _G.QuickLaunchBtn then
-            _G.QuickLaunchBtn:IncrementBadge()
-        end
+    local event     = _G.Events[logIndex]
+    local instance  = _G.Instances[event.instance]
+    local remaining = newEntry.timeOfDeath - Turbine.Engine.GetLocalTime()
+    _G.PrintAlert(
+        _G.CM("HOVER") .. "[" .. (instance and instance.name or "?") .. "]" .. _G.CMR ..
+        " " .. event.name ..
+        " " .. _G.CM("DIM") .. "(" .. event.tier .. ")" .. _G.CMR ..
+        "  " .. newEntry.value ..
+        "  " .. _G.CM("ACCENT") .. _G.FormatTimeSpan(remaining) .. _G.CMR
+    )
+    if _G.QuickLaunchBtn then
+        _G.QuickLaunchBtn:IncrementBadge()
+    end
 
-        -- Hand the identified chest to the loot feature. logIndex is all it needs:
-        -- _G.Events[logIndex] carries boss, tier and instance, and _G.Drops[logIndex] is that
-        -- chest's loot table. Only fires for a chest that actually recorded something.
-        if _G.LootDrops then
-            _G.LootDrops.OnChestEvent(logIndex, message)
-        end
+    -- Hand the identified chest to the loot feature. logIndex is all it needs:
+    -- _G.Events[logIndex] carries boss, tier and instance, and _G.Drops[logIndex] is that
+    -- chest's loot table. Only fires for a chest that actually recorded something.
+    if _G.LootDrops then
+        _G.LootDrops.OnChestEvent(logIndex, message)
     end
 
     if _G.Window and _G.Window.contentView then

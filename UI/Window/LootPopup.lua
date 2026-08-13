@@ -9,6 +9,7 @@
 
 import "LootLogs.UI.Window.PanelWindow"
 import "LootLogs.UI.Window.LootRow"
+import "LootLogs.Utils.EventIndex"
 
 local PAD, GAP, ROW_H, CHIP_H, CHIP_GAP, POPUP_W, FOOT_H, SEP_W, TITLE_H, MIN_ROWS
 local MAX_ROWS, SCROLL_W, FIND, ICON, MIN_WIDTH, MIN_HEIGHT, SECTION_H
@@ -255,8 +256,9 @@ function _G.LootPopup:BossEvents(instance, tier)
 
     local list = {}
 
-    for eventIndex, event in pairs(_G.Events) do
-        if event.instance == instance and event.tier == tier then
+    for _, eventIndex in ipairs(_G.EventIndex.ForInstance(instance)) do
+        local event = _G.Events[eventIndex]
+        if event.tier == tier then
             list[#list + 1] = { index = eventIndex, event = event }
         end
     end

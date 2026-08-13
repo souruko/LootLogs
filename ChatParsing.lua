@@ -1,11 +1,10 @@
 --=================================================================================================
---= Chat parsing        
+--= Chat parsing
 --= ===============================================================================================
 --= parse the chat and call handlers if a match is found
 --=================================================================================================
 
-
-
+import "LootLogs.Utils.EventIndex"
 
 -- lotro chat interface ---------------------------------------------------------------------------
 function Turbine.Chat.Received(sender, args)
@@ -50,9 +49,10 @@ function Turbine.Chat.Received(sender, args)
     -- player picked something up in a quest hub.
     --
     -- The prefix test is a cheap gate so the entry table is only walked for the handful of
-    -- lines that could possibly be one.
+    -- lines that could possibly be one. Plain find, not a pattern: the prefix is literal text
+    -- and this runs on every line the client prints.
     if _G.LootDrops and _G.InstanceEntries and _G.InstanceEntryPrefix
-        and string.find(args.Message, _G.InstanceEntryPrefix) then
+        and string.find(args.Message, _G.InstanceEntryPrefix, 1, true) then
 
         for _, entry in ipairs(_G.InstanceEntries) do
             if string.find(args.Message, entry.match) then
@@ -68,14 +68,13 @@ function Turbine.Chat.Received(sender, args)
     -- deliberately does not return: quest trackers are matched below and some of them arrive
     -- on this same chat type
 
-    -- iterate logs and compare to the message
-    for logIndex, log in ipairs(_G.Events) do
-
-        if (string.find(args.Message, log.match)) then
-            ProcessMatch(args.Message, log, logIndex)
-
-        end
-
-    end
+    -- Every event whose pattern matches, in event-index order.
+    --
+    -- THIS USED TO BE A LOOP OVER ALL OF _G.Events, running every one of its ~600 patterns
+    -- against every line the client printed -- 200us a line, on the thread that draws the game.
+    -- EventIndex narrows it to the handful of events whose required literal text is actually in
+    -- the line, and the patterns still decide; the index only decides which ones are worth
+    -- asking. Same matches, same order, ~35x less work.
+    _G.EventIndex.Scan(args.Message, ProcessMatch)
 
 end

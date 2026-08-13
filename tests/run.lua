@@ -62,6 +62,7 @@ import = function() end
 dofile("Logs/English.lua")
 dofile("Logs/Drops/English.lua")
 dofile("LootDrops.lua")
+dofile("Utils/EventIndex.lua")
 
 -- ------------------------------------------------------------------------------------------------
 section("Item shortcut data  (dragged onto the row quickslot, live client)")
@@ -146,12 +147,14 @@ check("label does not disturb the shortcut",
 -- ------------------------------------------------------------------------------------------------
 section("Loot line patterns  (both link forms, from the live client)")
 
+-- THE REAL PARSER, not a re-implementation of it against the same patterns. Locating the name
+-- is no longer a pattern at all (plain finds, because the link markup in front of it is long
+-- and lazy matching it was the loot path's biggest cost), so a test that ran the patterns
+-- itself would stop testing anything the plugin does.
 local function parse(message)
-    local raw = string.match(message, _G.LootDrops.P.lootSelf)
-    if raw ~= nil then return "you", raw end
-    local player, other = string.match(message, _G.LootDrops.P.lootOther)
-    if other ~= nil then return player, other end
-    return nil, nil
+    local player, raw, isSelf = _G.LootDrops.ParseLootLine(message)
+    if raw == nil then return nil, nil end
+    return isSelf and "you" or player, raw
 end
 
 -- Examine link: an item you do NOT hold, or your own while still (pending)
@@ -1304,8 +1307,7 @@ check("and a 0x-prefixed string too",
 -- THE ROUND TRIP. A link we print, dropped into a loot line, must come back out of our own
 -- parser as the item it names. If the two ever drift apart this fails.
 local link = _G.LootDrops.ItemLinkAt(546, "Silver Serpent")
-local backOut = string.match("You have acquired: " .. link .. " (pending).",
-    _G.LootDrops.P.lootSelf)
+local _, backOut = _G.LootDrops.ParseLootLine("You have acquired: " .. link .. " (pending).")
 check("our own link parses back as a loot line", backOut, "Silver Serpent")
 
 -- and the id survives the trip, which is what the icon route reads
@@ -1359,6 +1361,236 @@ check("and no popup was opened", shownChest, nil)
 _G.Settings.showLootPopup = nil
 
 _G.LootPopupWindow = nil
+
+-- ------------------------------------------------------------------------------------------------
+section("Loot buffer  (a ring, and a busy run walks it a long way)")
+
+-- The buffer is no longer rebuilt on every loot line -- entries leave from a head index, and
+-- the table is compacted once the head has walked past a bufferful. That compaction is the part
+-- worth pinning down: it moves live entries while a chest may be about to read them, and a
+-- six-man run reaches it in seconds.
+--
+-- BUFFER_MAX is 200 and the backward window is 1.0s, so 600 lines inside one second is both
+-- well past the cap and well past the point where the head has to be shifted back down.
+_G.LootDrops.Flush()
+_G.LootDrops.currentRun = nil
+
+for line = 1, 600 do
+    -- inside the backward window of the chest below, and inside one another's, so age prunes
+    -- nothing and the cap is what does the work
+    loot(10000 + line * 0.001, "Rior", "Silver Serpent")
+end
+
+chest(10000.9, 546)
+settle(10010)
+
+local afterCap = #itemsOf(1)
+check("a run past the cap still resolves a chest", afterCap > 0, true)
+check("and the cap is what bounds it, not the window", afterCap <= 200, true)
+
+-- and the ring is still usable afterwards: the compaction must not have left a hole that the
+-- next line walks into
+_G.LootDrops.currentRun = nil
+loot(10011, "Rior", "Silver Serpent")
+chest(10011.5, 546)
+settle(10020)
+check("the buffer keeps working after a compaction", countIn(1, "Silver Serpent"), 1)
+
+_G.LootDrops.currentRun = nil
+
+-- ------------------------------------------------------------------------------------------------
+section("Event index  (the chat hook's shortlist, and it must be the whole list)")
+
+-- WHAT THIS IS GUARDING. The chat hook used to run every one of _G.Events' ~600 patterns
+-- against every line the client printed. It now runs the patterns of the handful of events
+-- whose required literal text is actually in the line -- so the index decides what is ASKED,
+-- and a key that is even slightly too specific means a chest that silently stops being
+-- recorded. Nothing about that failure is visible until someone notices a lockout missing.
+--
+-- So the index is not tested on a few hand-picked lines. It is tested against the linear scan
+-- it replaced, on strings built from every pattern in the real table.
+
+local function brute(message)
+    local hits = {}
+    for index, log in ipairs(_G.Events) do
+        if string.find(message, log.match) then hits[#hits + 1] = index end
+    end
+    return table.concat(hits, ",")
+end
+
+local function indexed(message)
+    local hits = {}
+    _G.EventIndex.Scan(message, function(_, _, index) hits[#hits + 1] = index end)
+    return table.concat(hits, ",")
+end
+
+-- A string the pattern matches, built by replacing each construct with something it accepts.
+-- `reps` drives the quantifiers, so a pattern is exercised with its optional parts absent and
+-- present -- "Tier 3+" has to work at one "3" and at three.
+local CLASS_CHAR = { d = "7", a = "q", w = "w", x = "f", s = " ", p = ".",
+                     u = "U", l = "l", S = "S", W = "-", A = "4", D = "z" }
+
+local function instantiate(pattern, reps)
+
+    local out, position, length = {}, 1, #pattern
+
+    while position <= length do
+
+        local char  = string.sub(pattern, position, position)
+        local piece, size = nil, 1
+
+        if char == "%" then
+            local escaped = string.sub(pattern, position + 1, position + 1)
+            size  = 2
+            piece = string.find(escaped, "^%a") and (CLASS_CHAR[escaped] or "?") or escaped
+        elseif char == "[" then
+            local close    = position + 1
+            local negated  = string.sub(pattern, close, close) == "^"
+            if negated then close = close + 1 end
+            local first = close
+            if string.sub(pattern, close, close) == "]" then close = close + 1 end
+            while close <= length and string.sub(pattern, close, close) ~= "]" do
+                if string.sub(pattern, close, close) == "%" then close = close + 1 end
+                close = close + 1
+            end
+            local body = string.sub(pattern, first, close - 1)
+            size = close - position + 1
+            if negated then
+                for byte = 65, 122 do
+                    local candidate = string.char(byte)
+                    if not string.find(candidate, "[" .. body .. "]") then
+                        piece = candidate
+                        break
+                    end
+                end
+                piece = piece or "@"
+            else
+                piece = string.sub(body, 1, 1)
+                if piece == "%" then piece = string.sub(body, 2, 2) end
+            end
+        elseif char == "." then
+            piece = "Z"
+        elseif char == "(" or char == ")" then
+            piece = ""
+        elseif char == "^" and position == 1 then
+            piece = ""
+        elseif char == "$" and position == length then
+            piece = ""
+        else
+            piece = char
+        end
+
+        local quantifier = string.sub(pattern, position + size, position + size)
+
+        if quantifier == "*" or quantifier == "-" then
+            out[#out + 1] = string.rep(piece, reps)
+            position = position + size + 1
+        elseif quantifier == "+" then
+            out[#out + 1] = string.rep(piece, reps + 1)
+            position = position + size + 1
+        elseif quantifier == "?" then
+            out[#out + 1] = string.rep(piece, reps > 0 and 1 or 0)
+            position = position + size + 1
+        else
+            out[#out + 1] = piece
+            position = position + size
+        end
+
+    end
+
+    return table.concat(out)
+
+end
+
+-- the instantiator is itself under test: a generated line that the pattern does NOT match
+-- would make every comparison below pass for the wrong reason
+local generated, unmatched = 0, 0
+for _, event in ipairs(_G.Events) do
+    for reps = 0, 2 do
+        generated = generated + 1
+        if string.find(instantiate(event.match, reps), event.match) == nil then
+            unmatched = unmatched + 1
+        end
+    end
+end
+check("every generated line matches the pattern it came from", unmatched, 0)
+check("and there were enough of them to mean something", generated >= 1500, true)
+
+local corpus = {}
+for _, event in ipairs(_G.Events) do
+    for reps = 0, 2 do
+        corpus[#corpus + 1] = instantiate(event.match, reps)
+        -- and in the middle of a line, which is where chat actually puts them
+        corpus[#corpus + 1] = "You have quest advancement: "
+                              .. instantiate(event.match, reps) .. " done."
+    end
+end
+
+-- lines with nothing in them, and lines carrying the same chest name twice: the index looks a
+-- message up by every window in it, so a repeated name is exactly how it would dispatch twice
+for _, line in ipairs({
+    "", "a", "Chest", "Completed",
+    "Bofurr says, 'ready when you are'",
+    "You have earned 1,250 Mithril Flakes.",
+    _G.Events[1].match .. " and again " .. _G.Events[1].match,
+}) do
+    corpus[#corpus + 1] = line
+end
+
+local disagreed = 0
+for _, message in ipairs(corpus) do
+    if brute(message) ~= indexed(message) then disagreed = disagreed + 1 end
+end
+
+check("the index dispatches exactly what the linear scan did", disagreed, 0)
+check("over the whole event table", #corpus >= 3500, true)
+
+-- A required literal has to be text the message is GUARANTEED to contain. These are the
+-- constructs that make it not so, one case each, because getting any of them wrong shortens
+-- the index quietly rather than loudly.
+local function literal(pattern) return _G.EventIndex.RequiredLiteral(pattern) end
+
+check("plain text is all required",        literal("Naruhel's Silver Chest"), "Naruhel's Silver Chest")
+check("an anchor is not part of it",       literal("^You have acquired"), "You have acquired")
+check("a dot breaks the run",              literal("Azagath Sea.shadow"), "Azagath Sea")
+check("a class breaks the run",            literal("Completed missions %d+/15"), "Completed missions ")
+check("an escaped bracket is literal",     literal("orders %(%d+/5%)"), "orders (")
+check("a set breaks the run",              literal("at the Forge[^ ]"), "at the Forge")
+check("a starred atom is dropped",         literal("Completed.*Bounty. Proto.beast"), "Completed")
+check("a plussed atom is kept once",       literal("Bombadil's Gift . Tier 3+"), "Bombadil's Gift ")
+check("an optional atom is dropped",       literal("Chesty? of the Ashen"), " of the Ashen")
+
+-- ------------------------------------------------------------------------------------------------
+section("Instance index  (one instance's events, not a filter over all of them)")
+
+-- Every instance named in the event table, answered the same way the UI used to answer it.
+local wrong, instances = 0, 0
+local byInstance = {}
+for eventIndex, event in pairs(_G.Events) do
+    local list = byInstance[event.instance]
+    if list == nil then list = {}; byInstance[event.instance] = list end
+    list[#list + 1] = eventIndex
+end
+
+for instanceId, expected in pairs(byInstance) do
+    instances = instances + 1
+    table.sort(expected)
+    local got = _G.EventIndex.ForInstance(instanceId)
+    if table.concat(got, ",") ~= table.concat(expected, ",") then wrong = wrong + 1 end
+end
+
+check("every instance gets exactly its own events", wrong, 0)
+check("and every instance in the table was checked", instances > 20, true)
+-- ascending, so the helpers reading it -- "the reset schedule of this tier" takes the first
+-- match -- are deterministic where the old pairs() walk was not
+local ordered = _G.EventIndex.ForInstance(next(byInstance))
+local ascending = true
+for slot = 2, #ordered do
+    if ordered[slot] <= ordered[slot - 1] then ascending = false end
+end
+check("in event order", ascending, true)
+check("an instance with no events answers with an empty list",
+    #_G.EventIndex.ForInstance(-1), 0)
 
 -- ------------------------------------------------------------------------------------------------
 print(string.format("\n%d passed, %d failed", passed, failed))

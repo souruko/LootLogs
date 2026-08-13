@@ -145,11 +145,31 @@ function _G.LLWindow:RefreshTitle()
 
 end
 
+-- THE FLUSH POINT for the content view's deferred rebuilds. ProcessMatch updates the view on
+-- every chest it records, and with the window closed that rebuild is invisible work on the
+-- frame thread; the view banks it instead and this is where it is paid, at the moment it starts
+-- to matter. Every path that opens the window goes through here.
+function _G.LLWindow:SetVisible(visible)
+
+    _G.PanelWindow.SetVisible(self, visible)
+
+    if visible then
+        if self.contentView ~= nil then self.contentView:FlushDeferred()   end
+        if self.sidebar     ~= nil then self.sidebar:RefreshTierSquares()  end
+    end
+
+end
+
 function _G.LLWindow:ToggleSettings()
 
     self.settingsVisible = not self.settingsVisible
     self.settings:SetVisible(self.settingsVisible)
     self.contentView:SetVisible(not self.settingsVisible)
+
+    -- the view was hidden behind the settings panel, so it may have banked a rebuild too
+    if not self.settingsVisible then
+        self.contentView:FlushDeferred()
+    end
 
 end
 

@@ -355,9 +355,18 @@ function Sidebar:FillCharacterItems()
 
 end
 
--- the per-tier squares are derived from the logs at render time, so they have to be
--- recomputed whenever the logs change or the list is rebuilt
+-- The per-tier squares are derived from the logs at render time, so they have to be recomputed
+-- whenever the logs change or the list is rebuilt.
+--
+-- ProcessMatch calls this on every chest it records, and with the window closed nobody can see
+-- the result -- so it is skipped rather than banked: the refresh is idempotent and reads the
+-- current logs, so _G.LLWindow:SetVisible simply runs it again on the way open and the bars are
+-- right without any state to keep.
 function Sidebar:RefreshTierSquares()
+
+    if _G.Window ~= nil and _G.Window.sidebar == self and not _G.Window:IsVisible() then
+        return
+    end
 
     for _, item in pairs(self.instanceItems or {}) do
         item:RefreshSquares()

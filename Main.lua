@@ -32,6 +32,9 @@ else
     import "LootLogs.Logs.Drops.English"
 end
 
+-- indexes over the data just loaded ---------------------------------------------------------------
+import "LootLogs.Utils.EventIndex"
+
 -- load plugin data --------------------------------------------------------------------------------
 import "LootLogs.Utils.PluginData"
 
