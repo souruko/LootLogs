@@ -22,8 +22,8 @@ local function Metrics()
     -- font size and only the button around it has room to spare (Ressources/ICONS.md)
     ICON     = 16
     FIND     = 18
-    -- taken from LootRow rather than restated: the rows are that tall because a quickslot
-    -- cannot be scaled below 32px, and a second copy of the number here would drift
+    -- taken from LootRow rather than restated: the rows are that tall because item art is 36px
+    -- and does not scale, and a second copy of the number here would drift
     ROW_H    = _G.LootRowHeight()
     CHIP_H   = _G.Scaled(18)
     CHIP_GAP = _G.Scaled(4)

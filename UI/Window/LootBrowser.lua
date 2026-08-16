@@ -16,7 +16,7 @@ import "LootLogs.UI.Window.PanelWindow"
 import "LootLogs.UI.Window.LootRow"
 
 local PAD, GAP, SEP_W, ROW_H, TREE_ROW_H, HEAD_H, TREE_W, PILL_H, PILL_GAP, SEARCH_H
-local STAR, INDENT, SLOT, NAME_X, ICON, FIND
+local STAR, INDENT, SLOT, MARK, NAME_X, ICON, FIND
 local COL_ENTRIES, COL_ANY, COL_BAR, BAR_H, COL_YOURS, COL_STAR
 local MIN_WIDTH, MIN_HEIGHT
 
@@ -25,8 +25,12 @@ local function Metrics()
     PAD        = _G.Scaled(8)
     GAP        = _G.Scaled(8)
     SLOT       = _G.LootSlotSize
-    -- item rows seat a 32px quickslot, which cannot be scaled; tree nodes carry only text and
-    -- stay at the compact height, so the left pane does not turn into a ladder
+    -- the category mark's own size. It is a plugin .tga and stays the size it was drawn at, so it
+    -- is centred in the slot rather than stretched to it (Ressources/ICONS.md).
+    MARK       = 32
+    -- item rows seat a 36px item slot, and item art does not scale with the Font Size setting;
+    -- tree nodes carry only text and stay at the compact height, so the left pane does not turn
+    -- into a ladder
     ROW_H      = _G.LootRowHeight()
     TREE_ROW_H = _G.Scaled(24)
     NAME_X     = PAD + 3 + math.floor(GAP / 2) + SLOT + GAP
@@ -46,7 +50,7 @@ local function Metrics()
     -- needs the room to print what it is made of.
     COL_ENTRIES = _G.Scaled(140)
     COL_ANY     = _G.Scaled(56)
-    -- Art, not text, so both stay put at every font size -- the same rule as the 32px item
+    -- Art, not text, so both stay put at every font size -- the same rule as the 36px item
     -- icon and the 12px star.
     COL_BAR     = 60
     BAR_H       = 4
@@ -771,29 +775,38 @@ function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
     bar:SetBackColor(drop.category and _G.Theme.STRIP or _G.LootQualityColor(drop.quality))
     bar:SetMouseVisible(false)
 
-    -- The item's own art, composed from its catalogued id. Images rather than a quickslot, so
-    -- no stack count from your bags is painted over a listing about the world -- the tooltip
-    -- that used to justify the slot now comes from the name link. See UI/Window/LootRow.lua.
+    -- The item's own art, in the client's own item slot, drawn from its catalogued id. Not a
+    -- quickslot: that one paints the stack count from YOUR bags over a listing about the world.
+    -- See UI/Window/LootRow.lua for what an ItemInfoControl does instead.
     local iconHost = Turbine.UI.Control()
     iconHost:SetParent(row)
     iconHost:SetSize(SLOT, SLOT)
     iconHost:SetPosition(PAD + 3 + math.floor(GAP / 2), math.floor((ROW_H - SLOT) / 2))
-    iconHost:SetMouseVisible(false)
+    -- The slot has a tooltip and so must take the mouse, which means the host cannot shadow it.
+    -- A category's mark has nothing to say and stays out of the way entirely.
+    iconHost:SetMouseVisible(not drop.category)
+
+    local icon = nil
 
     if drop.category then
 
         -- A CATEGORY HAS NO ART, because it has no id: "Tracery" is what the tables call the
         -- reward, and the client rolls the actual name. The fixed category mark instead (a
         -- plugin glyph, Overlay over the row's ground, see Ressources/ICONS.md).
+        --
+        -- CENTRED AT ITS OWN SIZE, not stretched to the slot: the .tga is 32px and the slot is 36,
+        -- and Turbine clips art to its control rather than scaling it -- sized to SLOT it would
+        -- lose its bottom-right corner instead of growing.
         local mark = Turbine.UI.Control()
         mark:SetParent(iconHost)
-        mark:SetSize(SLOT, SLOT)
+        mark:SetSize(MARK, MARK)
+        mark:SetPosition(math.floor((SLOT - MARK) / 2), math.floor((SLOT - MARK) / 2))
         mark:SetBlendMode(Turbine.UI.BlendMode.Overlay)
         mark:SetBackground("LootLogs/Ressources/group.tga")
         mark:SetMouseVisible(false)
 
     else
-        _G.MakeItemIcon(iconHost, drop.id, SLOT)
+        icon = _G.MakeItemIcon(iconHost, drop.id, SLOT)
     end
 
     local nameLabel = Turbine.UI.Label()
@@ -971,6 +984,17 @@ function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
     -- is mouse-invisible and never intercepts it in the first place.
     nameLabel.MouseEnter = row.MouseEnter
     nameLabel.MouseLeave = row.MouseLeave
+
+    -- And the icon, for the same reason: the item slot takes the mouse to carry its tooltip, so
+    -- without this the row goes dark the moment the pointer reaches the art -- which is the first
+    -- thing it crosses coming in from the left.
+    iconHost.MouseEnter = row.MouseEnter
+    iconHost.MouseLeave = row.MouseLeave
+
+    if icon ~= nil then
+        icon.MouseEnter = row.MouseEnter
+        icon.MouseLeave = row.MouseLeave
+    end
 
     -- Named, because a rebuilt row cannot rely on SizeChanged alone: a fresh row whose width
     -- already matches the list never fires one, and then it draws with every column at zero.

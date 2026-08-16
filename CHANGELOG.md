@@ -4,6 +4,13 @@ Versions are `<major>.<lotro update>.<release>`. The middle number is the LOTRO 
 build targets, and the last number counts fixes and changes within it, resetting when either of the
 numbers above it moves. The leading number moves only for a major overhaul of the plugin itself.
 
+## [4.49.4] - 2026-08-16
+
+### Changed
+- Item icons in the loot popup and the loot browser are now the game's own item slots. Hovering one shows the item's tooltip, the same as hovering its name, and the art is drawn by the client rather than pieced together by the plugin — so an icon looks exactly like it does everywhere else in the game
+- Item art is drawn at its full size rather than cropped to a slightly smaller box, so nothing is cut off the edge of an icon any more. Rows in both windows are a few pixels taller to make room
+- An item the game cannot identify — one the plugin has no id for, or one it has not finished loading — now shows an empty slot instead of a thin coloured bar, so rows keep their shape while a chest is still loading
+
 ## [4.49.3] - 2026-08-13
 
 ### Changed

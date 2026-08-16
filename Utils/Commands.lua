@@ -227,9 +227,10 @@ _G.RegisterCommand("loot", "reopen the loot popup  ('demo' fills it with catalog
 -- ------------------------------------------------------------------------------------------------
 -- icon probe
 --
--- The layered icon is composed from ids the client hands back, and when it draws wrong there is
--- nothing on screen to say WHICH layer misbehaved -- a missing item image and an opaque backing
--- painted over it look identical. This prints the three ids so the next guess is not a guess.
+-- The client composes the icon itself now (UI/Window/LootRow.lua), so nothing here draws from these
+-- ids -- but they are still the only way to ask whether an id resolves to ART, or merely to a
+-- record. A row with no item image draws the empty slot and looks exactly like an id the item
+-- table has not loaded yet. This prints the three so the next guess is not a guess.
 --
 -- Takes an item name from the drops table, or a raw hex id.
 _G.RegisterCommand("icon", "image ids for an item  (a catalogued name, or a hex id)",
@@ -274,7 +275,7 @@ function(args)
 
     if images == nil then
         Turbine.Shell.WriteLine(_G.CM("DIM")
-            .. "  the id resolved to no item art at all -- the row falls back to a quality bar"
+            .. "  the id resolved to no item art at all -- the row draws an empty slot"
             .. _G.CMR)
         return
     end
