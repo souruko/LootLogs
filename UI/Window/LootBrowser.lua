@@ -1014,9 +1014,14 @@ function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
         -- The name gives up the top 55% of the row where there is a description under it, and
         -- keeps the whole height where there is not -- the same split as the popup's row, and
         -- by proportion for the same reason: the height tracks the Font Size setting.
+        -- and the same nudge down where there is one: the name's text is centred in the top
+        -- 55%, which puts it against the row's top edge, so the pair is re-centred by moving
+        -- the box (its height stays, or the centre would not move). _G.LootNameDrop is the
+        -- popup's own figure -- an item must not sit at two heights in two windows.
         local nameH = note ~= nil and math.floor(ROW_H * 0.55) or ROW_H
+        local nameY = note ~= nil and _G.LootNameDrop() or 0
 
-        nameLabel:SetPosition(NAME_X, 0)
+        nameLabel:SetPosition(NAME_X, nameY)
         nameLabel:SetHeight(nameH)
         nameLabel:SetWidth(math.max(0, entriesX - NAME_X - GAP))
 

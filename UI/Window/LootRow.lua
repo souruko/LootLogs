@@ -19,7 +19,7 @@
 -- floored so the icon always fits.
 _G.LootSlotSize = 36
 
-local PAD, ROW_H, ICON, RULE_W, GAP, META_W, CHANCE_W, STAR
+local PAD, ROW_H, ICON, RULE_W, GAP, META_W, CHANCE_W, STAR, NAME_DROP
 
 local function Metrics()
     PAD    = _G.Scaled(8)
@@ -37,11 +37,22 @@ local function Metrics()
     ICON   = _G.LootSlotSize
     STAR   = 12
     ROW_H  = math.max(_G.Scaled(38), ICON + 6)
+    -- A two-line name sits HIGH in its row: the name's box is the top 55% and its text is
+    -- centred in that, which puts it hard against the row's top edge while the note below keeps
+    -- an obvious gap. Nudging the name down by a few pixels re-centres the PAIR without moving
+    -- the note or changing the row height. One-line rows do not take it -- they are centred in
+    -- the full height already.
+    NAME_DROP = _G.Scaled(3)
 end
 
 _G.RegisterMetrics(Metrics)
 
 _G.LootRowHeight = function() return ROW_H end
+
+-- Shared with the browser's own row (UI/Window/LootBrowser.lua), which splits the name column
+-- the same way: the same item must not sit at two different heights depending on which window
+-- is open.
+_G.LootNameDrop = function() return NAME_DROP end
 
 -- Quality is mapped onto EXISTING theme roles rather than new ones, so every theme keeps its
 -- own palette instead of importing LOTRO's item colours (which clash badly in misty).
@@ -306,9 +317,12 @@ function _G.LootRow:LayoutLabels()
     -- Size setting -- 55% of it leaves the 12px name and the 10px note fitting at every step,
     -- with the name taking the larger share because it is the line that gets read.
     local nameW = math.max(0, metaX - nameX)
-    local nameH = self.noteLabel:IsVisible() and math.floor(height * 0.55) or height
+    local noted = self.noteLabel:IsVisible()
+    local nameH = noted and math.floor(height * 0.55) or height
 
-    self.nameLabel:SetPosition(nameX, 0)
+    -- the box moves, its HEIGHT does not: the text is centred in the box, so shifting the box
+    -- is what shifts the text -- shrinking it would leave the centre where it was
+    self.nameLabel:SetPosition(nameX, noted and NAME_DROP or 0)
     self.nameLabel:SetHeight(nameH)
     self.nameLabel:SetWidth(nameW)
 
