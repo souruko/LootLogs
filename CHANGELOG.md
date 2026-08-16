@@ -4,6 +4,15 @@ Versions are `<major>.<lotro update>.<release>`. The middle number is the LOTRO 
 build targets, and the last number counts fixes and changes within it, resetting when either of the
 numbers above it moves. The leading number moves only for a major overhaul of the plugin itself.
 
+## [4.49.5] - 2026-08-16
+
+### Added
+- Class armour now says what it is. Over 1,200 pieces carry a short description under their name — "Warden - Feet - Blue" below "Blighted Boots of the Far Shield" — so a drop's class, slot and trait line can be read off the row instead of out of its tooltip, in the loot popup and the loot browser alike
+- Searching either window finds a piece by that description, so "warden feet" gets you there without knowing what the game called it
+
+### Fixed
+- An item name with a description under it sat hard against the top of its row. The two are centred together now, in both windows
+
 ## [4.49.4] - 2026-08-16
 
 ### Changed

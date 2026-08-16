@@ -1,6 +1,6 @@
 # LootLogs
 
-**Version:** 4.49.4 | **Author:** Souru
+**Version:** 4.49.5 | **Author:** Souru
 
 LootLogs is a Lord of the Rings Online plugin that automatically tracks your loot lockouts across instances and characters. When you open a chest in a raid or instance, LootLogs detects the chat message and records the lockout — no manual input needed. A countdown shows exactly when each lockout resets.
 
