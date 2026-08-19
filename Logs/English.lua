@@ -933,6 +933,8 @@ _G.Events = {
 _G.InstanceEntryPrefix = "New Quest:"
 
 _G.InstanceEntries = {
+    { match = "New Quest: Pagru.kirít, The Garden of Corpses .. Tier 3", instance = 51, tier = "T3"   },
+    { match = "New Quest: Pagru.kirít, The Garden of Corpses .. Tier 2", instance = 51, tier = "T2"   },
     { match = "New Quest: Pagru.kirít, The Garden of Corpses .. Tier 1", instance = 51, tier = "T1"   },
     { match = "New Quest: Pagru.kirít, The Garden of Corpses .. Solo/Duo", instance = 51, tier = "Solo" },
 }
