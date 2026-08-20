@@ -45,6 +45,25 @@ function _G.Upper(text)
 
 end
 
+-- GLYPHS, NOT BYTES. Everything here measures text by multiplying a count by an average glyph
+-- width, and "Badhar\195\161l" is nine bytes of eight letters -- counted in bytes it reserves
+-- room for a letter that is not there, and every accented name drifts.
+function _G.Glyphs(text)
+
+    if text == nil then return 0 end
+
+    local count = 0
+
+    for index = 1, #text do
+        local byte = string.byte(text, index)
+        -- every UTF-8 continuation byte is 10xxxxxx; everything else starts a glyph
+        if byte < 128 or byte >= 192 then count = count + 1 end
+    end
+
+    return count
+
+end
+
 -- Turbine cannot measure a label and does not clip an oversized one either, so a name
 -- wider than its column simply runs over its neighbours. Cut it to fit from an average
 -- glyph width instead; the full text is still reachable on hover.
@@ -193,6 +212,8 @@ function _G.RebuildWindows(after)
             instance = _G.LootBrowserWindow.selectedInstance,
             event    = _G.LootBrowserWindow.selectedEvent,
             tier     = _G.LootBrowserWindow.selectedTier,
+            class    = _G.LootBrowserWindow.selectedClass,
+            source   = _G.LootBrowserWindow.source,
         }
     end
 
@@ -236,6 +257,10 @@ function _G.RebuildWindows(after)
             _G.LootBrowserWindow.selectedInstance = browserState.instance
             _G.LootBrowserWindow.selectedEvent    = browserState.event
             _G.LootBrowserWindow.selectedTier     = browserState.tier
+            -- the class and the lock filter are part of what is on screen, so a font change
+            -- must not quietly put the window back on your own class
+            _G.LootBrowserWindow.selectedClass    = browserState.class
+            _G.LootBrowserWindow.source           = browserState.source or "all"
         end
         if browserVisible then
             _G.LootBrowserWindow:SetVisible(true)

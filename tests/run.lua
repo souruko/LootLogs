@@ -45,6 +45,13 @@ Turbine = {
         Control = function() return { SetWantsUpdates = function() end } end,
     },
     Shell = { WriteLine = function(s) printed[#printed + 1] = s end },
+    -- The class-filtered drops files key their `classes` blocks on this enum, so it has to exist
+    -- before one is loaded. The VALUES do not matter here and are deliberately not the client's:
+    -- what is being tested is that the same constant reaches the file and the lookup.
+    Gameplay = { Class = {
+        Beorning = 1, Brawler = 2, Burglar = 3, Captain = 4, Champion = 5, Guardian = 6,
+        Hunter = 7, LoreMaster = 8, Mariner = 9, Minstrel = 10, RuneKeeper = 11, Warden = 12,
+    } },
 }
 
 _G.Settings   = { lootWindowBackTenths = 10, lootWindowFwdTenths = 40, printAlerts = true }
@@ -53,6 +60,18 @@ _G.CM         = function() return "" end
 _G.CMR        = ""
 _G.Sep        = " - "
 _G.PrintAlert = function(s) printed[#printed + 1] = s end
+-- Utils/Functions.lua is a WINDOW file -- it wants fonts and a theme -- so the handful of its
+-- helpers the data layer uses are stubbed rather than loaded. Colour and the separator are
+-- flattened on purpose, so a check reads as the text it is about; the glyph count is the real
+-- rule, because the odds tooltip pads its columns with it.
+_G.Glyphs = function(text)
+    local count = 0
+    for index = 1, #(text or "") do
+        local byte = string.byte(text, index)
+        if byte < 128 or byte >= 192 then count = count + 1 end
+    end
+    return count
+end
 import = function() end
 
 -- The REAL event table, not a stub of it. The drops file is keyed on _G.Events indices, so a
@@ -61,6 +80,8 @@ import = function() end
 -- exactly the mistake they are here to catch.
 dofile("Logs/English.lua")
 dofile("Logs/Drops/English.lua")
+-- the odds tooltip names its tables in words, and the words are locale keys
+dofile("Utils/Locale.lua")
 dofile("LootDrops.lua")
 
 -- ------------------------------------------------------------------------------------------------
@@ -392,14 +413,27 @@ check("the signal lasts exactly one chest", #_G.LootDrops.currentRun.chests, 2)
 -- ------------------------------------------------------------------------------------------------
 section("Drops data integrity")
 
+-- AllRows rather than ipairs, because a class-filtered chest is not an array: walking one with
+-- ipairs finds nothing at all, and a sweep that silently checks nothing is worse than no sweep.
 local names = {}
-for eventIndex, drops in pairs(_G.Drops) do
+for eventIndex in pairs(_G.Drops) do
     check("event " .. eventIndex .. " exists in _G.Events", _G.Events[eventIndex] ~= nil, true)
-    for _, drop in ipairs(drops) do
+    for _, drop in ipairs(_G.LootDrops.AllRows(eventIndex)) do
         check("row has an item name", type(drop.item) == "string" and drop.item ~= "", true)
         if drop.chance ~= nil then
             check("chance " .. drop.item .. " is 0..1",
                 drop.chance >= 0 and drop.chance <= 1, true)
+        end
+        -- the class-filtered shape carries one pack per lockout instead, and the same rule holds
+        -- of every one of them: a rate is 0..1 and is NEVER zero -- an unknown rate is absent
+        for _, kind in ipairs({ "fav", "com" }) do
+            local pack = drop[kind]
+            if pack ~= nil then
+                check(kind .. " chance " .. drop.item .. " is 0..1",
+                    pack.chance == nil or (pack.chance > 0 and pack.chance <= 1), true)
+                check(kind .. " rolls match rates for " .. drop.item,
+                    pack.rolls, #(pack.rates or {}))
+            end
         end
         -- a plural must not collide with another item's singular
         if drop.plural ~= nil then
@@ -739,8 +773,8 @@ check("and a pattern character finds nothing of its own",
 -- a misspelled group name silently reverts its rows to collapse.
 for name in pairs(_G.DropGroups) do
     local members = 0
-    for eventIndex, rows in pairs(_G.Drops) do
-        for _, drop in ipairs(rows) do
+    for eventIndex in pairs(_G.Drops) do
+        for _, drop in ipairs(_G.LootDrops.AllRows(eventIndex)) do
             if drop.group == name then members = members + 1 end
         end
     end
@@ -750,8 +784,8 @@ end
 -- ...and every group a ROW names must be declared or deliberately defaulted. Both directions
 -- matter: this one catches a member whose group was renamed out from under it.
 local undeclared = {}
-for eventIndex, rows in pairs(_G.Drops) do
-    for _, drop in ipairs(rows) do
+for eventIndex in pairs(_G.Drops) do
+    for _, drop in ipairs(_G.LootDrops.AllRows(eventIndex)) do
         if drop.group ~= nil and _G.DropGroups[drop.group] == nil then
             undeclared[drop.group] = true
         end
@@ -764,8 +798,8 @@ check("no row names an undeclared group", table.concat(names, ", "), "")
 -- A bucket row carries a CATEGORY's rate, so it has to belong to a declared group -- in either
 -- mode. An expand group folds its members under it; a collapse group shows the bucket alone and
 -- that is the point (one "Tracery" line at 100%, whatever name the roll lands on).
-for eventIndex, rows in pairs(_G.Drops) do
-    for _, drop in ipairs(rows) do
+for eventIndex in pairs(_G.Drops) do
+    for _, drop in ipairs(_G.LootDrops.AllRows(eventIndex)) do
         if drop.bucket then
             check("bucket row names a declared group: " .. drop.item,
                 _G.DropGroups[drop.group] ~= nil, true)
@@ -1175,26 +1209,156 @@ check("under one per cent keeps two",     shown(0.0076),   "0.76%")
 check("and so does a very small one",     shown(0.000357), "0.04%")
 check("an unknown rate has no spelling",  shown(nil),      nil)
 
--- The series behind it: no per-cent signs, because the column heading already says what they
--- are and six of them in a row is noise.
-local series = _G.LootDrops.EntrySeries
+-- WHERE A FIGURE COMES FROM. The series of bare percentages behind the lead number is gone: the
+-- rolls are the hover now, one line each, and a fold line closes every lock's block. One producer
+-- builds them, so the browser and the popup cannot explain the same number two ways.
+local BADHARAL_T3 = 529
+local WARDEN      = Turbine.Gameplay.Class.Warden
+local LOREMASTER  = Turbine.Gameplay.Class.LoreMaster
 
-check("six entries print biggest first",
-    series({ { chance = 0.021212 }, { chance = 0.020588 }, { chance = 0.02 },
-             { chance = 0.007576 }, { chance = 0.007353 }, { chance = 0.007143 } }),
-    "2.12" .. _G.Sep .. "2.06" .. _G.Sep .. "2.00" .. _G.Sep
-    .. "0.76" .. _G.Sep .. "0.74" .. _G.Sep .. "0.71")
+local function RowNamed(eventIndex, classId, name)
+    for _, row in ipairs(_G.LootDrops.RowsFor(eventIndex, classId)) do
+        if row.item == name then return row end
+    end
+    return nil
+end
 
-check("a guaranteed entry prints whole",
-    series({ { chance = 1 }, { chance = 0.7 } }), "100" .. _G.Sep .. "70")
+local relic = RowNamed(BADHARAL_T3, WARDEN, "Blighted Relic")
 
--- ONE ENTRY IS THE LEAD FIGURE. Printing it again beside itself says nothing, so the column
--- stays empty -- which is also how a row with no rate at all draws.
-check("one entry has no series",          series({ { chance = 0.7 } }), nil)
-check("and neither has none",             series({}),                   nil)
-check("nor a nil list",                   series(nil),                  nil)
-check("unknown chances are not printed",
-    series({ { chance = nil }, { chance = nil } }), nil)
+check("an item in both tables carries both packs",
+    relic ~= nil and relic.fav ~= nil and relic.com ~= nil, true)
+
+-- THE TWO LOCKS ARE NEVER ONE FIGURE. They are separate rolls against separate lockouts, and a
+-- single number over the pair would be a rate the game does not roll.
+check("favoured and common are asked for separately",
+    _G.LootDrops.Chance(relic, "fav") ~= _G.LootDrops.Chance(relic, "com"), true)
+check("and the row leads with the favoured one",
+    _G.LootDrops.Chance(relic), _G.LootDrops.Chance(relic, "fav"))
+check("which is the lead kind",           _G.LootDrops.LeadKind(relic), "fav")
+
+-- 1 - Pi(1 - p) over the entries of ONE lock, never the sum and never the biggest of them. The
+-- written figure is rounded to six places, so the comparison is too -- a fold recomputed in
+-- floating point lands a bit-width away from the one that was printed.
+local function round6(value)
+    if value == nil then return nil end
+    return math.floor(value * 1e6 + 0.5) / 1e6
+end
+
+local comRates = {}
+for _, rate in ipairs(relic.com.rates) do comRates[#comRates + 1] = rate.p end
+
+check("each pack folds its own rolls",
+    round6(_G.LootDrops.Chance(relic, "com")),
+    round6(_G.LootDrops.CombinedChance(comRates)))
+check("and never sums them",
+    _G.LootDrops.Chance(relic, "com") < comRates[1] + comRates[2], true)
+
+check("the roll count spans both locks",
+    _G.LootDrops.RollCount(relic), relic.fav.rolls + relic.com.rolls)
+
+local lines = _G.LootDrops.RollLines(relic)
+local folds, rolls = 0, 0
+for _, line in ipairs(lines) do
+    if line.fold then folds = folds + 1 else rolls = rolls + 1 end
+end
+
+check("every roll is a line",             rolls, _G.LootDrops.RollCount(relic))
+check("and every lock closes with a fold", folds, 2)
+check("the first line of a block is marked", lines[1].first, true)
+check("and the second is not",            lines[2].first, false)
+
+-- The table names are the plugin's words, never the export's file names
+check("a table is named in words",
+    _G.LootDrops.TableWord("FilteredTrophyTable2"), _G.L("tableArmourSet"))
+check("and an unknown one is shown as written",
+    _G.LootDrops.TableWord("SomethingNew"), "SomethingNew")
+
+local tip = _G.LootDrops.OddsTooltip(relic, "Blighted Relic")
+check("the tooltip names the item",       tip:find("Blighted Relic", 1, true) ~= nil, true)
+check("and says what it is",              tip:find(_G.L("oddsTitle"), 1, true) ~= nil, true)
+check("and tags the lock it starts with", tip:find(_G.L("tagFavoured"), 1, true) ~= nil, true)
+check("and has a line per roll plus two folds",
+    select(2, tip:gsub("\n", "")), 1 + _G.LootDrops.RollCount(relic) + 2)
+
+-- A row with no rates at all has nothing to explain, and an empty box is worse than none
+check("nothing to derive is no tooltip",  _G.LootDrops.OddsTooltip({ item = "x" }, "x"), nil)
+
+-- ------------------------------------------------------------------------------------------------
+section("One chest, one class  (the class-filtered catalogue)")
+
+-- THE NUMBERS THE DESIGN WAS BUILT ON. Badharal T3 is 217 rows merged across every class in the
+-- old shape; filtered to one class it is 32 for a Warden and 38 for a Lore-master. If these move,
+-- either the export changed or the fold did, and both are worth stopping for.
+check("a Warden sees 32 rows",       #_G.LootDrops.RowsFor(BADHARAL_T3, WARDEN),     32)
+check("a Lore-master sees 38",       #_G.LootDrops.RowsFor(BADHARAL_T3, LOREMASTER), 38)
+
+-- THE COUNT AND THE TABLE MUST AGREE. The tree, the sub-line and the rows are three views of one
+-- list, and a sidebar saying 308 beside a table showing 91 is the bug this replaced.
+check("the count is what the table draws",
+    _G.LootDrops.ItemCount(BADHARAL_T3, WARDEN), #_G.LootDrops.RowsFor(BADHARAL_T3, WARDEN))
+
+-- ONE ROW PER ITEM. `any` is emitted once and never copied into a class, so nothing can arrive
+-- twice however the export listed it.
+local seen, twice = {}, {}
+for _, row in ipairs(_G.LootDrops.RowsFor(BADHARAL_T3, WARDEN)) do
+    if seen[row.item] then twice[#twice + 1] = row.item end
+    seen[row.item] = true
+end
+check("and no item twice",                table.concat(twice, ", "), "")
+
+-- likeliest first, which is what puts the guaranteed rows in the ALWAYS DROPS band
+local ordered, always = true, 0
+local previous = 2
+for _, row in ipairs(_G.LootDrops.RowsFor(BADHARAL_T3, WARDEN)) do
+    local chance = _G.LootDrops.Chance(row) or 0
+    if chance > previous then ordered = false end
+    previous = chance
+    if chance >= 0.999 then always = always + 1 end
+end
+check("rows arrive likeliest first",      ordered, true)
+check("four of them always drop",         always,  4)
+
+-- A LOOT LINE HAS NO CLASS ON IT, so the index has to span `any` and every class block -- an item
+-- only a Lore-master can get still has to resolve when one loots it.
+local classOnly = nil
+for _, row in ipairs(_G.LootDrops.RowsFor(BADHARAL_T3, LOREMASTER)) do
+    if RowNamed(BADHARAL_T3, WARDEN, row.item) == nil then classOnly = row.item end
+end
+check("a class-only item exists to test with", classOnly ~= nil, true)
+check("and is still catalogued by name",  _G.LootDrops.KnowsItem(classOnly), true)
+check("and resolves to a row",            _G.LootDrops.DropRow(BADHARAL_T3, classOnly) ~= nil, true)
+check("and to a chance",                  _G.LootDrops.ChanceAt(BADHARAL_T3, classOnly) ~= nil, true)
+
+-- AND THE CHEST IS STILL FOUND BY NAME, which is what makes "where does this drop" work over a
+-- catalogue as well as over an array
+local events = _G.LootDrops.ItemEvents("Blighted Relic")
+local here   = false
+for _, index in ipairs(events) do
+    if index == BADHARAL_T3 then here = true end
+end
+check("a catalogued item knows its chest",     here, true)
+check("and is listed there exactly once",
+    (function()
+        local seen = 0
+        for _, index in ipairs(events) do if index == BADHARAL_T3 then seen = seen + 1 end end
+        return seen
+    end)(), 1)
+
+-- WITH NO CLASS ASKED, the whole chest: what it can give rather than what one character gets
+check("the chest itself lists more than one class does",
+    #_G.LootDrops.RowsFor(BADHARAL_T3, nil) > #_G.LootDrops.RowsFor(BADHARAL_T3, WARDEN), true)
+
+-- AND THE OLD SHAPE STILL DRAWS. Chests are re-exported a raid at a time, so both shapes are
+-- read until the last one has been -- an array chest folds through Dedupe into the same row shape.
+local legacy = _G.LootDrops.RowsFor(KISHASU_T2, WARDEN)
+check("an old-shape chest still yields rows",  #legacy > 0, true)
+check("as many as it folds to",           #legacy, #_G.LootDrops.Dedupe(_G.Drops[KISHASU_T2]))
+check("and its count agrees as well",
+    _G.LootDrops.ItemCount(KISHASU_T2, WARDEN), #legacy)
+check("its fold belongs to no named lockout",
+    legacy[1].fav == nil and legacy[1].com == nil and legacy[1].rate ~= nil, true)
+check("so no lock tag can be drawn for it",
+    _G.LootDrops.LeadKind(legacy[1]), "rate")
 
 -- ------------------------------------------------------------------------------------------------
 section("Popup search  (narrows what is shown, never what was recorded)")

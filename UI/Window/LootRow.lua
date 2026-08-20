@@ -274,17 +274,20 @@ function _G.LootRow:RefreshText()
 
     self:LayoutLabels()
 
-    -- Count and name are truncated as ONE string, so a name too long for the column loses its
-    -- tail and never its "3x". The star is a separate control and takes its own space.
-    local quantity = (item.quantity or 1) > 1 and (item.quantity .. "x ") or ""
-    local shown    = _G.LootDrops.DisplayName(self.drop, item.base)
+    -- The count is drawn on the slot (SetIcon), not in front of the name: it belongs to the
+    -- picture of the thing, and a long name used to lose its tail paying for it. The star is a
+    -- separate control and takes its own space.
+    -- RowText, not the raw name: the two shapes of drops row disagree about `label` -- one
+    -- renames the item with it, the other describes it -- and only it knows which is in hand.
+    local shown = _G.LootDrops.RowText(self.drop)
+    if self.drop == nil then shown = item.base end
 
     -- TRUNCATE FIRST, THEN LINK. _G.Truncate counts glyphs, and the link's tag is markup the
     -- label never draws -- measuring the wrapped string would cut the name to nothing. The two
     -- brackets ARE drawn, so their width comes off the budget.
     local glyph = _G.GlyphWidth(12)
     local text  = _G.Truncate(
-        quantity .. shown,
+        shown,
         self.nameLabel:GetWidth() - glyph * 2,
         glyph)
 
@@ -320,6 +323,30 @@ function _G.LootRow:SetIcon(drop)
         bar:SetBackColor(QualityColor(drop and drop.quality))
         bar:SetMouseVisible(false)
         self.icon = bar
+    end
+
+    -- THE STACK RIDES ON THE SLOT, the way the client draws it in a bag -- and it is the item's
+    -- own art it belongs to, not the line of text beside it. Rebuilt with the icon because it is
+    -- drawn over it.
+    if self.stack ~= nil then
+        self.stack:SetParent(nil)
+        self.stack = nil
+    end
+
+    local quantity = self.item ~= nil and (self.item.quantity or 1) or 1
+
+    if quantity > 1 then
+        self.stack = Turbine.UI.Label()
+        self.stack:SetParent(self.iconHost)
+        self.stack:SetMultiline(false)
+        self.stack:SetSize(ICON - 2, _G.Scaled(12))
+        self.stack:SetPosition(0, ICON - _G.Scaled(12))
+        self.stack:SetFont(_G.Font(9))
+        self.stack:SetFontStyle(_G.Theme.FONT_STYLE)
+        self.stack:SetForeColor(_G.Theme.TEXT)
+        self.stack:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
+        self.stack:SetText("\195\151" .. quantity)                 -- multiplication sign
+        self.stack:SetMouseVisible(false)
     end
 
 end
@@ -365,12 +392,11 @@ function _G.LootRow:SetLoot(item, drop, eventIndex)
         self.metaLabel:SetForeColor(_G.Theme.DIM2)
     end
 
-    -- THE BROWSER'S NUMBER, not a second opinion: the same helper folds the same entries, so a
-    -- rate seen here and looked up there cannot disagree. Asked by NAME rather than read off the
-    -- row, because a collapsed group ("Tracery") has no row of its own and answers for its
-    -- members.
-    local chance = _G.LootDrops.CombinedChance(
-        _G.LootDrops.ItemEntries(eventIndex, item.base))
+    -- THE BROWSER'S NUMBER, not a second opinion: one helper answers for both shapes of chest,
+    -- so a rate seen here and looked up there cannot disagree. Asked by NAME rather than read off
+    -- the row, because a loot line has no class on it and a collapsed group ("Tracery") has no
+    -- row of its own and answers for its members.
+    local chance = _G.LootDrops.ChanceAt(eventIndex, item.base)
     local shown  = _G.LootDrops.FormatChance(chance)
 
     if shown == nil then
@@ -383,6 +409,12 @@ function _G.LootRow:SetLoot(item, drop, eventIndex)
         self.chanceLabel:SetForeColor(chance < 0.02 and _G.Theme.CHIP_USED_TEXT or _G.Theme.TEXT)
         self.chanceLabel:SetText(shown)
     end
+
+    -- AND WHERE IT CAME FROM, on the same hover the browser gives it: the rolls behind the
+    -- figure, built from _G.LootDrops.RollLines, so the two windows explain one number one way.
+    local odds = _G.LootDrops.OddsTooltip(drop, (_G.LootDrops.RowText(drop)))
+    self.chanceLabel:SetTooltip(odds or "")
+    self.chanceLabel:SetMouseVisible(odds ~= nil)
 
     self:SetIcon(drop)
 

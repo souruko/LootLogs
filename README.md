@@ -1,6 +1,6 @@
 # LootLogs
 
-**Version:** 4.49.2 | **Author:** Souru
+**Version:** 4.49.3 | **Author:** Souru
 
 LootLogs is a Lord of the Rings Online plugin that automatically tracks your loot lockouts across instances and characters. When you open a chest in a raid or instance, LootLogs detects the chat message and records the lockout — no manual input needed. A countdown shows exactly when each lockout resets.
 
@@ -34,7 +34,7 @@ Lockouts are recorded per character and stored account-wide, so you can see all 
 - Custom List to pin specific events you care about across characters
 - QuickLaunch icon with a badge showing how many new lockouts were recorded this session
 - A **loot popup** when a chest is opened, listing what dropped and who got it
-- A **loot browser** with the drop database per boss and tier, your own observed rates, and a wishlist
+- A **loot browser** with the drop database per boss, tier and class, your own observed rates, and a wishlist
 - Localised UI in English, German, and French (auto-detected from game language)
 
 ---
@@ -128,11 +128,25 @@ barter currency and filler stay out of it, and a chest that drops nothing notabl
 window at all.
 
 The **loot browser** — the chest icon in the window header, or `/lootlogs drops` — lists the
-database itself: content pack → instance → boss on the left, and for the selected tier a table
-of every catalogued item with its drop chance, your own measured rate beside it, and a star to
-add it to your wishlist. The wishlist is shared across all your characters; what you have
-already collected is per character, and the **Still needed** filter uses it. Search finds an
-item across every instance, which answers "where does this drop".
+database itself: content pack → instance → boss on the left, and for the selected boss and tier
+a table of every catalogued item with its drop chance, your own measured rate beside it, and a
+star to add it to your wishlist. The wishlist is shared across all your characters; what you
+have already collected is per character, and the **Still needed** filter uses it. Search finds
+an item across every instance, which answers "where does this drop".
+
+The game's loot tables are filtered by class, so the table shows **one class at a time**: the
+class row under the boss name picks whose loot you are reading, starting on your own and
+remembering the last one you chose. Badharál's Tier 3 chest is 32 rows for a Warden where
+listing every class together was 217.
+
+Favoured and common completions are separate lockouts, so they stay separate figures: a row is
+tagged **FAV**, **COM** or both, the **All / Favoured / Common** filter picks which table you
+are looking at, and no number on the page ever blends the two. Rows that always drop are banded
+above the ones that are rolled for, and stack sizes are drawn on the item's own slot.
+
+Hovering a chance shows what it is made of — every roll the chest makes that can produce that
+item, the pool and share behind each one, and the fold that turns them into the figure on the
+row. The popup shows the same derivation for the same item.
 
 Measured rates always show their sample size, and are greyed until you have opened that chest
 ten times — a one-of-one drop reading "100%" next to a database value of 12% is worse than no

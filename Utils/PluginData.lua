@@ -255,8 +255,11 @@ if _G.Settings.lootPopup == nil then
     _G.Settings.lootPopup = { left = 700, top = 300 }
 end
 
+-- `class` is whose loot table the browser lists. It is absent until the first pick, and the
+-- window falls back to the logged-in class -- which is the right answer for a first open and
+-- cannot be written down here, where there is no character yet.
 if _G.Settings.lootBrowser == nil then
-    _G.Settings.lootBrowser = { left = 250, top = 250, width = 840, height = 430 }
+    _G.Settings.lootBrowser = { left = 250, top = 250, width = 840, height = 470 }
 end
 
 if _G.Settings.showLootPopup == nil then

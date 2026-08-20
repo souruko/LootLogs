@@ -4,6 +4,24 @@ Versions are `<major>.<lotro update>.<release>`. The middle number is the LOTRO 
 build targets, and the last number counts fixes and changes within it, resetting when either of the
 numbers above it moves. The leading number moves only for a major overhaul of the plugin itself.
 
+## [4.49.3] - 2026-08-20
+
+### Added
+- The loot browser shows **one class at a time**. The game's tables are filtered by class, so a chest listed for everybody was mostly rows you could never get — Badharál's Tier 3 chest is 32 rows for a Warden where all twelve classes together was 217
+- A class row under the boss name picks whose table you are reading, drawn with the client's own class portraits. It starts on your own class and remembers the last one you chose, so comparing what a chest gives your alt takes one click
+- **Favoured and common completions are two lockouts, so they stay two figures.** Every row is tagged `FAV`, `COM` or both, and an `All / Favoured / Common` filter picks which table the page is about. Nothing on screen ever blends the two into one rate the game does not roll
+- Hovering a chance shows how it was built: every roll the chest makes that can produce the item, the pool and the share behind each one, and the fold that turns them into the figure on the row. The popup shows the same derivation for the same item, from the same place
+- `Always drops` and `Rolled` bands, so the certainties are not something you find by reading a page of percentages
+- Stack sizes are drawn on the item's own slot, the way the game draws them in a bag
+
+### Changed
+- The tier moved out of the tree and onto the chest heading, beside the boss it belongs to — a chest is one boss at one tier, and reading the two halves apart was work
+- Every count in the browser is now that class's: the tree, the sub-line and the table are three views of one list and cannot disagree
+- The Folly of Nagakhêdi is re-exported from the class-filtered loot tables, with a stack size, a table name and a per-lockout chance on every row
+
+### Removed
+- The column of bare per-entry rates. What an item's chance is made of is the hover now, in words and with its arithmetic shown, rather than six numbers with no explanation
+
 ## [4.49.2] - 2026-08-12
 
 ### Changed
