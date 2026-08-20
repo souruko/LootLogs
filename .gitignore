@@ -11,3 +11,6 @@ test/
 
 # exported loot tables (source data for Logs/Drops, see LootTables/README.md)
 LootTables/
+
+# python
+__pycache__/

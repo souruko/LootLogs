@@ -1,10 +1,5 @@
 -- One item row, shared by the loot popup and (from M3) the loot browser.
 --
--- The name column is TWO LINES where the drops data gives the item a `label`: the game's own
--- name, and under it in small text what people actually call the thing. The label used to be
--- drawn instead of the name, which left the row saying something the tooltip and the chat link
--- did not -- see _G.LootDrops.DisplayNote.
---
 -- Turbine cannot measure a label and does not clip an oversized one, so every text column is
 -- truncated with _G.Truncate against _G.GlyphWidth. Icons deliberately do not scale with the
 -- Font Size setting: Turbine clips a .tga to its control rather than resizing it, so a scaled
@@ -13,13 +8,12 @@
 -- Rows are built once and re-driven through SetLoot, because a popup that rebuilds its
 -- controls on every chest leaks them -- Turbine has no destructor, only reparenting to nil.
 
--- Item art is 36px, which is the size the client's own item images ARE. A slot smaller than its
--- picture crops it: Turbine clips art to its control instead of resizing it, which is the same
--- reason this does not scale with the Font Size setting either. The row height does scale, and is
--- floored so the icon always fits.
-_G.LootSlotSize = 36
+-- Item art is 32px. Like every other icon here it does not scale with the Font Size setting --
+-- Turbine clips art to its control instead of resizing it, so a scaled box would crop the
+-- picture. The row height does scale, and is floored so the icon always fits.
+_G.LootSlotSize = 32
 
-local PAD, ROW_H, ICON, RULE_W, GAP, META_W, CHANCE_W, STAR, NAME_DROP
+local PAD, ROW_H, ICON, RULE_W, GAP, META_W, CHANCE_W, STAR
 
 local function Metrics()
     PAD    = _G.Scaled(8)
@@ -37,22 +31,11 @@ local function Metrics()
     ICON   = _G.LootSlotSize
     STAR   = 12
     ROW_H  = math.max(_G.Scaled(38), ICON + 6)
-    -- A two-line name sits HIGH in its row: the name's box is the top 55% and its text is
-    -- centred in that, which puts it hard against the row's top edge while the note below keeps
-    -- an obvious gap. Nudging the name down by a few pixels re-centres the PAIR without moving
-    -- the note or changing the row height. One-line rows do not take it -- they are centred in
-    -- the full height already.
-    NAME_DROP = _G.Scaled(3)
 end
 
 _G.RegisterMetrics(Metrics)
 
 _G.LootRowHeight = function() return ROW_H end
-
--- Shared with the browser's own row (UI/Window/LootBrowser.lua), which splits the name column
--- the same way: the same item must not sit at two different heights depending on which window
--- is open.
-_G.LootNameDrop = function() return NAME_DROP end
 
 -- Quality is mapped onto EXISTING theme roles rather than new ones, so every theme keeps its
 -- own palette instead of importing LOTRO's item colours (which clash badly in misty).
@@ -74,41 +57,32 @@ _G.LootQualityColor = QualityColor
 -- ================================================================================================
 -- Item icon
 -- ================================================================================================
--- Drawn as an ItemInfoControl -- the client's own item slot -- and NOT as either of the two
--- things it has been before.
+-- Drawn as layered IMAGES, not as a quickslot.
 --
--- Not a QUICKSLOT: a quickslot paints the live stack count from your bags over the art, and in a
--- listing about the world that number is meaningless at best and misleading at worst. It says how
--- many YOU are carrying, next to a drop chance that has nothing to do with you. An ItemInfoControl
--- has its own quantity, and SetQuantity(1) draws none -- which is the whole reason it can be used
--- where a quickslot could not. SetAllowDrop(false) for the same reason in the other direction:
--- a catalogue is not a bag, and nothing may be dropped into it.
+-- A quickslot works and was what this used at first, but it paints the live stack count from
+-- your bags over the art. In a listing about the world that number is meaningless at best and
+-- misleading at worst: it says how many YOU are carrying, next to a drop chance that has nothing
+-- to do with you.
 --
--- Not LAYERED IMAGES either, which is what replaced the quickslot and what this replaces. Composing
--- an icon by hand means owning the layer order (background, then the OPAQUE quality backing, then
--- the art LAST -- get it wrong and you draw an olive green tile where a pair of boots should be)
--- and the blend mode, forever, for a picture the client already knows how to draw. Handing the
--- ItemInfo over draws the same icon in one control instead of four, and brings back the tooltip
--- that layering had cost -- the row's NAME is an item link and carries one (_G.LootDrops.ItemLink),
--- but the art is the thing the pointer lands on first.
+-- What kept the quickslot around was its tooltip. That is no longer a reason: the row's NAME is
+-- an item link now (see _G.LootDrops.ItemLink), and a link carries the game's own tooltip and a
+-- click of its own. So the icon only has to be a picture, and a picture is all this draws.
 --
--- A tooltip means the control TAKES THE MOUSE, and a mouse-visible child stops its row from seeing
--- the pointer. Where the row has a hover of its own, the icon has to re-drive it exactly as the
--- name label does -- see _G.LootBrowser:MakeItemRow.
---
--- The way in is Shortcut:GetItem():GetItemInfo(), which turns an item id into the client's record
--- without any slot being involved. That walk is _G.LootDrops.ClientInfo's -- the reference snippet
--- for this does it with a hidden 1x1 quickslot, which is the same three steps and one control more.
-
--- The three image ids the client composes an icon from, back to front:
+-- The way in is Shortcut:GetItem(), which turns an item shortcut into an Item without any slot
+-- being involved. Its ItemInfo carries the image ids the client itself composes an icon from:
 --
 --     background   the slot backing
 --     quality      the rarity backing -- OPAQUE, so it goes UNDER the art, not over it
 --     icon         the item art itself, and therefore LAST
 --
--- Nothing draws from these any more -- the ItemInfoControl above does its own composing. They are
--- kept for `/lootlogs icon` (Utils/Commands.lua), which prints them to say whether an id resolves
--- to art at all, and that is now its only caller.
+-- back to front. The order is the whole trick and it is not the order the getters are named in:
+-- drawing quality last paints a flat coloured square over the item, which is exactly what the
+-- first attempt did -- an olive green tile where a pair of boots should have been. Turbine draws
+-- children in the order they are added, so the art is added last and nothing can cover it.
+--
+-- Everything is pcall'd and every layer is optional:
+-- an id that resolves to nothing returns nil and leaves the caller to fall back, which is no
+-- worse than the coloured bar this replaced.
 local function ImageIds(id)
 
     -- The shortcut-to-ItemInfo walk is _G.LootDrops.ClientInfo's, and lives there because the
@@ -137,47 +111,39 @@ end
 
 _G.LootItemImages = ImageIds
 
--- Points an existing slot at a catalogued id, or empties it where the id is nil or resolves to
--- nothing. Returns whether it took: SetItemInfo(nil) is not certain to be legal, and a slot that
--- would not empty must not be left showing the last item -- see _G.LootRow:SetIcon.
---
--- An unresolvable id is COMMON and is not an error. A drop the catalogue has no id for, and an id
--- the client cannot answer for yet because the item table is not loaded, both land here and both
--- draw the empty slot: a frame where the art will be, rather than a hole in the row.
-local function ShowItem(control, id)
-
-    local info = id ~= nil and _G.LootDrops.ClientInfo(id) or nil
-
-    return (pcall(function()
-        control:SetItemInfo(info)
-        -- ONE, ALWAYS. This is the number a quickslot would have taken from your bags, and drawing
-        -- it is the thing that kept a quickslot out of these rows.
-        control:SetQuantity(1)
-    end))
-
-end
-
-_G.LootShowItem = ShowItem
-
--- Builds an item slot into `parent` showing `id`, or nil where the client cannot make one at all
--- (out of the game, in the test harness, there is no Turbine.UI.Lotro to build with) -- so callers
--- still guard, even though an unresolvable id now draws an empty slot rather than nothing.
---
--- Mouse-VISIBLE, unlike the picture this replaced: the slot's tooltip is half the point of it. A
--- row with a hover of its own has to re-drive that hover from the icon, or it goes dark under the
--- pointer.
+-- Builds the layered icon into `parent` and returns it, or nil if the id resolves to nothing.
+-- Mouse-invisible: the picture has no tooltip of its own and must not steal the row's hover
+-- or the name link's click.
 function _G.MakeItemIcon(parent, id, size)
 
-    local built, control = pcall(function() return Turbine.UI.Lotro.ItemInfoControl() end)
-    if not built or control == nil then return nil end
+    local images = ImageIds(id)
+    if images == nil then return nil end
 
-    control:SetParent(parent)
-    control:SetSize(size, size)
-    control:SetAllowDrop(false)
+    local host = Turbine.UI.Control()
+    host:SetParent(parent)
+    host:SetSize(size, size)
+    host:SetMouseVisible(false)
 
-    ShowItem(control, id)
+    -- ALPHABLEND, NOT THE DEFAULT. These are full-colour game images, and left on the default
+    -- mode their alpha punches a hole straight through the window behind them. The same rule
+    -- already applies to the class portraits in SidebarItems/CharacterItem.lua; Overlay is for
+    -- the plugin's own white-on-transparent glyph .tga files and would render a game icon
+    -- invisible (Ressources/ICONS.md).
+    local function Layer(imageId)
+        if imageId == nil then return end
+        local layer = Turbine.UI.Control()
+        layer:SetParent(host)
+        layer:SetSize(size, size)
+        layer:SetMouseVisible(false)
+        layer:SetBlendMode(Turbine.UI.BlendMode.AlphaBlend)
+        pcall(function() layer:SetBackground(imageId) end)
+    end
 
-    return control
+    Layer(images.background)
+    Layer(images.quality)
+    Layer(images.icon)      -- last, so the item is on top of both backings
+
+    return host
 
 end
 
@@ -198,20 +164,13 @@ function _G.LootRow:Constructor(parent)
     self.rule:SetSize(RULE_W, ROW_H)
     self.rule:SetMouseVisible(false)
 
-    -- The icon lives in here, and the host stays put so the layout never has to move. Mouse-visible,
-    -- both of them: the slot's tooltip is why it is a slot, and a mouse-invisible host would shadow
-    -- it. This row has no hover of its own to lose, so nothing has to be re-driven -- the browser's
-    -- row does, and does (UI/Window/LootBrowser.lua).
+    -- The icon lives in here and is rebuilt per item, because it is composed of that item's own
+    -- images. The host stays put so the layout never has to move.
     self.iconHost = Turbine.UI.Control()
     self.iconHost:SetParent(self)
     self.iconHost:SetSize(ICON, ICON)
     self.iconHost:SetPosition(RULE_W + GAP, math.floor((ROW_H - ICON) / 2))
-    self.iconHost:SetMouseVisible(true)
-
-    -- Built ONCE and re-pointed per item, not rebuilt: the popup pools its rows and re-drives them
-    -- through SetLoot, so an icon made per chest would pile up controls for the session (Turbine
-    -- has no destructor). It starts empty and SetIcon fills it.
-    self.icon = _G.MakeItemIcon(self.iconHost, nil, ICON)
+    self.iconHost:SetMouseVisible(false)
 
     -- Wishlist marker. Art, not a glyph: Ressources/ICONS.md records that Turbine's font
     -- cannot be relied on to draw U+2605, which is why star_on.tga exists at all.
@@ -241,25 +200,6 @@ function _G.LootRow:Constructor(parent)
     -- escape -- but that is why it is enabled on THIS label and not on the whole row.
     self.nameLabel:SetMarkupEnabled(true)
     self.nameLabel:SetMouseVisible(true)
-
-    -- WHAT PEOPLE ACTUALLY CALL IT, under the name the game gives it: "Runekeeper shoulders red"
-    -- beneath "Blighted Shoulder-guards of the Endless Flame". The drops data's `label`, which
-    -- used to REPLACE the name -- and replacing it meant the row no longer said what the tooltip
-    -- and the chat link said, so two people reading the same drop read two different words.
-    --
-    -- Deliberately smaller and dimmer than the name, and never a link: it is a note about the
-    -- item, not the item. Mouse-invisible like every other label here, so the row keeps its
-    -- hover and the name above it keeps its click. Hidden entirely where a row has no label,
-    -- which is most of them -- an empty second line would make every row look two-storey.
-    self.noteLabel = Turbine.UI.Label()
-    self.noteLabel:SetParent(self)
-    self.noteLabel:SetMultiline(false)
-    self.noteLabel:SetFont(_G.Font(10))
-    self.noteLabel:SetFontStyle(_G.Theme.FONT_STYLE)
-    self.noteLabel:SetForeColor(_G.Theme.DIM2)
-    self.noteLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    self.noteLabel:SetMouseVisible(false)
-    self.noteLabel:SetVisible(false)
 
     self.metaLabel = Turbine.UI.Label()
     self.metaLabel:SetParent(self)
@@ -309,26 +249,9 @@ function _G.LootRow:LayoutLabels()
     local chanceX = math.max(0, width - CHANCE_W - PAD)
     local metaX   = math.max(0, chanceX - META_W)
 
-    -- TWO LINES WHERE THERE IS A DESCRIPTION, ONE WHERE THERE IS NOT, in the same row height
-    -- either way: the popup's list gives every row the same height, and a row that grew for its
-    -- note would leave the icons and the rules of its neighbours out of step.
-    --
-    -- Split by PROPORTION rather than by font size, because the height already tracks the Font
-    -- Size setting -- 55% of it leaves the 12px name and the 10px note fitting at every step,
-    -- with the name taking the larger share because it is the line that gets read.
-    local nameW = math.max(0, metaX - nameX)
-    local noted = self.noteLabel:IsVisible()
-    local nameH = noted and math.floor(height * 0.55) or height
-
-    -- the box moves, its HEIGHT does not: the text is centred in the box, so shifting the box
-    -- is what shifts the text -- shrinking it would leave the centre where it was
-    self.nameLabel:SetPosition(nameX, noted and NAME_DROP or 0)
-    self.nameLabel:SetHeight(nameH)
-    self.nameLabel:SetWidth(nameW)
-
-    self.noteLabel:SetPosition(nameX, nameH)
-    self.noteLabel:SetHeight(math.max(0, height - nameH))
-    self.noteLabel:SetWidth(nameW)
+    self.nameLabel:SetPosition(nameX, 0)
+    self.nameLabel:SetHeight(height)
+    self.nameLabel:SetWidth(math.max(0, metaX - nameX))
 
     self.metaLabel:SetPosition(metaX, 0)
     self.metaLabel:SetHeight(height)
@@ -349,35 +272,26 @@ function _G.LootRow:RefreshText()
     local item = self.item
     if item == nil then return end
 
-    -- Whether there is a description decides how tall the name's line is, so it is settled
-    -- BEFORE the layout and cut to width after it -- the same order the star already forces on
-    -- this column, and for the same reason: the layout cannot be computed from a state that is
-    -- set afterwards.
-    local note = _G.LootDrops.DisplayNote(self.drop)
-    self.noteLabel:SetVisible(note ~= nil)
-
     self:LayoutLabels()
 
-    -- Count and name are truncated as ONE string, so a name too long for the column loses its
-    -- tail and never its "3x". The star is a separate control and takes its own space.
-    local quantity = (item.quantity or 1) > 1 and (item.quantity .. "x ") or ""
-    local shown    = _G.LootDrops.DisplayName(self.drop, item.base)
+    -- The count is drawn on the slot (SetIcon), not in front of the name: it belongs to the
+    -- picture of the thing, and a long name used to lose its tail paying for it. The star is a
+    -- separate control and takes its own space.
+    -- RowText, not the raw name: the two shapes of drops row disagree about `label` -- one
+    -- renames the item with it, the other describes it -- and only it knows which is in hand.
+    local shown = _G.LootDrops.RowText(self.drop)
+    if self.drop == nil then shown = item.base end
 
     -- TRUNCATE FIRST, THEN LINK. _G.Truncate counts glyphs, and the link's tag is markup the
     -- label never draws -- measuring the wrapped string would cut the name to nothing. The two
     -- brackets ARE drawn, so their width comes off the budget.
     local glyph = _G.GlyphWidth(12)
     local text  = _G.Truncate(
-        quantity .. shown,
+        shown,
         self.nameLabel:GetWidth() - glyph * 2,
         glyph)
 
     self.nameLabel:SetText(_G.LootDrops.ItemLink(self.drop, text))
-
-    -- No brackets and no markup on this one, so the whole column is the description's
-    self.noteLabel:SetText(note ~= nil
-        and _G.Truncate(note, self.noteLabel:GetWidth(), _G.GlyphWidth(10))
-        or  "")
 
     local meta = item.player or ""
     if item.level then
@@ -387,25 +301,53 @@ function _G.LootRow:RefreshText()
 
 end
 
--- The item's own art where its id resolves to some, and the empty slot where it does not -- an
--- uncatalogued id is common and is not an error.
+-- The item's own art where its id resolves to some, and the quality bar where it does not --
+-- an uncatalogued id is common and is not an error.
 --
--- RE-POINTED, not rebuilt, because the slot is not made of the item: the same control shows the
--- next one. Rebuilding is the fallback for the one case that would be a bug -- a slot that will
--- not empty would leave THIS row showing the PREVIOUS row's item, and rows are pooled, so that is
--- the loot of a chest ago under somebody else's name.
+-- Rebuilt rather than re-pointed, because the layers ARE the item. Turbine has no destructor,
+-- so the old one is reparented to nil and dropped.
 function _G.LootRow:SetIcon(drop)
-
-    local id = drop and drop.id
-
-    if self.icon ~= nil and _G.LootShowItem(self.icon, id) then return end
 
     if self.icon ~= nil then
         self.icon:SetParent(nil)
         self.icon = nil
     end
 
-    self.icon = _G.MakeItemIcon(self.iconHost, id, ICON)
+    self.icon = _G.MakeItemIcon(self.iconHost, drop and drop.id, ICON)
+
+    if self.icon == nil then
+        local bar = Turbine.UI.Control()
+        bar:SetParent(self.iconHost)
+        bar:SetPosition(math.floor((ICON - 3) / 2), 0)
+        bar:SetSize(3, ICON)
+        bar:SetBackColor(QualityColor(drop and drop.quality))
+        bar:SetMouseVisible(false)
+        self.icon = bar
+    end
+
+    -- THE STACK RIDES ON THE SLOT, the way the client draws it in a bag -- and it is the item's
+    -- own art it belongs to, not the line of text beside it. Rebuilt with the icon because it is
+    -- drawn over it.
+    if self.stack ~= nil then
+        self.stack:SetParent(nil)
+        self.stack = nil
+    end
+
+    local quantity = self.item ~= nil and (self.item.quantity or 1) or 1
+
+    if quantity > 1 then
+        self.stack = Turbine.UI.Label()
+        self.stack:SetParent(self.iconHost)
+        self.stack:SetMultiline(false)
+        self.stack:SetSize(ICON - 2, _G.Scaled(12))
+        self.stack:SetPosition(0, ICON - _G.Scaled(12))
+        self.stack:SetFont(_G.Font(9))
+        self.stack:SetFontStyle(_G.Theme.FONT_STYLE)
+        self.stack:SetForeColor(_G.Theme.TEXT)
+        self.stack:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleRight)
+        self.stack:SetText("\195\151" .. quantity)                 -- multiplication sign
+        self.stack:SetMouseVisible(false)
+    end
 
 end
 
@@ -433,34 +375,28 @@ function _G.LootRow:SetLoot(item, drop, eventIndex)
     -- The two chip pairs are one cool and one warm in every theme by design (UI/Theme.lua), so
     -- "mine" and "theirs, and I wanted it" can never be read as the same event -- including in
     -- misty, where they are tints rather than fills.
-    --
-    -- The description takes the looter column's colour rather than the name's, because it is the
-    -- same kind of thing: a supporting line that must stay legible on a tinted ground without
-    -- competing with the name above it.
     if item.isSelf then
         self:SetBackColor(_G.Theme.CHIP_FAV_BG)
         self.rule:SetBackColor(_G.Theme.ACCENT)
         self.nameLabel:SetForeColor(_G.Theme.CHIP_FAV_TEXT)
         self.metaLabel:SetForeColor(_G.Theme.ACCENT)
-        self.noteLabel:SetForeColor(_G.Theme.ACCENT)
     elseif wished then
         self:SetBackColor(_G.Theme.CHIP_USED_BG)
         self.rule:SetBackColor(_G.Theme.CHIP_USED_FRAME)
         self.nameLabel:SetForeColor(_G.Theme.CHIP_USED_TEXT)
         self.metaLabel:SetForeColor(_G.Theme.CHIP_USED_TEXT)
-        self.noteLabel:SetForeColor(_G.Theme.CHIP_USED_TEXT)
     else
         self:SetBackColor(_G.Theme.BG)
         self.rule:SetBackColor(_G.Theme.FRAME)
         self.nameLabel:SetForeColor(QualityColor(drop and drop.quality))
         self.metaLabel:SetForeColor(_G.Theme.DIM2)
-        self.noteLabel:SetForeColor(_G.Theme.DIM2)
     end
 
-    -- THE BROWSER'S NUMBER, not a second opinion: both windows read the chance off the same
-    -- catalogue row, so a rate seen here and looked up there cannot disagree. Asked by NAME,
-    -- because what this window has is the name chat printed.
-    local chance = _G.LootDrops.ItemChance(eventIndex, item.base)
+    -- THE BROWSER'S NUMBER, not a second opinion: one helper answers for both shapes of chest,
+    -- so a rate seen here and looked up there cannot disagree. Asked by NAME rather than read off
+    -- the row, because a loot line has no class on it and a collapsed group ("Tracery") has no
+    -- row of its own and answers for its members.
+    local chance = _G.LootDrops.ChanceAt(eventIndex, item.base)
     local shown  = _G.LootDrops.FormatChance(chance)
 
     if shown == nil then
@@ -473,6 +409,12 @@ function _G.LootRow:SetLoot(item, drop, eventIndex)
         self.chanceLabel:SetForeColor(chance < 0.02 and _G.Theme.CHIP_USED_TEXT or _G.Theme.TEXT)
         self.chanceLabel:SetText(shown)
     end
+
+    -- AND WHERE IT CAME FROM, on the same hover the browser gives it: the rolls behind the
+    -- figure, built from _G.LootDrops.RollLines, so the two windows explain one number one way.
+    local odds = _G.LootDrops.OddsTooltip(drop, (_G.LootDrops.RowText(drop)))
+    _G.LootTooltip.Attach(self.chanceLabel, odds)
+    self.chanceLabel:SetMouseVisible(odds ~= nil)
 
     self:SetIcon(drop)
 

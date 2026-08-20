@@ -165,7 +165,7 @@ local function DemoRun()
 
         local items = {}
 
-        for rowIndex, drop in ipairs(_G.Drops[eventIndex]) do
+        for rowIndex, drop in ipairs(_G.LootDrops.AllRows(eventIndex)) do
             items[#items + 1] = {
                 base     = drop.item,
                 level    = 151,
@@ -250,10 +250,10 @@ function(args)
     if string.match(query, "^0?[xX]?%x+$") and tonumber((string.gsub(query, "^0[xX]", "")), 16) then
         id = query
     else
-        for eventIndex, rows in pairs(_G.Drops or {}) do
-            for _, drop in ipairs(rows) do
+        for eventIndex in pairs(_G.Drops or {}) do
+            for _, drop in ipairs(_G.LootDrops.AllRows(eventIndex)) do
                 if id == nil and drop.item == query and drop.id ~= nil then
-                    id, shown = drop.id, _G.LootDrops.DisplayName(drop, drop.item)
+                    id, shown = drop.id, (_G.LootDrops.RowText(drop))
                 end
             end
         end
@@ -336,7 +336,7 @@ function(args)
     local seen, order = {}, {}
 
     for eventIndex in pairs(wanted) do
-        for _, drop in ipairs((_G.Drops or {})[eventIndex] or {}) do
+        for _, drop in ipairs(_G.LootDrops.AllRows(eventIndex)) do
             if seen[drop.item] == nil then
                 seen[drop.item] = drop
                 order[#order + 1] = drop.item
@@ -355,7 +355,7 @@ function(args)
         local drop              = seen[name]
         local category, mapped  = _G.LootDrops.ItemCategory(drop.id)
         local kind              = _G.LootDrops.ItemKind(
-            _G.LootDrops.DisplayName(drop, name), drop.id)
+            (_G.LootDrops.RowText(drop)), drop.id)
 
         Turbine.Shell.WriteLine(
             _G.CM("DIM") .. "  " .. string.format("%-4s", category or "--") .. _G.CMR

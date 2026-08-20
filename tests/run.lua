@@ -45,6 +45,13 @@ Turbine = {
         Control = function() return { SetWantsUpdates = function() end } end,
     },
     Shell = { WriteLine = function(s) printed[#printed + 1] = s end },
+    -- The class-filtered drops files key their `classes` blocks on this enum, so it has to exist
+    -- before one is loaded. The VALUES do not matter here and are deliberately not the client's:
+    -- what is being tested is that the same constant reaches the file and the lookup.
+    Gameplay = { Class = {
+        Beorning = 1, Brawler = 2, Burglar = 3, Captain = 4, Champion = 5, Guardian = 6,
+        Hunter = 7, LoreMaster = 8, Mariner = 9, Minstrel = 10, RuneKeeper = 11, Warden = 12,
+    } },
 }
 
 _G.Settings   = { lootWindowBackTenths = 10, lootWindowFwdTenths = 40, printAlerts = true }
@@ -53,6 +60,18 @@ _G.CM         = function() return "" end
 _G.CMR        = ""
 _G.Sep        = " - "
 _G.PrintAlert = function(s) printed[#printed + 1] = s end
+-- Utils/Functions.lua is a WINDOW file -- it wants fonts and a theme -- so the handful of its
+-- helpers the data layer uses are stubbed rather than loaded. Colour and the separator are
+-- flattened on purpose, so a check reads as the text it is about; the glyph count is the real
+-- rule, because the odds tooltip pads its columns with it.
+_G.Glyphs = function(text)
+    local count = 0
+    for index = 1, #(text or "") do
+        local byte = string.byte(text, index)
+        if byte < 128 or byte >= 192 then count = count + 1 end
+    end
+    return count
+end
 import = function() end
 
 -- The REAL event table, not a stub of it. The drops file is keyed on _G.Events indices, so a
@@ -61,8 +80,9 @@ import = function() end
 -- exactly the mistake they are here to catch.
 dofile("Logs/English.lua")
 dofile("Logs/Drops/English.lua")
+-- the odds tooltip names its tables in words, and the words are locale keys
+dofile("Utils/Locale.lua")
 dofile("LootDrops.lua")
-dofile("Utils/EventIndex.lua")
 
 -- ------------------------------------------------------------------------------------------------
 section("Item shortcut data  (dragged onto the row quickslot, live client)")
@@ -119,44 +139,24 @@ check("nil drop yields nil", _G.LootDrops.ShortcutData(nil),      nil)
 check("shortcut type constant",           _G.LootDrops.SHORTCUT_ITEM,          SHORTCUT_TYPE)
 
 -- ------------------------------------------------------------------------------------------------
-section("Display label  (a description under the name, never the name itself)")
+section("Display label  (renames the item on screen, never the key)")
 
-local labelled = { item = "Blighted Shoulder-guards of the Endless Flame",
-                   label = "Runekeeper shoulders red", id = 0x700713ED }
+local labelled = { item = "Blighted Shoulder-guards of Shadows",
+                   label = "Burglar Red Shoulders", id = 0x700713ED }
 local plainRow = { item = "Silver Serpent" }
 
--- THE LABEL NO LONGER REPLACES THE NAME. The row draws the client's own name and puts the
--- label under it as a small description, so the row, the tooltip and the chat link all say
--- the same thing about the same item.
-check("the shown name is the client's own",
-    _G.LootDrops.DisplayName(labelled, labelled.item),
-    "Blighted Shoulder-guards of the Endless Flame")
-check("the label is the description",
-    _G.LootDrops.DisplayNote(labelled), "Runekeeper shoulders red")
+check("label replaces the shown name",
+    _G.LootDrops.DisplayName(labelled, labelled.item), "Burglar Red Shoulders")
 check("no label falls back to the client name",
     _G.LootDrops.DisplayName(plainRow, plainRow.item), "Silver Serpent")
-check("no label is no description",     _G.LootDrops.DisplayNote(plainRow), nil)
 check("nil drop falls back",
     _G.LootDrops.DisplayName(nil, "Silver Serpent"), "Silver Serpent")
-check("nil drop has no description",    _G.LootDrops.DisplayNote(nil), nil)
 check("empty label is not a rename",
     _G.LootDrops.DisplayName({ item = "x", label = "" }, "x"), "x")
-check("empty label is not a description",
-    _G.LootDrops.DisplayNote({ item = "x", label = "" }), nil)
 
--- THE ROW THAT HAS NO NAME OF ITS OWN keeps the label as its name: a category is keyed on a
--- word the client never prints ("?? Tracery"), which is not something to read out. Its label is
--- therefore not a description and must not be drawn twice.
-local categoryRow = { item = "?? Tracery", label = "Tracery", category = true }
-
-check("a category is named by its label",
-    _G.LootDrops.DisplayName(categoryRow, categoryRow.item), "Tracery")
-check("and has no description under it",  _G.LootDrops.DisplayNote(categoryRow), nil)
-
--- the key is untouched: the label must not affect matching, or a description would silently
--- stop the parser recognising the item
-check("label does not become a lookup key",
-    _G.LootDrops.Canonical("Runekeeper shoulders red"), nil)
+-- the key is untouched: the label must not affect matching, or a rename would silently stop
+-- the parser recognising the item
+check("label does not become a lookup key", _G.LootDrops.Canonical("Burglar Red Shoulders"), nil)
 check("catalogued name still resolves",
     _G.LootDrops.Canonical("Silver Serpent"), "Silver Serpent")
 
@@ -164,24 +164,15 @@ check("catalogued name still resolves",
 check("label does not disturb the shortcut",
     _G.LootDrops.ShortcutData(labelled), "0x0000000000000000,0x700713ED")
 
--- THE LINK READS AS THE ITEM IT EXAMINES. A link whose text was one player's nickname for the
--- thing, pasted into fellowship chat, is a link nobody else can place.
-check("the item link reads as the client's name",
-    _G.LootDrops.ItemLink(labelled, nil),
-    "<Examine:IIDDID:0x0000000000000000:0x700713ED>" ..
-    "[Blighted Shoulder-guards of the Endless Flame]<\\Examine>")
-
 -- ------------------------------------------------------------------------------------------------
 section("Loot line patterns  (both link forms, from the live client)")
 
--- THE REAL PARSER, not a re-implementation of it against the same patterns. Locating the name
--- is no longer a pattern at all (plain finds, because the link markup in front of it is long
--- and lazy matching it was the loot path's biggest cost), so a test that ran the patterns
--- itself would stop testing anything the plugin does.
 local function parse(message)
-    local player, raw, isSelf = _G.LootDrops.ParseLootLine(message)
-    if raw == nil then return nil, nil end
-    return isSelf and "you" or player, raw
+    local raw = string.match(message, _G.LootDrops.P.lootSelf)
+    if raw ~= nil then return "you", raw end
+    local player, other = string.match(message, _G.LootDrops.P.lootOther)
+    if other ~= nil then return player, other end
+    return nil, nil
 end
 
 -- Examine link: an item you do NOT hold, or your own while still (pending)
@@ -291,7 +282,7 @@ end
 -- seen 2.88s AFTER it and must be. Both measured on a six-man run.
 loot(100.0, "Kust", "Enhancement Rune +1")       -- quest reward, 4.5s early: excluded
 chest(104.5, 546)
-loot(104.6, "you", "Game Hunter's Cloak")
+loot(104.6, "you", "?? Group 1")
 loot(107.4, "Kust", "Silver Serpent")            -- +2.9s straggler: included
 settle(120)
 
@@ -343,34 +334,48 @@ check("barter is recorded but hidden",   _G.LootDrops.IsPopupItem(544, "Silver S
 check("barter still counted in chest",   #gearChest.items,                            2)
 
 -- ------------------------------------------------------------------------------------------------
-section("Category rows  (the tables name a kind of reward, not an item)")
+section("Grouped drops  (many names, one thing)")
 
--- Traceries are class-specific and rolled, so the tables cannot name one: they promise "a
--- tracery" and the client prints whatever it rolled. That row is catalogued as a CATEGORY --
--- "?? Tracery", drawn as "Tracery" -- and the "?? " is there so it can never match a chat line.
-local function CategoryRow(eventIndex)
-    for _, drop in ipairs(_G.Drops[eventIndex]) do
-        if drop.category then return drop end
-    end
-    return nil
+-- Traceries are class-specific and rolled, so a chest hands six people six different names for
+-- the same event: "a tracery dropped".
+check("a tracery reports its group",
+    _G.LootDrops.GroupOf(544, "?? Tracery"), "Tracery")
+check("an ungrouped catalogued item does not",
+    _G.LootDrops.GroupOf(544, "Sun-kissed Essence Box"), nil)
+check("an ungrouped item reports nothing",
+    _G.LootDrops.GroupOf(544, "Silver Serpent"), nil)
+check("an unknown item reports nothing",
+    _G.LootDrops.GroupOf(544, "Not An Item"), nil)
+
+-- Counted from the data rather than hard-coded, because the catalogue grows every run and a
+-- literal here would fail on the next one -- which teaches people to edit the number instead
+-- of reading the test.
+local expected = 0
+for _, drop in ipairs(_G.Drops[544]) do
+    if drop.group == "Tracery" then expected = expected + 1 end
 end
 
-local tracery = CategoryRow(544)
+local members = _G.LootDrops.GroupMembers(544, "Tracery")
+check("the group gathers every member", #members, expected)
 
-check("this chest promises a category",   tracery ~= nil,      true)
-check("marked as one in the data",        tracery.category,    true)
-check("named so nothing can match it",    tracery.item,        "?? Tracery")
-check("and drawn without the marker",     tracery.label,       "Tracery")
-check("a promise is a certainty",         tracery.chance,      1.0)
-check("with no id, so no icon to draw",   tracery.id,          nil)
+-- Deliberately NOT "more than one". The chart names no individual tracery -- one category row is
+-- the whole group until real names are catalogued from a run, and a group of one is a legitimate
+-- state, not a broken one.
+check("a group of one is still a group", expected >= 1, true)
 
--- A CATEGORY IS STILL KEYED ON ITS OWN NAME. It is a row like any other, so the lookups answer
--- for it -- and the name it is DRAWN under is not a key, because nothing will ever print it.
-check("the category resolves on its key", _G.LootDrops.Canonical("?? Tracery"), "?? Tracery")
-check("its label is not a lookup key",    _G.LootDrops.Canonical("Tracery"),    nil)
-check("and it is catalogued",             _G.LootDrops.KnowsItem("?? Tracery"), true)
+-- GROUPING MUST NOT AFFECT MATCHING. Each name still needs its own row, or the drop is not
+-- recognised at all -- the group is display and statistics only.
+check("each member still resolves on its own name",
+    _G.LootDrops.Canonical("?? Tracery"), "?? Tracery")
+check("the group name is NOT a lookup key",
+    _G.LootDrops.Canonical("Tracery"), nil)
 
--- ------------------------------------------------------------------------------------------------
+-- and every member is still individually catalogued, so a chest of them is fully recorded
+for _, member in ipairs(members) do
+    check("member is catalogued: " .. member.item,
+        _G.LootDrops.KnowsItem(member.item), true)
+end
+
 -- ------------------------------------------------------------------------------------------------
 section("Run boundaries  (entering an instance starts a new run)")
 
@@ -408,74 +413,34 @@ check("the signal lasts exactly one chest", #_G.LootDrops.currentRun.chests, 2)
 -- ------------------------------------------------------------------------------------------------
 section("Drops data integrity")
 
--- ONE ROW PER ITEM PER CHEST, LIKELIEST FIRST, and every row's own figure folded from the
--- rates it carries. Those are the promises the browser is built on: it walks the chest and
--- draws it, folding and sorting nothing. Checked over the whole catalogue rather than a sample,
--- because the file is regenerated wholesale and a converter bug would land everywhere at once.
+-- AllRows rather than ipairs, because a class-filtered chest is not an array: walking one with
+-- ipairs finds nothing at all, and a sweep that silently checks nothing is worse than no sweep.
 local names = {}
-
-local function Combined(chances)
-    local product = 1
-    for _, chance in ipairs(chances) do product = product * (1 - chance) end
-    return 1 - product
-end
-
-for eventIndex, drops in pairs(_G.Drops) do
-
+for eventIndex in pairs(_G.Drops) do
     check("event " .. eventIndex .. " exists in _G.Events", _G.Events[eventIndex] ~= nil, true)
-
-    local seen, out_of_order, unsorted, mismatched, bad_span = {}, nil, nil, nil, nil
-    local previous = nil
-
-    for _, drop in ipairs(drops) do
-
+    for _, drop in ipairs(_G.LootDrops.AllRows(eventIndex)) do
         check("row has an item name", type(drop.item) == "string" and drop.item ~= "", true)
-
         if drop.chance ~= nil then
             check("chance " .. drop.item .. " is 0..1",
                 drop.chance >= 0 and drop.chance <= 1, true)
         end
-
+        -- the class-filtered shape carries one pack per lockout instead, and the same rule holds
+        -- of every one of them: a rate is 0..1 and is NEVER zero -- an unknown rate is absent
+        for _, kind in ipairs({ "fav", "com" }) do
+            local pack = drop[kind]
+            if pack ~= nil then
+                check(kind .. " chance " .. drop.item .. " is 0..1",
+                    pack.chance == nil or (pack.chance > 0 and pack.chance <= 1), true)
+                check(kind .. " rolls match rates for " .. drop.item,
+                    pack.rolls, #(pack.rates or {}))
+            end
+        end
         -- a plural must not collide with another item's singular
         if drop.plural ~= nil then
             check("plural differs from singular for " .. drop.item, drop.plural ~= drop.item, true)
         end
-
-        -- ONE ROW PER NAME. The tables list an item once per pool it sits in; the file folds
-        -- that, and a repeat here would put the same item on screen twice.
-        if seen[drop.item] then out_of_order = drop.item end
-        seen[drop.item] = true
-
-        -- `chances` is the breakdown, so a single-entry list is a row that should not have one
-        if drop.chances ~= nil then
-            if #drop.chances < 2 then bad_span = drop.item end
-            for i = 2, #drop.chances do
-                if drop.chances[i] > drop.chances[i - 1] then unsorted = drop.item end
-            end
-            -- and `chance` must be what folding them gives, to the precision the file is written
-            -- at -- adding them instead is the mistake this is here to catch
-            if math.abs(Combined(drop.chances) - drop.chance) > 0.000002 then
-                mismatched = drop.item
-            end
-        end
-
-        -- likeliest first, then by the name as drawn: the browser draws them in file order
-        if previous ~= nil and drop.chance ~= nil and previous.chance ~= nil then
-            local a, b = previous.chance, drop.chance
-            if b > a + 1e-12 then out_of_order = drop.item end
-        end
-        previous = drop
-
         names[drop.item] = true
-
     end
-
-    check("chest " .. eventIndex .. " lists every item once and likeliest first",
-        out_of_order, nil)
-    check("chest " .. eventIndex .. " keeps its rates biggest first", unsorted, nil)
-    check("chest " .. eventIndex .. " folds its rates into the figure it prints", mismatched, nil)
-    check("chest " .. eventIndex .. " gives no single rate a breakdown", bad_span, nil)
-
 end
 
 -- ------------------------------------------------------------------------------------------------
@@ -520,80 +485,214 @@ for _, row in ipairs(_G.InstanceEntries) do
 end
 
 -- ------------------------------------------------------------------------------------------------
-section("Item chances  (a chest rolls several tables, so one name has several rates)")
+section("Group modes  (collapse hides its members, expand lists them)")
 
--- Kishâsu T2. Read from the data rather than written down, because the catalogue is regenerated
--- from the game's own tables and a literal here would teach people to edit the number instead
--- of reading the test.
-local KISHASU_T2 = 543
+check("an undeclared group collapses -- the safe default",
+    _G.LootDrops.GroupMode("Not A Declared Group"), "collapse")
+check("traceries collapse",        _G.LootDrops.GroupMode("Tracery"), "collapse")
+check("a numbered group expands",  _G.LootDrops.GroupMode("Group 1"), "expand")
+check("an undeclared one does not", _G.LootDrops.GroupMode("Barter"), "collapse")
+check("no group, no mode",         _G.LootDrops.GroupMode(nil), nil)
+check("and an empty one is not a group either", _G.LootDrops.GroupMode(""), nil)
 
+check("GroupExpands agrees, tracery",  _G.LootDrops.GroupExpands("Tracery"), false)
+check("GroupExpands agrees, a group",  _G.LootDrops.GroupExpands("Group 1"), true)
+
+-- A group's NAME is display only, the same as an item's label: renaming one must never move
+-- the key the members, the wishlist and the stats are all keyed on.
+_G.DropGroups["Renamed Group"] = { mode = "expand", label = "Fallen Armour" }
+_G.DropGroups["Blank Label"]   = { mode = "expand", label = "" }
+
+check("a labelled group shows its label",
+    _G.LootDrops.GroupLabel("Renamed Group"), "Fallen Armour")
+check("an unlabelled one shows its key",  _G.LootDrops.GroupLabel("Group 1"), "Group 1")
+check("an empty label is not a name",     _G.LootDrops.GroupLabel("Blank Label"), "Blank Label")
+check("an undeclared group is its own name",
+    _G.LootDrops.GroupLabel("Not A Declared Group"), "Not A Declared Group")
+check("no group, no name",                _G.LootDrops.GroupLabel(nil), nil)
+check("renaming does not change the mode",
+    _G.LootDrops.GroupExpands("Renamed Group"), true)
+
+-- put the table back before the every-declared-group-has-members sweep below sees these
+_G.DropGroups["Renamed Group"] = nil
+_G.DropGroups["Blank Label"]   = nil
+
+-- ------------------------------------------------------------------------------------------------
+section("Combined chance  (one item, several pools, one number)")
+
+local combined = _G.LootDrops.CombinedChance
+
+-- The rolls are independent, so the chance of at least one hitting is 1 - Π(1 - chance).
+-- ADDING THEM IS THE MISTAKE THIS EXISTS TO PREVENT: 70 + 10 is 80, which is wrong, and a
+-- six-pool item would add up past 100% while claiming a certainty the tables never gave.
 local function pct(value)
     if value == nil then return nil end
     return math.floor(value * 10000 + 0.5) / 100
 end
 
-local function Row(eventIndex, name)
+check("nothing to fold is not a rate",     combined({}),                         nil)
+check("one entry is its own answer",       pct(combined({ { chance = 0.7 } })),  70)
+check("70% and 10% is 73%, not 80%",
+    pct(combined({ { chance = 0.7 }, { chance = 0.1 } })),                       73)
+check("six small pools still beat one",
+    pct(combined({ { chance = 0.010606 }, { chance = 0.010294 }, { chance = 0.01 },
+                   { chance = 0.003788 }, { chance = 0.003676 }, { chance = 0.003571 } })), 4.12)
+check("a guaranteed entry carries the rest",
+    pct(combined({ { chance = 1 }, { chance = 0.7 } })),                         100)
+check("an unknown chance is left out, not counted as zero",
+    pct(combined({ { chance = 0.7 }, { chance = nil } })),                       70)
+check("all unknown is unknown, never 0%",
+    combined({ { chance = nil }, { chance = nil } }),                            nil)
+check("bare numbers fold the same way",    pct(combined({ 0.7, 0.1 })),          73)
+
+-- ------------------------------------------------------------------------------------------------
+section("Item entries  (a chest rolls several tables, so one name has several chances)")
+
+-- Kishâsu T2. Counted from the data rather than written down, because the catalogue is
+-- regenerated from the game's own tables and a literal here would teach people to edit the
+-- number instead of reading the test.
+local KISHASU_T2 = 543
+
+local function EntriesInData(eventIndex, name)
+    local count = 0
     for _, drop in ipairs(_G.Drops[eventIndex]) do
-        if drop.item == name then return drop end
+        if drop.item == name and not drop.bucket then count = count + 1 end
+    end
+    return count
+end
+
+local necklace = _G.LootDrops.ItemEntries(KISHASU_T2, "Bright Conscript's Necklace")
+check("an item in six pools reports six chances",
+    #necklace, EntriesInData(KISHASU_T2, "Bright Conscript's Necklace"))
+check("and there really are six",  #necklace, 6)
+check("biggest first",             necklace[1].chance > necklace[#necklace].chance, true)
+check("each entry remembers its pool", necklace[1].group ~= nil, true)
+
+-- THE HALF THAT IS EASY TO MISS. Ungrouped items duplicate too, so the key is the NAME and
+-- never the group -- "collapse the groups" would leave this one at two rows.
+check("an ungrouped item duplicates as well",
+    #_G.LootDrops.ItemEntries(KISHASU_T2, "Silver Serpent"),
+    EntriesInData(KISHASU_T2, "Silver Serpent"))
+
+check("an uncatalogued name has no entries",
+    #_G.LootDrops.ItemEntries(KISHASU_T2, "Not An Item"), 0)
+
+-- A bucket row is the pool itself: it matches no chat line, has no id, and its rate belongs to
+-- the category rather than to anything in it.
+local bucketName = nil
+for _, drop in ipairs(_G.Drops[KISHASU_T2]) do
+    if drop.bucket then bucketName = drop.item break end
+end
+check("this chest has bucket rows to exclude", bucketName ~= nil, true)
+check("and a bucket row is not an item with entries",
+    #_G.LootDrops.ItemEntries(KISHASU_T2, bucketName), 0)
+
+-- A collapse group is not an item and has no row of its own, so it answers with its members'.
+check("a collapse group answers for its members",
+    #_G.LootDrops.ItemEntries(544, "Tracery"), #_G.LootDrops.GroupMembers(544, "Tracery"))
+
+-- ------------------------------------------------------------------------------------------------
+section("Dedupe  (one row per name per chest)")
+
+local function Chance(row)  return pct(row.any) end
+
+local function Find(rows, name)
+    for _, row in ipairs(rows) do
+        if row.item == name then return row end
     end
     return nil
 end
 
-local necklace = _G.LootDrops.ItemChances(KISHASU_T2, "Bright Conscript's Necklace")
+-- Hand-built, so the rules are visible: two entries of one ungrouped item, a bucket row and
+-- its expand-group members, a collapse group of two, and an item nobody has a rate for.
+local sample = {
+    { item = "Silver Serpent",   chance = 1.00 },
+    { item = "Silver Serpent",   chance = 0.70 },
+    { item = "?? Group 1",       chance = 0.15, group = "Group 1", bucket = true },
+    { item = "Fallen Helm",      chance = 0.05, group = "Group 1", id = 7, quality = "rare" },
+    { item = "Fallen Helm",      chance = 0.04, group = "Group 1" },
+    { item = "Fallen Gauntlets", chance = 0.05, group = "Group 1" },
+    { item = "?? Tracery A",     chance = 0.50, group = "Tracery" },
+    { item = "?? Tracery B",     chance = 0.50, group = "Tracery" },
+    { item = "Mystery Trophy" },
+}
 
-check("an item in six pools reports six rates", #necklace, 6)
-check("biggest first",                          necklace[1] > necklace[#necklace], true)
-check("and they are the row's own",             necklace,
-    Row(KISHASU_T2, "Bright Conscript's Necklace").chances)
+local deduped = _G.LootDrops.Dedupe(sample)
 
--- ONE FIGURE, AND IT IS THE ONE ON SCREEN. The rolls are independent, so the chance of at least
--- one hitting is 1 - Π(1 - chance). ADDING THEM IS THE MISTAKE THE FOLD EXISTS TO PREVENT: a
--- six-pool item would add up past 100% while claiming a certainty the tables never gave.
-check("folded into the figure the browser prints",
-    pct(_G.LootDrops.ItemChance(KISHASU_T2, "Bright Conscript's Necklace")), 1.54)
+check("nine rows become five",             #deduped, 5)
+check("a name repeated is one row",        Find(deduped, "Silver Serpent") ~= nil, true)
+check("carrying both its chances",         #Find(deduped, "Silver Serpent").entries, 2)
+check("folded into one figure",            Chance(Find(deduped, "Silver Serpent")), 100)
+check("a bucket row is not a row",         Find(deduped, "?? Group 1"), nil)
 
--- The same item one tier up, which is the row the design was drawn from.
-check("Kishâsu T3 prices the same necklace at 4.12%",
-    pct(_G.LootDrops.ItemChance(540, "Bright Conscript's Necklace")), 4.12)
-check("and the cloak beside it at 8.11%",
-    pct(_G.LootDrops.ItemChance(540, "Game Hunter's Cloak")), 8.11)
+-- An EXPAND group's members are real, wantable items: with one row per name they no longer
+-- repeat themselves, so there is nothing left for a fold to hide.
+check("an expand group's members stay themselves",
+    Find(deduped, "Fallen Helm") ~= nil and Find(deduped, "Fallen Gauntlets") ~= nil, true)
+check("and are not a group row",           Find(deduped, "Fallen Helm").isGroup, nil)
+check("the first non-nil id survives",     Find(deduped, "Fallen Helm").id, 7)
+check("so does the first quality",         Find(deduped, "Fallen Helm").quality, "rare")
 
--- A ROW WITH ONE RATE HAS NO BREAKDOWN, because `chance` already is that number -- but asked
--- for its rates it answers with the one it has, rather than with nothing.
-local single = nil
+-- A COLLAPSE group still folds. Its members are placeholder names -- nobody wants a list of
+-- traceries -- and that is a display rule about the group, not about duplication.
+local tracery = Find(deduped, "Tracery")
+check("a collapse group is one row",       tracery ~= nil, true)
+check("under the group's own key",         tracery.isGroup, true)
+check("carrying its members' entries",     #tracery.entries, 2)
+check("and combining them",                Chance(tracery), 75)
+check("its members are not listed",        Find(deduped, "?? Tracery A"), nil)
+check("but are still findable by name",    #tracery.memberNames, 2)
+check("a group has no id to borrow",       tracery.id, nil)
+
+-- An absent chance means "drops, rate not established". It must never become 0%.
+check("no chance anywhere is no rate",     Find(deduped, "Mystery Trophy").any, nil)
+
+-- Ordered for display, because file order was never meaningful and a wall of sub-1% rows is
+-- only readable sorted.
+check("the likeliest leads",               deduped[1].item, "Silver Serpent")
+check("and the unknown sinks to the end",  deduped[#deduped].item, "Mystery Trophy")
+
+-- Against the real table: 308 rows, 91 names, and every entry accounted for.
+local real = _G.LootDrops.Dedupe(_G.Drops[KISHASU_T2])
+local folded = 0
+for _, row in ipairs(real) do folded = folded + #row.entries end
+
+local nonBucket, collapsedHere = 0, false
 for _, drop in ipairs(_G.Drops[KISHASU_T2]) do
-    if drop.chances == nil then single = drop break end
+    if not drop.bucket then nonBucket = nonBucket + 1 end
+    if drop.group == "Tracery" then collapsedHere = true end
 end
-check("this chest has a single-rate row",   single ~= nil,                                true)
-check("which carries no breakdown",         single.chances,                               nil)
-check("and answers with its own rate",      #_G.LootDrops.ItemChances(KISHASU_T2, single.item), 1)
-check("the same one it prints",             _G.LootDrops.ItemChance(KISHASU_T2, single.item),
-    single.chance)
 
-check("an uncatalogued name has no rates",
-    #_G.LootDrops.ItemChances(KISHASU_T2, "Not An Item"), 0)
-check("nor a figure -- unknown, never 0%",
-    _G.LootDrops.ItemChance(KISHASU_T2, "Not An Item"), nil)
+-- the entry count below is "every non-bucket row survives", which only holds where no pool row
+-- stands in for its members -- this chest has none, and the assertion is worth stating
+check("this chest has no collapsed pool to stand in", collapsedHere, false)
 
--- A PLURAL IS THE SAME ITEM. "2 Silver Serpents" resolves to the singular row, so the rate is
--- the same figure asked either way.
-check("a plural spelling finds the same rate",
-    _G.LootDrops.ItemChance(KISHASU_T2, "Silver Serpents"),
-    _G.LootDrops.ItemChance(KISHASU_T2, "Silver Serpent"))
+check("a real chest folds to far fewer rows", #real < #_G.Drops[KISHASU_T2], true)
+check("and loses nothing on the way",         folded, nonBucket)
+check("the six-entry item is one row of six", #Find(real, "Bright Conscript's Necklace").entries, 6)
+check("with the combined figure the browser prints",
+    Chance(Find(real, "Bright Conscript's Necklace")), 1.54)
 
--- How many of the game's own entries a row stands for, which is what the browser totals under
--- the table: the breakdown's length, or 1 for a row that has none.
-check("a folded row spans its rates",
-    _G.LootDrops.EntrySpan(Row(KISHASU_T2, "Bright Conscript's Necklace")), 6)
-check("a single-rate row spans one",   _G.LootDrops.EntrySpan(single),      1)
-check("and nothing spans nothing",     _G.LootDrops.EntrySpan(nil),         0)
+-- The same item one tier up, which is the row the design was drawn from: six pools again, and
+-- 4.12% is the number on the mockup.
+local t3 = _G.LootDrops.Dedupe(_G.Drops[540])
+check("Kishâsu T3 prices the same necklace at 4.12%",
+    Chance(Find(t3, "Bright Conscript's Necklace")), 4.12)
+check("and the cloak beside it at 8.11%",
+    Chance(Find(t3, "Game Hunter's Cloak")), 8.11)
 
--- The catalogue counts ITEMS, because that is what the table shows.
-check("a chest counts its rows",
-    _G.LootDrops.ItemCount(KISHASU_T2), #_G.Drops[KISHASU_T2])
-check("an uncatalogued chest counts none", _G.LootDrops.ItemCount(-1), 0)
+-- THE POOL IS THE ROW, for a collapse group. "?? Tracery" is a bucket row -- it matches no chat
+-- line and is the only thing the tables say about traceries -- so dropping every bucket row
+-- would take the tracery line out of the browser altogether.
+local tracery3 = Find(t3, "Tracery")
+check("a collapsed pool survives as its category", tracery3 ~= nil, true)
+check("carrying the pool's own rate",              Chance(tracery3), 100)
+check("and the placeholder name is not a row",     Find(t3, "?? Tracery"), nil)
 
--- ------------------------------------------------------------------------------------------------
+-- The other kind of bucket row, at the same chest: a pool over items that ARE listed. Its rate
+-- belongs to the roll, not to any piece, so it is dropped.
+check("an expand group's pool is not a row",       Find(t3, "?? Group 1"), nil)
+
 -- ------------------------------------------------------------------------------------------------
 section("Catalogued tiers  (the browser opens on the highest)")
 
@@ -612,7 +711,7 @@ check("one tier is still the highest",     only[#only], "T1")
 check("an uncatalogued instance has no tiers", #_G.LootDrops.TiersFor(-1), 0)
 
 -- ------------------------------------------------------------------------------------------------
-section("Browser search  (it filters the selection, and builds nothing)")
+section("Browser search  (it filters the selection, and a group answers for its members)")
 
 check("search text carries the client's name", _G.LootDrops.SearchText({ item = "Silver Serpent" }),
     "silver serpent")
@@ -620,21 +719,17 @@ check("and the label too, so either finds it",
     _G.LootDrops.SearchText({ item = "Blighted Shoulders", label = "Burglar Red Shoulders" }),
     "blighted shoulders\0burglar red shoulders")
 
--- A CATEGORY IS ONLY EVER SEEN AS ITS LABEL, so that is the half a search has to find it by:
--- nobody types "?? Tracery".
-check("a category is found by what it is drawn as",
-    _G.LootDrops.SearchText({ item = "?? Tracery", label = "Tracery" }),
-    "?? tracery\0tracery")
-
--- The rows one chest produces: a heading and its drops. Indices are what the filter answers in.
+-- The rows one boss produces: a heading, a plain drop, and a group whose fold is open, so its
+-- members are listed under it as children. Indices are what the filter answers in.
 local function Rows()
     return {
         [1] = { kind = "header" },
         [2] = { text = _G.LootDrops.SearchText({ item = "Silver Serpent" }), header = 1 },
-        [3] = { text = _G.LootDrops.SearchText({ item = "?? Tracery", label = "Tracery" }),
-                header = 1 },
-        [4] = { text = "fallen gauntlets", header = 1 },
-        [5] = { text = "fallen helm",      header = 1 },
+        [3] = { isGroup = true, header = 1,
+                text = _G.LootDrops.SearchText({ item = "Group 1", label = "Fallen Armour" }),
+                memberText = "fallen gauntlets\0fallen helm" },
+        [4] = { text = "fallen gauntlets", parent = 3, header = 1 },
+        [5] = { text = "fallen helm",      parent = 3, header = 1 },
     }
 end
 
@@ -643,22 +738,26 @@ check("no search, every row shows", all[2] and all[3] and all[4] and all[5], tru
 check("and the heading with them",  all[1], true)
 
 local serpent = _G.LootDrops.SearchFilter(Rows(), "serpent")
-check("a drop matches on its own name", serpent[2], true)
-check("its heading comes with it",      serpent[1], true)
-check("and nothing else survives",      serpent[3] or serpent[4] or serpent[5], false)
+check("a plain drop matches on its own name", serpent[2], true)
+check("its heading comes with it",            serpent[1], true)
+check("an unrelated group drops out",         serpent[3], false)
+check("and so do that group's children",      serpent[4] or serpent[5], false)
 
--- ONE ROW PER ITEM, so a search answers for itself and nothing else: the armour piece you typed
--- is the row you get, with no pool row to drag its siblings back in.
+-- THE RULE THIS IS ALL FOR: a match on a member has to bring the group back, or searching an
+-- armour piece would come back empty on the chest that actually drops it.
 local helm = _G.LootDrops.SearchFilter(Rows(), "helm")
-check("the matching piece shows",          helm[5], true)
+check("a member's name shows its group",   helm[3], true)
+check("and the member itself",             helm[5], true)
 check("but not its unmatched siblings",    helm[4], false)
 check("nor an unrelated drop",             helm[2], false)
 check("the heading stays, something is under it", helm[1], true)
 
--- A category is typed as it is drawn.
-local traceried = _G.LootDrops.SearchFilter(Rows(), "tracery")
-check("a category matches on its label",   traceried[3], true)
-check("and takes nothing else with it",    traceried[4] or traceried[5], false)
+-- A group matched by its own name keeps everything inside it: you asked for the category.
+local armour = _G.LootDrops.SearchFilter(Rows(), "fallen armour")
+check("a group matches on its label",      armour[3], true)
+check("and keeps all of its children",     armour[4] and armour[5], true)
+check("the key finds it too",
+    _G.LootDrops.SearchFilter(Rows(), "group 1")[3], true)
 
 local nothing = _G.LootDrops.SearchFilter(Rows(), "mithril")
 check("no match, no rows",    nothing[2] or nothing[3] or nothing[4] or nothing[5], false)
@@ -670,7 +769,63 @@ check("punctuation is matched literally",
 check("and a pattern character finds nothing of its own",
     _G.LootDrops.SearchFilter({ { text = "durin's bane" } }, "d.rin")[1], false)
 
--- ------------------------------------------------------------------------------------------------
+-- EVERY DECLARED GROUP MUST HAVE MEMBERS, or the declaration is a typo nobody will notice --
+-- a misspelled group name silently reverts its rows to collapse.
+for name in pairs(_G.DropGroups) do
+    local members = 0
+    for eventIndex in pairs(_G.Drops) do
+        for _, drop in ipairs(_G.LootDrops.AllRows(eventIndex)) do
+            if drop.group == name then members = members + 1 end
+        end
+    end
+    check("declared group has rows: " .. name, members > 0, true)
+end
+
+-- ...and every group a ROW names must be declared or deliberately defaulted. Both directions
+-- matter: this one catches a member whose group was renamed out from under it.
+local undeclared = {}
+for eventIndex in pairs(_G.Drops) do
+    for _, drop in ipairs(_G.LootDrops.AllRows(eventIndex)) do
+        if drop.group ~= nil and _G.DropGroups[drop.group] == nil then
+            undeclared[drop.group] = true
+        end
+    end
+end
+local names = {}
+for name in pairs(undeclared) do names[#names + 1] = name end
+check("no row names an undeclared group", table.concat(names, ", "), "")
+
+-- A bucket row carries a CATEGORY's rate, so it has to belong to a declared group -- in either
+-- mode. An expand group folds its members under it; a collapse group shows the bucket alone and
+-- that is the point (one "Tracery" line at 100%, whatever name the roll lands on).
+for eventIndex in pairs(_G.Drops) do
+    for _, drop in ipairs(_G.LootDrops.AllRows(eventIndex)) do
+        if drop.bucket then
+            check("bucket row names a declared group: " .. drop.item,
+                _G.DropGroups[drop.group] ~= nil, true)
+        end
+    end
+end
+
+-- The popup rule. A collapse group folds to its group name; an expand group must NOT, because
+-- nobody looted "Fallen armour" -- they looted a specific piece, and that is what to show.
+check("a group bucket expands",
+    _G.LootDrops.GroupExpands(_G.LootDrops.GroupOf(544, "?? Group 1")), true)
+check("while a tracery's group does not",
+    _G.LootDrops.GroupExpands(_G.LootDrops.GroupOf(544, "?? Tracery")), false)
+
+-- An expand group starts as its bucket alone. That is the honest state for a category the source
+-- table gives a rate for and no names: the browser shows "Fallen armour 2%" with an empty fold,
+-- and pieces appear underneath as they are catalogued.
+local armour = _G.LootDrops.GroupMembers(544, "Group 1")
+check("the bucket is there",              #armour >= 1, true)
+
+local bucketRows = 0
+for _, member in ipairs(armour) do
+    if member.bucket then bucketRows = bucketRows + 1 end
+end
+check("exactly one row is the category itself", bucketRows, 1)
+
 -- ------------------------------------------------------------------------------------------------
 section("Wishlist  (one question, asked the same way everywhere)")
 
@@ -690,14 +845,15 @@ _G.LootWishlist["Silver Serpent"] = true
 check("a starred item is",
     _G.LootDrops.IsWished(544, "Silver Serpent"), true)
 
--- ONE NAME, ONE STAR. The wishlist is keyed on the same name the drops data and the observed
--- rate are -- and the popup, the row's star and the sort all have to agree about it, which is
--- why they all call this one function.
-_G.LootWishlist = { ["?? Tracery"] = true }
-check("a category is starred by its key",
+-- THE HALF THAT IS EASY TO LOSE. A tracery's name is a rolled detail nobody wishes for, so
+-- starring the GROUP has to star every member -- and the popup, the row's star and the sort all
+-- have to agree about it, which is why they all call this one function.
+_G.LootWishlist = { ["Tracery"] = true }
+check("starring the group stars its members",
     _G.LootDrops.IsWished(544, "?? Tracery"), true)
 check("and leaves everything else alone",
     _G.LootDrops.IsWished(544, "Silver Serpent"), false)
+
 -- put it back: the sections below run without LootStats, and a half-built stand-in left in
 -- place would be answered instead of skipped
 _G.LootWishlist = {}
@@ -1030,12 +1186,12 @@ starred, yours, fellowship = partition(blockRows)
 check("starred wins over yours",                     starred,    "Sun-kissed Essence Box")
 check("so it is not in both",                        yours,      "")
 
--- a starred CATEGORY behaves like any other starred row: it is keyed on its own name, and the
--- block it lands in is the same question IsWished answers everywhere else
-_G.LootWishlist = { ["?? Tracery"] = true }
+-- a starred group stars every member, so a tracery row lands in the first block under the
+-- group's name -- the same question IsWished answers everywhere else
+_G.LootWishlist = { ["Tracery"] = true }
 
 starred = partition({ { "?? Tracery", "Wren", false } })
-check("a starred category leads too",                starred,    "?? Tracery")
+check("a starred group carries its members up",      starred,    "?? Tracery")
 
 _G.LootWishlist = {}
 _G.LootStats    = nil
@@ -1053,31 +1209,156 @@ check("under one per cent keeps two",     shown(0.0076),   "0.76%")
 check("and so does a very small one",     shown(0.000357), "0.04%")
 check("an unknown rate has no spelling",  shown(nil),      nil)
 
--- The series behind it: no per-cent signs, because the column heading already says what they
--- are and six of them in a row is noise.
-local series = _G.LootDrops.EntrySeries
+-- WHERE A FIGURE COMES FROM. The series of bare percentages behind the lead number is gone: the
+-- rolls are the hover now, one line each, and a fold line closes every lock's block. One producer
+-- builds them, so the browser and the popup cannot explain the same number two ways.
+local BADHARAL_T3 = 529
+local WARDEN      = Turbine.Gameplay.Class.Warden
+local LOREMASTER  = Turbine.Gameplay.Class.LoreMaster
 
-check("six rates print biggest first",
-    series({ 0.021212, 0.020588, 0.02, 0.007576, 0.007353, 0.007143 }),
-    "2.12" .. _G.Sep .. "2.06" .. _G.Sep .. "2.00" .. _G.Sep
-    .. "0.76" .. _G.Sep .. "0.74" .. _G.Sep .. "0.71")
-
-check("a guaranteed rate prints whole",
-    series({ 1, 0.7 }), "100" .. _G.Sep .. "70")
-
--- ONE RATE IS THE LEAD FIGURE. Printing it again beside itself says nothing, so the column
--- stays empty -- which is why the drops data gives a single-rate row no breakdown at all, and
--- also how a row with no rate draws.
-check("one rate has no series",           series({ 0.7 }), nil)
-check("and neither has none",             series({}),      nil)
-check("nor a nil list",                   series(nil),     nil)
-
--- straight off a real row, so the column cannot disagree with the file
-local folded = nil
-for _, drop in ipairs(_G.Drops[540]) do
-    if drop.chances ~= nil then folded = drop break end
+local function RowNamed(eventIndex, classId, name)
+    for _, row in ipairs(_G.LootDrops.RowsFor(eventIndex, classId)) do
+        if row.item == name then return row end
+    end
+    return nil
 end
-check("a real row's breakdown prints",    series(folded.chances) ~= nil, true)
+
+local relic = RowNamed(BADHARAL_T3, WARDEN, "Blighted Relic")
+
+check("an item in both tables carries both packs",
+    relic ~= nil and relic.fav ~= nil and relic.com ~= nil, true)
+
+-- THE TWO LOCKS ARE NEVER ONE FIGURE. They are separate rolls against separate lockouts, and a
+-- single number over the pair would be a rate the game does not roll.
+check("favoured and common are asked for separately",
+    _G.LootDrops.Chance(relic, "fav") ~= _G.LootDrops.Chance(relic, "com"), true)
+check("and the row leads with the favoured one",
+    _G.LootDrops.Chance(relic), _G.LootDrops.Chance(relic, "fav"))
+check("which is the lead kind",           _G.LootDrops.LeadKind(relic), "fav")
+
+-- 1 - Pi(1 - p) over the entries of ONE lock, never the sum and never the biggest of them. The
+-- written figure is rounded to six places, so the comparison is too -- a fold recomputed in
+-- floating point lands a bit-width away from the one that was printed.
+local function round6(value)
+    if value == nil then return nil end
+    return math.floor(value * 1e6 + 0.5) / 1e6
+end
+
+local comRates = {}
+for _, rate in ipairs(relic.com.rates) do comRates[#comRates + 1] = rate.p end
+
+check("each pack folds its own rolls",
+    round6(_G.LootDrops.Chance(relic, "com")),
+    round6(_G.LootDrops.CombinedChance(comRates)))
+check("and never sums them",
+    _G.LootDrops.Chance(relic, "com") < comRates[1] + comRates[2], true)
+
+check("the roll count spans both locks",
+    _G.LootDrops.RollCount(relic), relic.fav.rolls + relic.com.rolls)
+
+local lines = _G.LootDrops.RollLines(relic)
+local folds, rolls = 0, 0
+for _, line in ipairs(lines) do
+    if line.fold then folds = folds + 1 else rolls = rolls + 1 end
+end
+
+check("every roll is a line",             rolls, _G.LootDrops.RollCount(relic))
+check("and every lock closes with a fold", folds, 2)
+check("the first line of a block is marked", lines[1].first, true)
+check("and the second is not",            lines[2].first, false)
+
+-- The table names are the plugin's words, never the export's file names
+check("a table is named in words",
+    _G.LootDrops.TableWord("FilteredTrophyTable2"), _G.L("tableArmourSet"))
+check("and an unknown one is shown as written",
+    _G.LootDrops.TableWord("SomethingNew"), "SomethingNew")
+
+local tip = _G.LootDrops.OddsTooltip(relic, "Blighted Relic")
+check("the tooltip names the item",       tip:find("Blighted Relic", 1, true) ~= nil, true)
+check("and says what it is",              tip:find(_G.L("oddsTitle"), 1, true) ~= nil, true)
+check("and tags the lock it starts with", tip:find(_G.L("tagFavoured"), 1, true) ~= nil, true)
+check("and has a line per roll plus two folds",
+    select(2, tip:gsub("\n", "")), 1 + _G.LootDrops.RollCount(relic) + 2)
+
+-- A row with no rates at all has nothing to explain, and an empty box is worse than none
+check("nothing to derive is no tooltip",  _G.LootDrops.OddsTooltip({ item = "x" }, "x"), nil)
+
+-- ------------------------------------------------------------------------------------------------
+section("One chest, one class  (the class-filtered catalogue)")
+
+-- THE NUMBERS THE DESIGN WAS BUILT ON. Badharal T3 is 217 rows merged across every class in the
+-- old shape; filtered to one class it is 32 for a Warden and 38 for a Lore-master. If these move,
+-- either the export changed or the fold did, and both are worth stopping for.
+check("a Warden sees 32 rows",       #_G.LootDrops.RowsFor(BADHARAL_T3, WARDEN),     32)
+check("a Lore-master sees 38",       #_G.LootDrops.RowsFor(BADHARAL_T3, LOREMASTER), 38)
+
+-- THE COUNT AND THE TABLE MUST AGREE. The tree, the sub-line and the rows are three views of one
+-- list, and a sidebar saying 308 beside a table showing 91 is the bug this replaced.
+check("the count is what the table draws",
+    _G.LootDrops.ItemCount(BADHARAL_T3, WARDEN), #_G.LootDrops.RowsFor(BADHARAL_T3, WARDEN))
+
+-- ONE ROW PER ITEM. `any` is emitted once and never copied into a class, so nothing can arrive
+-- twice however the export listed it.
+local seen, twice = {}, {}
+for _, row in ipairs(_G.LootDrops.RowsFor(BADHARAL_T3, WARDEN)) do
+    if seen[row.item] then twice[#twice + 1] = row.item end
+    seen[row.item] = true
+end
+check("and no item twice",                table.concat(twice, ", "), "")
+
+-- likeliest first, which is what puts the guaranteed rows in the ALWAYS DROPS band
+local ordered, always = true, 0
+local previous = 2
+for _, row in ipairs(_G.LootDrops.RowsFor(BADHARAL_T3, WARDEN)) do
+    local chance = _G.LootDrops.Chance(row) or 0
+    if chance > previous then ordered = false end
+    previous = chance
+    if chance >= 0.999 then always = always + 1 end
+end
+check("rows arrive likeliest first",      ordered, true)
+check("four of them always drop",         always,  4)
+
+-- A LOOT LINE HAS NO CLASS ON IT, so the index has to span `any` and every class block -- an item
+-- only a Lore-master can get still has to resolve when one loots it.
+local classOnly = nil
+for _, row in ipairs(_G.LootDrops.RowsFor(BADHARAL_T3, LOREMASTER)) do
+    if RowNamed(BADHARAL_T3, WARDEN, row.item) == nil then classOnly = row.item end
+end
+check("a class-only item exists to test with", classOnly ~= nil, true)
+check("and is still catalogued by name",  _G.LootDrops.KnowsItem(classOnly), true)
+check("and resolves to a row",            _G.LootDrops.DropRow(BADHARAL_T3, classOnly) ~= nil, true)
+check("and to a chance",                  _G.LootDrops.ChanceAt(BADHARAL_T3, classOnly) ~= nil, true)
+
+-- AND THE CHEST IS STILL FOUND BY NAME, which is what makes "where does this drop" work over a
+-- catalogue as well as over an array
+local events = _G.LootDrops.ItemEvents("Blighted Relic")
+local here   = false
+for _, index in ipairs(events) do
+    if index == BADHARAL_T3 then here = true end
+end
+check("a catalogued item knows its chest",     here, true)
+check("and is listed there exactly once",
+    (function()
+        local seen = 0
+        for _, index in ipairs(events) do if index == BADHARAL_T3 then seen = seen + 1 end end
+        return seen
+    end)(), 1)
+
+-- WITH NO CLASS ASKED, the whole chest: what it can give rather than what one character gets
+check("the chest itself lists more than one class does",
+    #_G.LootDrops.RowsFor(BADHARAL_T3, nil) > #_G.LootDrops.RowsFor(BADHARAL_T3, WARDEN), true)
+
+-- AND THE OLD SHAPE STILL DRAWS. Chests are re-exported a raid at a time, so both shapes are
+-- read until the last one has been -- an array chest folds through Dedupe into the same row shape.
+local legacy = _G.LootDrops.RowsFor(KISHASU_T2, WARDEN)
+check("an old-shape chest still yields rows",  #legacy > 0, true)
+check("as many as it folds to",           #legacy, #_G.LootDrops.Dedupe(_G.Drops[KISHASU_T2]))
+check("and its count agrees as well",
+    _G.LootDrops.ItemCount(KISHASU_T2, WARDEN), #legacy)
+check("its fold belongs to no named lockout",
+    legacy[1].fav == nil and legacy[1].com == nil and legacy[1].rate ~= nil, true)
+check("so no lock tag can be drawn for it",
+    _G.LootDrops.LeadKind(legacy[1]), "rate")
 
 -- ------------------------------------------------------------------------------------------------
 section("Popup search  (narrows what is shown, never what was recorded)")
@@ -1116,22 +1397,6 @@ check("a match anywhere in the name counts",
 -- the popup is opened for; it is the ordering by name that was unwanted, not the name.
 check("a looter matches too",
     found("ramor"), "Keen Conscript's Ring, Bright Conscript's Ring")
-
--- THE DESCRIPTION UNDER THE NAME IS SEARCHABLE TOO, and it has to be: it is what people call
--- the item in their own words, and typing that used to find the row only because the label was
--- drawn AS the name. Set on the row here rather than hunted for in the data, because no
--- generated row carries a label yet and the rule has to hold the day one does.
-local described = _G.LootDrops.DropRow(544, "Sun-kissed Essence Box")
-described.label = "Runekeeper shoulders red"
-
-check("a description matches",
-    found("runekeeper"), "Sun-kissed Essence Box")
-check("case does not matter there either",
-    found("RUNEKEEPER"), "Sun-kissed Essence Box")
-check("and the name it describes still matches",
-    found("essence"), "Sun-kissed Essence Box")
-
-described.label = nil       -- the data is shared with every test below this one
 
 check("nothing matching is nothing shown", found("mithril"), "")
 
@@ -1177,21 +1442,12 @@ check("no id falls back to a plain bracketed name",
 check("nil drop still renders something",
     _G.LootDrops.ItemLink(nil, "Silver Serpent"), "[Silver Serpent]")
 
--- The link TEXT is the display name -- the client's own name for the item, which is what the
--- id resolves to and what the tooltip will say. A row's `label` is a description drawn under
--- the name and is deliberately not what the link reads as: a link pasted into chat has to name
--- the thing it examines.
-check("the link reads as the client's name, not the label",
+-- The link TEXT is the display name; the id is what resolves. So a renamed item reads as its
+-- nickname and still links to the real thing.
+check("the link reads as the label",
     _G.LootDrops.ItemLink({ item = "Blighted Shoulder-guards of Shadows",
                             label = "Burglar Red Shoulders", id = 0x700713ED }),
-    "<Examine:IIDDID:0x0000000000000000:0x700713ED>" ..
-    "[Blighted Shoulder-guards of Shadows]<\\Examine>")
-
--- A category has no name but its label, so there the label IS what the link would read --
--- except a category carries no id, so it falls back to the plain bracketed form.
-check("a category still reads as its label",
-    _G.LootDrops.ItemLink({ item = "?? Tracery", label = "Tracery", category = true }),
-    "[Tracery]")
+    "<Examine:IIDDID:0x0000000000000000:0x700713ED>[Burglar Red Shoulders]<\\Examine>")
 
 -- ItemId is load-bearing twice over: the link and the layered icon both format an id, and
 -- neither can do it to a string.
@@ -1212,7 +1468,8 @@ check("and a 0x-prefixed string too",
 -- THE ROUND TRIP. A link we print, dropped into a loot line, must come back out of our own
 -- parser as the item it names. If the two ever drift apart this fails.
 local link = _G.LootDrops.ItemLinkAt(546, "Silver Serpent")
-local _, backOut = _G.LootDrops.ParseLootLine("You have acquired: " .. link .. " (pending).")
+local backOut = string.match("You have acquired: " .. link .. " (pending).",
+    _G.LootDrops.P.lootSelf)
 check("our own link parses back as a loot line", backOut, "Silver Serpent")
 
 -- and the id survives the trip, which is what the icon route reads
@@ -1266,236 +1523,6 @@ check("and no popup was opened", shownChest, nil)
 _G.Settings.showLootPopup = nil
 
 _G.LootPopupWindow = nil
-
--- ------------------------------------------------------------------------------------------------
-section("Loot buffer  (a ring, and a busy run walks it a long way)")
-
--- The buffer is no longer rebuilt on every loot line -- entries leave from a head index, and
--- the table is compacted once the head has walked past a bufferful. That compaction is the part
--- worth pinning down: it moves live entries while a chest may be about to read them, and a
--- six-man run reaches it in seconds.
---
--- BUFFER_MAX is 200 and the backward window is 1.0s, so 600 lines inside one second is both
--- well past the cap and well past the point where the head has to be shifted back down.
-_G.LootDrops.Flush()
-_G.LootDrops.currentRun = nil
-
-for line = 1, 600 do
-    -- inside the backward window of the chest below, and inside one another's, so age prunes
-    -- nothing and the cap is what does the work
-    loot(10000 + line * 0.001, "Rior", "Silver Serpent")
-end
-
-chest(10000.9, 546)
-settle(10010)
-
-local afterCap = #itemsOf(1)
-check("a run past the cap still resolves a chest", afterCap > 0, true)
-check("and the cap is what bounds it, not the window", afterCap <= 200, true)
-
--- and the ring is still usable afterwards: the compaction must not have left a hole that the
--- next line walks into
-_G.LootDrops.currentRun = nil
-loot(10011, "Rior", "Silver Serpent")
-chest(10011.5, 546)
-settle(10020)
-check("the buffer keeps working after a compaction", countIn(1, "Silver Serpent"), 1)
-
-_G.LootDrops.currentRun = nil
-
--- ------------------------------------------------------------------------------------------------
-section("Event index  (the chat hook's shortlist, and it must be the whole list)")
-
--- WHAT THIS IS GUARDING. The chat hook used to run every one of _G.Events' ~600 patterns
--- against every line the client printed. It now runs the patterns of the handful of events
--- whose required literal text is actually in the line -- so the index decides what is ASKED,
--- and a key that is even slightly too specific means a chest that silently stops being
--- recorded. Nothing about that failure is visible until someone notices a lockout missing.
---
--- So the index is not tested on a few hand-picked lines. It is tested against the linear scan
--- it replaced, on strings built from every pattern in the real table.
-
-local function brute(message)
-    local hits = {}
-    for index, log in ipairs(_G.Events) do
-        if string.find(message, log.match) then hits[#hits + 1] = index end
-    end
-    return table.concat(hits, ",")
-end
-
-local function indexed(message)
-    local hits = {}
-    _G.EventIndex.Scan(message, function(_, _, index) hits[#hits + 1] = index end)
-    return table.concat(hits, ",")
-end
-
--- A string the pattern matches, built by replacing each construct with something it accepts.
--- `reps` drives the quantifiers, so a pattern is exercised with its optional parts absent and
--- present -- "Tier 3+" has to work at one "3" and at three.
-local CLASS_CHAR = { d = "7", a = "q", w = "w", x = "f", s = " ", p = ".",
-                     u = "U", l = "l", S = "S", W = "-", A = "4", D = "z" }
-
-local function instantiate(pattern, reps)
-
-    local out, position, length = {}, 1, #pattern
-
-    while position <= length do
-
-        local char  = string.sub(pattern, position, position)
-        local piece, size = nil, 1
-
-        if char == "%" then
-            local escaped = string.sub(pattern, position + 1, position + 1)
-            size  = 2
-            piece = string.find(escaped, "^%a") and (CLASS_CHAR[escaped] or "?") or escaped
-        elseif char == "[" then
-            local close    = position + 1
-            local negated  = string.sub(pattern, close, close) == "^"
-            if negated then close = close + 1 end
-            local first = close
-            if string.sub(pattern, close, close) == "]" then close = close + 1 end
-            while close <= length and string.sub(pattern, close, close) ~= "]" do
-                if string.sub(pattern, close, close) == "%" then close = close + 1 end
-                close = close + 1
-            end
-            local body = string.sub(pattern, first, close - 1)
-            size = close - position + 1
-            if negated then
-                for byte = 65, 122 do
-                    local candidate = string.char(byte)
-                    if not string.find(candidate, "[" .. body .. "]") then
-                        piece = candidate
-                        break
-                    end
-                end
-                piece = piece or "@"
-            else
-                piece = string.sub(body, 1, 1)
-                if piece == "%" then piece = string.sub(body, 2, 2) end
-            end
-        elseif char == "." then
-            piece = "Z"
-        elseif char == "(" or char == ")" then
-            piece = ""
-        elseif char == "^" and position == 1 then
-            piece = ""
-        elseif char == "$" and position == length then
-            piece = ""
-        else
-            piece = char
-        end
-
-        local quantifier = string.sub(pattern, position + size, position + size)
-
-        if quantifier == "*" or quantifier == "-" then
-            out[#out + 1] = string.rep(piece, reps)
-            position = position + size + 1
-        elseif quantifier == "+" then
-            out[#out + 1] = string.rep(piece, reps + 1)
-            position = position + size + 1
-        elseif quantifier == "?" then
-            out[#out + 1] = string.rep(piece, reps > 0 and 1 or 0)
-            position = position + size + 1
-        else
-            out[#out + 1] = piece
-            position = position + size
-        end
-
-    end
-
-    return table.concat(out)
-
-end
-
--- the instantiator is itself under test: a generated line that the pattern does NOT match
--- would make every comparison below pass for the wrong reason
-local generated, unmatched = 0, 0
-for _, event in ipairs(_G.Events) do
-    for reps = 0, 2 do
-        generated = generated + 1
-        if string.find(instantiate(event.match, reps), event.match) == nil then
-            unmatched = unmatched + 1
-        end
-    end
-end
-check("every generated line matches the pattern it came from", unmatched, 0)
-check("and there were enough of them to mean something", generated >= 1500, true)
-
-local corpus = {}
-for _, event in ipairs(_G.Events) do
-    for reps = 0, 2 do
-        corpus[#corpus + 1] = instantiate(event.match, reps)
-        -- and in the middle of a line, which is where chat actually puts them
-        corpus[#corpus + 1] = "You have quest advancement: "
-                              .. instantiate(event.match, reps) .. " done."
-    end
-end
-
--- lines with nothing in them, and lines carrying the same chest name twice: the index looks a
--- message up by every window in it, so a repeated name is exactly how it would dispatch twice
-for _, line in ipairs({
-    "", "a", "Chest", "Completed",
-    "Bofurr says, 'ready when you are'",
-    "You have earned 1,250 Mithril Flakes.",
-    _G.Events[1].match .. " and again " .. _G.Events[1].match,
-}) do
-    corpus[#corpus + 1] = line
-end
-
-local disagreed = 0
-for _, message in ipairs(corpus) do
-    if brute(message) ~= indexed(message) then disagreed = disagreed + 1 end
-end
-
-check("the index dispatches exactly what the linear scan did", disagreed, 0)
-check("over the whole event table", #corpus >= 3500, true)
-
--- A required literal has to be text the message is GUARANTEED to contain. These are the
--- constructs that make it not so, one case each, because getting any of them wrong shortens
--- the index quietly rather than loudly.
-local function literal(pattern) return _G.EventIndex.RequiredLiteral(pattern) end
-
-check("plain text is all required",        literal("Naruhel's Silver Chest"), "Naruhel's Silver Chest")
-check("an anchor is not part of it",       literal("^You have acquired"), "You have acquired")
-check("a dot breaks the run",              literal("Azagath Sea.shadow"), "Azagath Sea")
-check("a class breaks the run",            literal("Completed missions %d+/15"), "Completed missions ")
-check("an escaped bracket is literal",     literal("orders %(%d+/5%)"), "orders (")
-check("a set breaks the run",              literal("at the Forge[^ ]"), "at the Forge")
-check("a starred atom is dropped",         literal("Completed.*Bounty. Proto.beast"), "Completed")
-check("a plussed atom is kept once",       literal("Bombadil's Gift . Tier 3+"), "Bombadil's Gift ")
-check("an optional atom is dropped",       literal("Chesty? of the Ashen"), " of the Ashen")
-
--- ------------------------------------------------------------------------------------------------
-section("Instance index  (one instance's events, not a filter over all of them)")
-
--- Every instance named in the event table, answered the same way the UI used to answer it.
-local wrong, instances = 0, 0
-local byInstance = {}
-for eventIndex, event in pairs(_G.Events) do
-    local list = byInstance[event.instance]
-    if list == nil then list = {}; byInstance[event.instance] = list end
-    list[#list + 1] = eventIndex
-end
-
-for instanceId, expected in pairs(byInstance) do
-    instances = instances + 1
-    table.sort(expected)
-    local got = _G.EventIndex.ForInstance(instanceId)
-    if table.concat(got, ",") ~= table.concat(expected, ",") then wrong = wrong + 1 end
-end
-
-check("every instance gets exactly its own events", wrong, 0)
-check("and every instance in the table was checked", instances > 20, true)
--- ascending, so the helpers reading it -- "the reset schedule of this tier" takes the first
--- match -- are deterministic where the old pairs() walk was not
-local ordered = _G.EventIndex.ForInstance(next(byInstance))
-local ascending = true
-for slot = 2, #ordered do
-    if ordered[slot] <= ordered[slot - 1] then ascending = false end
-end
-check("in event order", ascending, true)
-check("an instance with no events answers with an empty list",
-    #_G.EventIndex.ForInstance(-1), 0)
 
 -- ------------------------------------------------------------------------------------------------
 print(string.format("\n%d passed, %d failed", passed, failed))

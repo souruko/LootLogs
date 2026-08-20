@@ -15,7 +15,7 @@ _G.Sep = " \194\183 "
 -- one is the LOTRO content update this build targets and waits for the game rather than for a
 -- feature, and the last counts fixes and changes within that update. Keep in step with
 -- LootLogs.plugin, LootLogs.plugincompendium and the README header when releasing.
-_G.LootLogsVersion = "4.49.5"
+_G.LootLogsVersion = "4.49.6"
 
 _G.localPlayer = Turbine.Gameplay.LocalPlayer.GetInstance()
 _G.name = _G.localPlayer:GetName()
