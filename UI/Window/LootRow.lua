@@ -413,7 +413,7 @@ function _G.LootRow:SetLoot(item, drop, eventIndex)
     -- AND WHERE IT CAME FROM, on the same hover the browser gives it: the rolls behind the
     -- figure, built from _G.LootDrops.RollLines, so the two windows explain one number one way.
     local odds = _G.LootDrops.OddsTooltip(drop, (_G.LootDrops.RowText(drop)))
-    self.chanceLabel:SetTooltip(odds or "")
+    _G.LootTooltip.Attach(self.chanceLabel, odds)
     self.chanceLabel:SetMouseVisible(odds ~= nil)
 
     self:SetIcon(drop)

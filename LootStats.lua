@@ -99,7 +99,7 @@ function _G.LootStats.ToggleWish(base)
 
 end
 
--- nil when this character has never looted it -- which is what "still needed" filters on
+-- nil when this character has never looted it
 function _G.LootStats.Acquired(base, characterId)
 
     local acquired = _G.LootAcquired[characterId or _G.characterId]

@@ -142,7 +142,6 @@ function _G.LootBrowser:Constructor()
     self.tierCells        = {}
     self.sourceCells      = {}
     self.classCells       = {}
-    self.neededOnly       = false
 
     -- WHOSE TABLE THIS IS. Your own class to begin with -- it is the answer nine times in ten --
     -- and the last one you picked after that, because comparing what a chest gives your alt is
@@ -151,7 +150,7 @@ function _G.LootBrowser:Constructor()
     self.selectedClass = _G.Settings.lootBrowser.class or self.yourClass
 
     -- All / Favoured / Common. It changes what EXISTS in the table rather than what is shown of
-    -- it, so it lives in BuildRows beside the still-needed filter and not in ApplyFilter.
+    -- it, so it lives in BuildRows and not in ApplyFilter.
     self.source = "all"
 
     self:SetTitleText(_G.CM("ACCENT") .. "Loot Browser" .. _G.CMR)
@@ -251,41 +250,6 @@ function _G.LootBrowser:Constructor()
     self.countLabel:SetForeColor(_G.Theme.DIM)
     self.countLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     self.countLabel:SetMouseVisible(false)
-
-    -- "still needed" filter. Its own control rather than a tier pill, because it is not a tier
-    -- and putting it in the strip would make it look like one.
-    self.neededPill = Turbine.UI.Control()
-    self.neededPill:SetParent(self.client)
-    self.neededPill:SetHeight(PILL_H)
-    self.neededPill:SetMouseVisible(true)
-
-    self.neededInner = Turbine.UI.Control()
-    self.neededInner:SetParent(self.neededPill)
-    self.neededInner:SetPosition(1, 1)
-    self.neededInner:SetMouseVisible(false)
-
-    self.neededLabel = Turbine.UI.Label()
-    self.neededLabel:SetParent(self.neededInner)
-    self.neededLabel:SetMultiline(false)
-    self.neededLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
-    self.neededLabel:SetFont(_G.Font(10))
-    self.neededLabel:SetFontStyle(_G.Theme.FONT_STYLE)
-    self.neededLabel:SetText(_G.L("stillNeeded"))
-    self.neededLabel:SetMouseVisible(false)
-
-    self.neededPill.MouseEnter = function()
-        if not self.neededOnly then self.neededPill:SetBackColor(_G.Theme.HOVER) end
-    end
-    self.neededPill.MouseLeave = function()
-        if not self.neededOnly then self.neededPill:SetBackColor(_G.Theme.FRAME) end
-    end
-    self.neededPill.MouseClick = function()
-        self.neededOnly = not self.neededOnly
-        self:RefreshNeededPill()
-        self:RebuildTable()
-    end
-
-    self:RefreshNeededPill()
 
     self.tableHead = Turbine.UI.Control()
     self.tableHead:SetParent(self.client)
@@ -897,7 +861,7 @@ function _G.LootBrowser:RebuildClassStrip()
         cell:SetPosition(x, 0)
         cell:SetSize(CLASS_CELL, CLASS_H)
         cell:SetMouseVisible(true)
-        cell:SetTooltip(yours and (entry.name .. " (" .. _G.L("yourClass") .. ")") or entry.name)
+        _G.LootTooltip.Attach(cell, yours and (entry.name .. " (" .. _G.L("yourClass") .. ")") or entry.name)
 
         local left = math.floor((CLASS_CELL - CLASS_ICON) / 2)
 
@@ -1225,7 +1189,7 @@ function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
     local shown  = _G.LootDrops.FormatChance(chance)
 
     local odds = _G.LootDrops.OddsTooltip(drop, name)
-    if odds ~= nil then oddsHost:SetTooltip(odds) end
+    if odds ~= nil then _G.LootTooltip.Attach(oddsHost, odds) end
 
     local chanceLabel = Turbine.UI.Label()
     chanceLabel:SetParent(oddsHost)
@@ -1373,8 +1337,19 @@ function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
     -- and the row highlight would drop out exactly where you are looking. So they drive it too.
     nameLabel.MouseEnter = row.MouseEnter
     nameLabel.MouseLeave = row.MouseLeave
-    oddsHost.MouseEnter  = row.MouseEnter
-    oddsHost.MouseLeave  = row.MouseLeave
+
+    -- oddsHost already carries Attach's own MouseEnter/MouseLeave (the rolls tooltip) when there
+    -- is more than one roll behind the figure -- overwriting them the way nameLabel's are copied
+    -- would silently drop the tooltip, so the row highlight is composed onto them instead.
+    local tipEnter, tipLeave = oddsHost.MouseEnter, oddsHost.MouseLeave
+    oddsHost.MouseEnter = function()
+        row.MouseEnter()
+        if tipEnter ~= nil then tipEnter() end
+    end
+    oddsHost.MouseLeave = function()
+        row.MouseLeave()
+        if tipLeave ~= nil then tipLeave() end
+    end
 
     -- Named, because a rebuilt row cannot rely on SizeChanged alone: a fresh row whose width
     -- already matches the list never fires one, and then it draws with every column at zero.
@@ -1462,25 +1437,6 @@ function _G.LootBrowser:MakeItemRow(eventIndex, drop, alt)
     row.SizeChanged = row.Layout
 
     return row
-
-end
-
-function _G.LootBrowser:RefreshNeededPill()
-
-    self.neededPill:SetBackColor(self.neededOnly and _G.Theme.CHIP_FAV_FRAME or _G.Theme.FRAME)
-    self.neededInner:SetBackColor(self.neededOnly and _G.Theme.CHIP_FAV_BG or _G.Theme.BG)
-    self.neededLabel:SetForeColor(self.neededOnly and _G.Theme.CHIP_FAV_TEXT or _G.Theme.TEXT)
-
-end
-
--- Hidden when the filter is on and this character already has one. Deliberately per-character:
--- the wishlist is shared across your alts, but what you have already collected is not.
-function _G.LootBrowser:Filtered(drop)
-
-    if not self.neededOnly then return false end
-    if _G.LootStats == nil then return false end
-
-    return _G.LootStats.Acquired(drop.item) ~= nil
 
 end
 
@@ -1576,7 +1532,7 @@ function _G.LootBrowser:BuildRows()
 
     for _, drop in ipairs(_G.LootDrops.RowsFor(eventIndex, self.selectedClass)) do
 
-        if self:InSource(drop) and not self:Filtered(drop) then
+        if self:InSource(drop) then
 
             visible[#visible + 1] = drop
 
@@ -1806,18 +1762,11 @@ function _G.LootBrowser:OnLayout(width, height)
     self.countLabel:SetPosition(tableLeft, PAD + _G.Scaled(24))
     self.countLabel:SetSize(math.max(0, tableW - _G.Scaled(240)), _G.Scaled(16))
 
-    -- the lock segment hugs the right edge; the "still needed" toggle sits to its left, far
-    -- enough from it that it does not read as another lock
+    -- the lock segment hugs the right edge
     local sourceW  = 3 * (SOURCE_W + SEP_W) + SEP_W
-    local neededW  = _G.Scaled(96)
     local sourceX  = math.max(tableLeft, tableLeft + tableW - sourceW)
 
     self.sourceStrip:SetPosition(sourceX, PAD)
-
-    self.neededPill:SetPosition(math.max(tableLeft, sourceX - GAP - neededW), PAD)
-    self.neededPill:SetSize(neededW, PILL_H)
-    self.neededInner:SetSize(neededW - 2, PILL_H - 2)
-    self.neededLabel:SetSize(neededW - 2, PILL_H - 2)
 
     -- the class strip is its own line under the heading, because twelve portraits do not fit
     -- beside a boss name at any window width worth having

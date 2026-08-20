@@ -44,11 +44,13 @@ import "LootLogs.Utils.Commands"
 
 -- ui ----------------------------------------------------------------------------------------------
 import "LootLogs.UI.Window.Base"
+import "LootLogs.UI.Window.Tooltip"
 import "LootLogs.UI.Window.LootRow"
 import "LootLogs.UI.Window.LootPopup"
 import "LootLogs.UI.Window.LootBrowser"
 import "LootLogs.UI.QuickLaunch"
 
+_G.LootTooltipWindow = _G.LootTooltip()
 _G.Window = _G.LLWindow()
 _G.LootPopupWindow = _G.LootPopup()
 _G.LootBrowserWindow = _G.LootBrowser()
