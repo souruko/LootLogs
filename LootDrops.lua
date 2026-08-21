@@ -944,7 +944,24 @@ function _G.LootDrops.RollLines(drop)
 
     if drop == nil then return lines end
 
+    -- LOCK_KINDS fixes favoured before common for every other reader; here it would put a 5%
+    -- favoured block above a guaranteed common one. The tooltip is read top to bottom as a
+    -- ranking, so the blocks themselves sort by their own folded chance, biggest first -- only
+    -- the rolls inside a block keep the fixed order (favoured tag before common tag) when tied.
+    local kinds, order = {}, {}
     for _, kind in ipairs(LOCK_KINDS) do
+        if drop[kind] ~= nil then
+            kinds[#kinds + 1] = kind
+            order[kind] = #kinds
+        end
+    end
+    table.sort(kinds, function(a, b)
+        local ca, cb = drop[a].chance or 0, drop[b].chance or 0
+        if ca ~= cb then return ca > cb end
+        return order[a] < order[b]
+    end)
+
+    for _, kind in ipairs(kinds) do
 
         local pack = drop[kind]
 
