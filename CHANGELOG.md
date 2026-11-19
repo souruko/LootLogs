@@ -4,6 +4,10 @@ Versions are `<major>.<lotro update>.<release>`. The middle number is the LOTRO 
 build targets, and the last number counts fixes and changes within it, resetting when either of the
 numbers above it moves. The leading number moves only for a major overhaul of the plugin itself.
 
+## [4.50.1] - 2026-11-19
+- Added Wolves of Mordor Weeklies
+- fixed Pughlak for germen Client
+
 ## [4.49.6] - 2026-08-20
 
 ### Added
